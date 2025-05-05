@@ -1,4 +1,4 @@
-# OS NGD Features API - MCP Service
+# OS NGD Features API - MCP Server
 
 A Python-based MCP server that provides access to the Ordnance Survey National Geographic Database (NGD) Features API.
 
