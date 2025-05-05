@@ -1,0 +1,117 @@
+### [Direct link to heading](https://docs.os.uk/osngd/accessing-os-ngd/access-the-os-ngd-api/os-ngd-api-features/technical-specification/collection\#get-collections-collectionid)    Get a single OS NGD feature collection
+
+get
+
+https://api.os.uk/features/ngd/ofa/v1/collections/{collectionId}
+
+Get information about an OS NGD feature collection
+
+Path parameters
+
+collectionIdstring · enumRequired
+
+A known collection ID.
+
+Example: `bld-fts-building-1`Possible values: `bld-fts-building-1``bld-fts-building-2``bld-fts-building-3``bld-fts-building-4``bld-fts-buildingaccesslocation-1``bld-fts-buildingline-1``bld-fts-buildingpart-1``bld-fts-buildingpart-2``gnm-fts-crowdsourcednamepoint-1``gnm-fts-namedarea-1``gnm-fts-namedpoint-1``gnm-fts-namedroadjunction-1``lnd-fts-land-1``lnd-fts-land-2``lnd-fts-land-3``lnd-fts-landform-1``lnd-fts-landformline-1``lnd-fts-landformpoint-1``lnd-fts-landpoint-1``lus-fts-site-1``lus-fts-site-2``lus-fts-siteaccesslocation-1``lus-fts-siteaccesslocation-2``lus-fts-siteroutingpoint-1``str-fts-compoundstructure-1``str-fts-compoundstructure-2``str-fts-fieldboundary-1``str-fts-structure-1``str-fts-structure-2``str-fts-structure-3``str-fts-structureline-1``str-fts-structurepoint-1``trn-fts-cartographicraildetail-1``trn-fts-rail-1``trn-fts-rail-2``trn-fts-rail-3``trn-fts-roadline-1``trn-fts-roadtrackorpath-1``trn-fts-roadtrackorpath-2``trn-fts-roadtrackorpath-3``trn-fts-streetlight-1``trn-ntwk-connectinglink-1``trn-ntwk-connectingnode-1``trn-ntwk-ferrylink-1``trn-ntwk-ferrynode-1``trn-ntwk-ferryterminal-1``trn-ntwk-path-1``trn-ntwk-pathlink-1``trn-ntwk-pathlink-2``trn-ntwk-pathnode-1``trn-ntwk-pavementlink-1``trn-ntwk-railwaylink-1``trn-ntwk-railwaylinkset-1``trn-ntwk-railwaynode-1``trn-ntwk-road-1``trn-ntwk-roadjunction-1``trn-ntwk-roadlink-1``trn-ntwk-roadlink-2``trn-ntwk-roadlink-3``trn-ntwk-roadlink-4``trn-ntwk-roadnode-1``trn-ntwk-street-1``trn-ntwk-tramonroad-1``trn-rami-averageandindicativespeed-1``trn-rami-highwaydedication-1``trn-rami-maintenancearea-1``trn-rami-maintenanceline-1``trn-rami-maintenancepoint-1``trn-rami-reinstatementarea-1``trn-rami-reinstatementline-1``trn-rami-reinstatementpoint-1``trn-rami-restriction-1``trn-rami-routinghazard-1``trn-rami-routingstructure-1``trn-rami-specialdesignationarea-1``trn-rami-specialdesignationline-1``trn-rami-specialdesignationpoint-1``wtr-fts-intertidalline-1``wtr-fts-tidalboundary-1``wtr-fts-water-1``wtr-fts-water-2``wtr-fts-water-3``wtr-fts-waterpoint-1``wtr-ntwk-waterlink-1``wtr-ntwk-waterlinkset-1``wtr-ntwk-waternode-1`
+
+Responses
+
+200
+
+A single Ordnance Survey National Geographic Database feature collection.
+
+application/json
+
+Responseobject
+
+Show properties
+
+400
+
+The request was not supported.
+
+404
+
+Collection '{collectionId}' is not a supported Collection. Please refer to the documentation for a list of supported Collections.
+
+405
+
+The HTTP method requested is not supported. This endpoint only supports 'GET' requests.
+
+406
+
+A request header value was not supported.
+
+get
+
+/collections/{collectionId}
+
+HTTP
+
+HTTPcURLJavaScriptPython
+
+Copy
+
+```inline-grid min-w-full grid-cols-[auto_1fr] p-2 [count-reset:line]
+GET /features/ngd/ofa/v1/collections/{collectionId} HTTP/1.1
+Host: api.os.uk
+Accept: */*
+
+```
+
+Test it
+
+200
+
+A single Ordnance Survey National Geographic Database feature collection.
+
+Copy
+
+```inline-grid min-w-full grid-cols-[auto_1fr] p-2 [count-reset:line]
+{
+  "id": "text",
+  "title": "text",
+  "description": "text",
+  "crs": [\
+    "http://www.opengis.net/def/crs/OGC/1.3/CRS84"\
+  ],
+  "storageCrs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84",
+  "itemType": "text",
+  "extent": {
+    "spatial": {
+      "bbox": [\
+        [\
+          1\
+        ]\
+      ],
+      "crs": "text"
+    },
+    "temporal": {
+      "interval": [\
+        [\
+          "text"\
+        ]\
+      ],
+      "trs": "text"
+    }
+  },
+  "links": [\
+    {\
+      "href": "text",\
+      "rel": "text",\
+      "type": "text",\
+      "title": "text"\
+    }\
+  ]
+}
+```
+
+[PreviousCollections](https://docs.os.uk/osngd/accessing-os-ngd/access-the-os-ngd-api/os-ngd-api-features/technical-specification/collections) [NextSchema](https://docs.os.uk/osngd/accessing-os-ngd/access-the-os-ngd-api/os-ngd-api-features/technical-specification/schema)
+
+Last updated 3 days ago
+
+Was this helpful?
+
+This site uses cookies to deliver its service and to analyze traffic. By browsing this site, you accept the [privacy policy](https://www.ordnancesurvey.co.uk/governance/policies/privacy).
+
+AcceptReject

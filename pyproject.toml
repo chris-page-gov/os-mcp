@@ -1,0 +1,10 @@
+[project]
+name = "os-mcp-ngd-features"
+version = "0.1.0"
+description = "A Python-based MCP server that provides access to the Ordnance Survey National Geographic Database (NGD) Features API."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.11.18",
+    "mcp[cli]>=1.7.1",
+]
