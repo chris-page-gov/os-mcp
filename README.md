@@ -1,4 +1,4 @@
-# OS NGD Features API - MCP Server
+# Ordnance Survey - MCP Server
 
 A Python-based MCP server that provides access to the Ordnance Survey APIs.
 
@@ -6,11 +6,11 @@ A Python-based MCP server that provides access to the Ordnance Survey APIs.
 
 This service creates a bridge between MCP clients and the OS APIs, making it easy to query geographic data through a standardised protocol.
 
-The service handles authentication, (basic) rate limiting, and provides a simplified interface to the complex OS API.
+The service handles authentication, (basic) rate limiting, and provides a simplified interface to complex OS APIs.
 
 ## Project Structure
 
-- **api_service** - HTTP client implementation for the OS APIs
+- **api_service** - Asynchronous HTTP client implementation for the OS APIs
 
   - Handles authentication, request formatting, and response processing
   - Manages rate limiting and error handling
@@ -95,6 +95,6 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
 
 This project does not have the endorsement of Ordnance Survey.
