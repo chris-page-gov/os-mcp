@@ -5,6 +5,14 @@ from typing import Protocol, Dict, List, Any, Optional, runtime_checkable
 class APIClient(Protocol):
     """Protocol for API clients"""
 
+    async def initialise(self):
+        """Initialise the aiohttp session if not already created"""
+        ...
+
+    async def close(self):
+        """Close the aiohttp session"""
+        ...
+
     def get_api_key(self) -> str:
         """Get the API key"""
         ...

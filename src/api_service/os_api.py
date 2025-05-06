@@ -10,49 +10,43 @@ from .protocols import APIClient
 
 class NGDAPIEndpoint(Enum):
     """
-    Enum for the OS NGD API Endpoints following OGC API Features standard
+    Enum for the OS API Endpoints following OGC API Features standard
     """
 
-    BASE_PATH = "https://api.os.uk/features/ngd/ofa/v1/{}"
-    LINKED_BASE_PATH = "https://api.os.uk/search/links/v1/{}"
-
-    # Core Endpoints
-    COLLECTIONS = BASE_PATH.format("collections")
-    COLLECTION_INFO = BASE_PATH.format("collections/{}")
-    COLLECTION_SCHEMA = BASE_PATH.format("collections/{}/schema")
-    COLLECTION_FEATURES = BASE_PATH.format("collections/{}/items")
-    COLLECTION_FEATURE_BY_ID = BASE_PATH.format("collections/{}/items/{}")
-
-    # CRS Endpoints
-    COLLECTION_CRSS = BASE_PATH.format("collections/{}/crs")
-
-    # Filtering Endpoints
-    COLLECTION_QUERYABLES = BASE_PATH.format("collections/{}/queryables")
-    FUNCTIONS = BASE_PATH.format("functions")
+    # NGD Features Endpoints
+    NGD_FEATURES_BASE_PATH = "https://api.os.uk/features/ngd/ofa/v1/{}"
+    COLLECTIONS = NGD_FEATURES_BASE_PATH.format("collections")
+    COLLECTION_INFO = NGD_FEATURES_BASE_PATH.format("collections/{}")
+    COLLECTION_SCHEMA = NGD_FEATURES_BASE_PATH.format("collections/{}/schema")
+    COLLECTION_FEATURES = NGD_FEATURES_BASE_PATH.format("collections/{}/items")
+    COLLECTION_FEATURE_BY_ID = NGD_FEATURES_BASE_PATH.format("collections/{}/items/{}")
+    COLLECTION_QUERYABLES = NGD_FEATURES_BASE_PATH.format("collections/{}/queryables")
 
     # Linked Identifiers Endpoints
-    LINKED_IDENTIFIERS = LINKED_BASE_PATH.format("identifierTypes/{}/{}")
+    LINKED_IDENTIFIERS_BASE_PATH = "https://api.os.uk/search/links/v1/{}"
+    LINKED_IDENTIFIERS = LINKED_IDENTIFIERS_BASE_PATH.format("identifierTypes/{}/{}")
 
+    # Places API Endpoints
+    PLACES_BASE_PATH = "https://api.os.uk/search/places/v1/{}"
+    PLACES_UPRN = PLACES_BASE_PATH.format("uprn")
 
-class OSNGDAPIClient(APIClient):
-    """Implementation of the OS NGD API client"""
+class OSAPIClient(APIClient):
+    """Implementation of the OS APIs"""
 
-    USER_AGENT = "os-ngd-mcp-server/1.0"
-
-    # Add this class variable to control request timing
-    # TODO: This is because there seems to be some rate limiting in place - TBC if this is the case
-    request_delay = 0.7  # 700ms delay between requests
-    _last_request_time = 0
+    user_agent = "os-ngd-mcp-server/1.0"
 
     def __init__(self, api_key: Optional[str] = None):
         """
-        Initialise the OS NGD API client
+        Initialise the OS API client
 
         Args:
             api_key: Optional API key, if not provided will use OS_API_KEY env var
         """
         self.api_key = api_key
         self.session = None
+        self.last_request_time = 0
+        # TODO: This is because there seems to be some rate limiting in place - TBC if this is the case
+        self.request_delay = 0.7
 
     async def initialise(self):
         """Initialise the aiohttp session if not already created"""
@@ -107,7 +101,7 @@ class OSNGDAPIClient(APIClient):
 
         # Rate limiting
         current_time = asyncio.get_event_loop().time()
-        elapsed = current_time - self._last_request_time
+        elapsed = current_time - self.last_request_time
         if elapsed < self.request_delay:
             await asyncio.sleep(self.request_delay - elapsed)
 
@@ -126,7 +120,7 @@ class OSNGDAPIClient(APIClient):
         request_params = params or {}
         request_params["key"] = api_key
 
-        headers = {"User-Agent": self.USER_AGENT, "Accept": "application/json"}
+        headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
 
         print(
             f"Requesting URL: {endpoint_value} with params: {request_params}",
@@ -136,11 +130,14 @@ class OSNGDAPIClient(APIClient):
         for attempt in range(1, max_retries + 1):
             try:
                 # Record request time just before making the request
-                self._last_request_time = asyncio.get_event_loop().time()
+                self.last_request_time = asyncio.get_event_loop().time()
 
                 timeout = aiohttp.ClientTimeout(total=30.0)
                 async with self.session.get(
-                    endpoint_value, params=request_params, headers=headers, timeout=timeout
+                    endpoint_value,
+                    params=request_params,
+                    headers=headers,
+                    timeout=timeout,
                 ) as response:
                     if response.status >= 400:
                         error_message = (
@@ -152,13 +149,17 @@ class OSNGDAPIClient(APIClient):
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if attempt == max_retries:
-                    error_message = f"Request failed after {max_retries} attempts: {str(e)}"
+                    error_message = (
+                        f"Request failed after {max_retries} attempts: {str(e)}"
+                    )
                     print(f"Error: {error_message}", file=sys.stderr)
                     raise ValueError(error_message)
                 else:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.7)
             except Exception as e:
                 error_message = f"Request failed: {str(e)}"
                 print(f"Error: {error_message}", file=sys.stderr)
                 raise ValueError(error_message)
-        raise RuntimeError("Unreachable: make_request exited retry loop without returning or raising")
+        raise RuntimeError(
+            "Unreachable: make_request exited retry loop without returning or raising"
+        )

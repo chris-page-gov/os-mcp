@@ -1,8 +1,8 @@
 import sys
 from mcp.server.fastmcp import FastMCP
 
-from api_service.os_ngd_api import OSNGDAPIClient
-from mcp_service.os_ngd_service import OSNGDService
+from api_service.os_api import OSAPIClient
+from mcp_service.os_service import OSNGDService
 
 
 def main():
@@ -11,12 +11,14 @@ def main():
     print("OS NGD API MCP Server starting...", file=sys.stderr)
     print("Waiting for requests...", file=sys.stderr)
 
-    # Initialise components
-    api_client = OSNGDAPIClient()
-    mcp_service = FastMCP("os-ngd-api")
+    # Initialise OS NGD API
+    api_client = OSAPIClient()
+
+    # Create MCP server
+    mcp = FastMCP("os-ngd-api")
 
     # Create and run service
-    service = OSNGDService(api_client, mcp_service)
+    service = OSNGDService(api_client, mcp)
     service.run()
 
 

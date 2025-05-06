@@ -35,6 +35,7 @@ class OSNGDService(FeatureService):
         self.get_bulk_features = self.mcp.tool()(self.get_bulk_features)
         self.get_bulk_linked_features = self.mcp.tool()(self.get_bulk_linked_features)
         self.get_prompt_templates = self.mcp.tool()(self.get_prompt_templates)
+        self.search_by_uprn = self.mcp.tool()(self.search_by_uprn)
 
     def hello_world(self) -> str:
         """A simple test tool that returns a greeting message."""
@@ -297,20 +298,65 @@ class OSNGDService(FeatureService):
     def get_prompt_templates(self, category: Optional[str] = None) -> str:
         """
         Get standard prompt templates for interacting with this service.
-        
+
         Args:
-            category: Optional category of templates to return 
+            category: Optional category of templates to return
                      (general, collections, features, linked_identifiers)
-        
+
         Returns:
             JSON string containing prompt templates
         """
         from promp_templates.prompt_templates import PROMPT_TEMPLATES
-        
+
         if category and category in PROMPT_TEMPLATES:
             return json.dumps({category: PROMPT_TEMPLATES[category]})
-        
+
         return json.dumps(PROMPT_TEMPLATES)
+
+    async def search_by_uprn(
+        self, 
+        uprn: int, 
+        format: str = "JSON", 
+        dataset: str = "DPA",
+        lr: str = "EN",
+        output_srs: str = "EPSG:27700",
+        fq: Optional[List[str]] = None
+    ) -> str:
+        """
+        Find addresses by UPRN using the OS Places API.
+        
+        Args:
+            uprn: A valid UPRN (Unique Property Reference Number)
+            format: The format the response will be returned in (JSON or XML)
+            dataset: The dataset to return (DPA, LPI or both separated by comma)
+            lr: Language of addresses to return (EN, CY)
+            output_srs: The output spatial reference system
+            fq: Optional filter for classification code, logical status code, etc.
+            
+        Returns:
+            JSON string with matched addresses
+        """
+        try:
+            params = {
+                "uprn": uprn,
+                "format": format,
+                "dataset": dataset,
+                "lr": lr,
+                "output_srs": output_srs
+            }
+            
+            # Add filters if provided
+            if fq:
+                params["fq"] = fq
+            
+            data = await self.api_client.make_request(
+                "PLACES_UPRN",
+                params=params
+            )
+            
+            return json.dumps(data)
+        except Exception as e:
+            return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
 
     def run(self) -> None:
         """Run the MCP service"""

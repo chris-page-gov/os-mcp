@@ -1,22 +1,22 @@
 # OS NGD Features API - MCP Server
 
-A Python-based MCP server that provides access to the Ordnance Survey National Geographic Database (NGD) Features API.
+A Python-based MCP server that provides access to the Ordnance Survey APIs.
 
 ## Overview
 
-This service creates a bridge between MCP clients and the OS NGD Features API, making it easy to query geographic data through a standardised protocol.
+This service creates a bridge between MCP clients and the OS APIs, making it easy to query geographic data through a standardised protocol.
 
 The service handles authentication, (basic) rate limiting, and provides a simplified interface to the complex OS API.
 
 ## Project Structure
 
-- **api_service** - HTTP client implementation for the OS NGD Features API
+- **api_service** - HTTP client implementation for the OS APIs
 
   - Handles authentication, request formatting, and response processing
   - Manages rate limiting and error handling
   - Provides a clean interface to the external API endpoints
 
-- **mcp_service** - Exposes OS NGD API functionality as MCP tools
+- **mcp_service** - Exposes OS APIs functionality as MCP tools
 
   - Converts API responses to MCP-compatible formats
   - Implements business logic for feature operations
@@ -46,7 +46,7 @@ Configure in your MCP host configuration file (e.g Claude Desktop):
   "mcpServers": {
     "os-ngd-api": {
       "command": "/Users/username/.local/bin/uv",
-      "args": ["--directory", "src/", "run", "main.py"],
+      "args": ["--directory", "src/", "run", "server.py"],
       "env": {
         "OS_API_KEY": "your_api_key_here"
       }
