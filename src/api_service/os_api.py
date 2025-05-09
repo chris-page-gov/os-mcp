@@ -30,6 +30,7 @@ class NGDAPIEndpoint(Enum):
     PLACES_BASE_PATH = "https://api.os.uk/search/places/v1/{}"
     PLACES_UPRN = PLACES_BASE_PATH.format("uprn")
 
+
 class OSAPIClient(APIClient):
     """Implementation of the OS APIs"""
 

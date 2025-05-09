@@ -84,13 +84,13 @@ class FeatureService(Protocol):
         ...
 
     async def search_by_uprn(
-        self, 
-        uprn: int, 
-        format: str = "JSON", 
+        self,
+        uprn: int,
+        format: str = "JSON",
         dataset: str = "DPA",
         lr: str = "EN",
         output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None
+        fq: Optional[List[str]] = None,
     ) -> str:
         """Find addresses by UPRN using the OS Places API"""
         ...

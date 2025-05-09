@@ -5,7 +5,7 @@ import json
 import asyncio
 
 
-class OSNGDService(FeatureService):
+class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
     def __init__(self, api_client: APIClient, mcp_service: MCPService):
@@ -314,17 +314,17 @@ class OSNGDService(FeatureService):
         return json.dumps(PROMPT_TEMPLATES)
 
     async def search_by_uprn(
-        self, 
-        uprn: int, 
-        format: str = "JSON", 
+        self,
+        uprn: int,
+        format: str = "JSON",
         dataset: str = "DPA",
         lr: str = "EN",
         output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None
+        fq: Optional[List[str]] = None,
     ) -> str:
         """
         Find addresses by UPRN using the OS Places API.
-        
+
         Args:
             uprn: A valid UPRN (Unique Property Reference Number)
             format: The format the response will be returned in (JSON or XML)
@@ -332,7 +332,7 @@ class OSNGDService(FeatureService):
             lr: Language of addresses to return (EN, CY)
             output_srs: The output spatial reference system
             fq: Optional filter for classification code, logical status code, etc.
-            
+
         Returns:
             JSON string with matched addresses
         """
@@ -342,18 +342,15 @@ class OSNGDService(FeatureService):
                 "format": format,
                 "dataset": dataset,
                 "lr": lr,
-                "output_srs": output_srs
+                "output_srs": output_srs,
             }
-            
+
             # Add filters if provided
             if fq:
                 params["fq"] = fq
-            
-            data = await self.api_client.make_request(
-                "PLACES_UPRN",
-                params=params
-            )
-            
+
+            data = await self.api_client.make_request("PLACES_UPRN", params=params)
+
             return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
