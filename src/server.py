@@ -122,7 +122,6 @@ def main():
                 logger.error("Authentication failed")
                 return
 
-            # Run the service (without rate limiting)
             service.run()
         case "sse":
             logger.info(f"Starting SSE server on {args.host}:{args.port}")
