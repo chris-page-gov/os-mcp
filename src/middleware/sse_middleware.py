@@ -1,21 +1,21 @@
 import os
-import logging
-
 from typing import List
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
-
+from utils.logging_config import get_logger
 
 # API Key authentication
+# TODO: This is a placeholder for a more secure authentication mechanism in the future. 
+# This will be removed and it just the start.
 api_key_header = APIKeyHeader(name="x-api-key")
 
 # OAuth support (can be expanded)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_valid_api_keys() -> List[str]:
@@ -51,7 +51,7 @@ async def verify_oauth_token(token: str = Depends(oauth2_scheme)) -> dict:
     return {"sub": "user", "scopes": ["read", "execute"]}
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
+class SSEMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Block calls from browser plugins based on headers
         user_agent = request.headers.get("user-agent", "")
@@ -69,6 +69,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if request.url.path == "/.well-known/mcp-auth":
             return await call_next(request)
 
+        # Continue with normal auth flow
         api_key = request.headers.get("x-api-key")
         valid_keys = get_valid_api_keys()
 
@@ -82,9 +83,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if auth_header and auth_header.startswith("Bearer "):
             # Implement token verification
             token = auth_header.replace("Bearer ", "")
-            # Add token verification here
             # For now, simplified check
-            # TODO: This is a placeholder for a more secure authentication mechanism in the future
             if token and token != "invalid":
                 return await call_next(request)
 

@@ -1,9 +1,13 @@
-from typing import Optional, List
-from api_service.protocols import APIClient
-from .protocols import MCPService, FeatureService
 import json
 import asyncio
 
+from typing import Optional, List
+from api_service.protocols import APIClient
+from .protocols import MCPService, FeatureService
+from .guardrails import ToolGuardrails
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
@@ -18,24 +22,80 @@ class OSDataHubService(FeatureService):
         """
         self.api_client = api_client
         self.mcp = mcp_service
+        # Use default client ID initially
+        # TODO: Remove this once we have a proper client ID - this is broken.
+        # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
+        self.session = {"client_id": "default_client"}  
 
+        # Initialise guardrails
+        # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
+        self.guardrails = ToolGuardrails(requests_per_minute=25, client_id=self.session["client_id"])
+        
         # Register tools
         self.register_tools()
 
     def register_tools(self) -> None:
-        """Register all MCP tools"""
-        self.hello_world = self.mcp.tool()(self.hello_world)
-        self.check_api_key = self.mcp.tool()(self.check_api_key)
-        self.list_collections = self.mcp.tool()(self.list_collections)
-        self.get_collection_info = self.mcp.tool()(self.get_collection_info)
-        self.get_collection_queryables = self.mcp.tool()(self.get_collection_queryables)
-        self.search_features = self.mcp.tool()(self.search_features)
-        self.get_feature = self.mcp.tool()(self.get_feature)
-        self.get_linked_identifiers = self.mcp.tool()(self.get_linked_identifiers)
-        self.get_bulk_features = self.mcp.tool()(self.get_bulk_features)
-        self.get_bulk_linked_features = self.mcp.tool()(self.get_bulk_linked_features)
-        self.get_prompt_templates = self.mcp.tool()(self.get_prompt_templates)
-        self.search_by_uprn = self.mcp.tool()(self.search_by_uprn)
+        """Register all MCP tools with guardrails"""
+        
+        self.hello_world = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.hello_world)
+        )
+        self.check_api_key = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.check_api_key)
+        )
+        self.list_collections = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.list_collections)
+        )
+        self.get_collection_info = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_collection_info)
+        )
+        self.get_collection_queryables = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_collection_queryables)
+        )
+        self.search_features = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.search_features)
+        )
+        self.get_feature = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_feature)
+        )
+        self.get_linked_identifiers = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_linked_identifiers)
+        )
+        self.get_bulk_features = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_bulk_features)
+        )
+        self.get_bulk_linked_features = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_bulk_linked_features)
+        )
+        self.get_prompt_templates = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_prompt_templates)
+        )
+        self.search_by_uprn = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.search_by_uprn)
+        )
+
+    # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
+    def message_listener(self, message: dict):
+        """
+        Handle incoming protocol messages.
+        Extracts client name on 'initialize' and stores it in session.
+        """
+        if message.get("method") == "initialize":
+            try:
+                client_name = message["params"]["clientInfo"]["name"]
+                logger.info(f"Client name: {client_name}")
+                self.session["client_id"] = client_name
+                # Update the guardrails client ID
+                self.guardrails.client_id = client_name
+                logger.info(f"Set client_id to '{client_name}' in session.")
+            except Exception as e:
+                logger.warning(f"Could not extract client name: {e}")
+        elif message.get("method") == "tools/call":
+            # Ensure the client ID is used for all tool calls
+            # This is crucial for maintaining per-client rate limits
+            if "client_id" in self.session:
+                logger.info(f"Client ID: {self.session['client_id']}")
+                self.guardrails.client_id = self.session["client_id"]
 
     def hello_world(self) -> str:
         """A simple test tool that returns a greeting message."""
@@ -49,7 +109,7 @@ class OSDataHubService(FeatureService):
         except ValueError as e:
             return str(e)
 
-    async def list_collections(self) -> str:
+    async def list_collections(self,) -> str:
         """
         List all available feature collections in the OS NGD API.
 
@@ -71,7 +131,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    async def get_collection_info(self, collection_id: str) -> str:
+    async def get_collection_info(self, collection_id: str,) -> str:
         """
         Get detailed information about a specific collection.
 
@@ -90,7 +150,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    async def get_collection_queryables(self, collection_id: str) -> str:
+    async def get_collection_queryables(self, collection_id: str,) -> str:
         """
         Get the list of queryable properties for a collection.
 
@@ -118,6 +178,7 @@ class OSDataHubService(FeatureService):
         offset: int = 0,
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
+    
     ) -> str:
         """
         Search for features in a collection with simplified parameters.
@@ -150,7 +211,7 @@ class OSDataHubService(FeatureService):
             return json.dumps({"error": str(e)})
 
     async def get_feature(
-        self, collection_id: str, feature_id: str, crs: Optional[str] = None
+        self, collection_id: str, feature_id: str, crs: Optional[str] = None,
     ) -> str:
         """
         Get a specific feature by ID.
@@ -179,7 +240,7 @@ class OSDataHubService(FeatureService):
             return json.dumps({"error": f"Error getting feature: {str(e)}"})
 
     async def get_linked_identifiers(
-        self, identifier_type: str, identifier: str, feature_type: Optional[str] = None
+        self, identifier_type: str, identifier: str, feature_type: Optional[str] = None,
     ) -> str:
         """
         Get linked identifiers for a specified identifier.
@@ -225,6 +286,7 @@ class OSDataHubService(FeatureService):
         collection_id: str,
         identifiers: List[str],
         query_by_attr: Optional[str] = None,
+    
     ) -> str:
         """
         Get multiple features in a single call.
@@ -268,6 +330,7 @@ class OSDataHubService(FeatureService):
         identifier_type: str,
         identifiers: List[str],
         feature_type: Optional[str] = None,
+    
     ) -> str:
         """
         Get linked features for multiple identifiers in a single call.
@@ -295,7 +358,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    def get_prompt_templates(self, category: Optional[str] = None) -> str:
+    def get_prompt_templates(self, category: Optional[str] = None,) -> str:
         """
         Get standard prompt templates for interacting with this service.
 
@@ -315,12 +378,13 @@ class OSDataHubService(FeatureService):
 
     async def search_by_uprn(
         self,
-        uprn: int,
+        uprn: str,
         format: str = "JSON",
         dataset: str = "DPA",
         lr: str = "EN",
         output_srs: str = "EPSG:27700",
         fq: Optional[List[str]] = None,
+    
     ) -> str:
         """
         Find addresses by UPRN using the OS Places API.
@@ -337,8 +401,36 @@ class OSDataHubService(FeatureService):
             JSON string with matched addresses
         """
         try:
+            # Convert UPRN to integer
+            if not uprn.isdigit():
+                return json.dumps({"error": "UPRN must contain only digits"})
+            uprn_int = int(uprn)
+
+            # Validate allowed values for format
+            if format not in ["JSON", "XML"]:
+                return json.dumps({"error": "Format must be 'JSON' or 'XML'"})
+
+            # Validate dataset
+            valid_datasets = ["DPA", "LPI"]
+            dataset_parts = dataset.split(",")
+            if not all(part.strip() in valid_datasets for part in dataset_parts):
+                return json.dumps(
+                    {"error": "Dataset must be 'DPA', 'LPI', or both comma-separated"}
+                )
+
+            # Validate language
+            if lr not in ["EN", "CY"]:
+                return json.dumps({"error": "Language must be 'EN' or 'CY'"})
+
+            if output_srs not in ["EPSG:27700"]:
+                return json.dumps({"error": "Output SRS must be 'EPSG:27700'"})
+
+            # Validate filters if provided
+            if fq is not None and not isinstance(fq, list):
+                return json.dumps({"error": "Filters must be provided as a list"})
+
             params = {
-                "uprn": uprn,
+                "uprn": uprn_int,
                 "format": format,
                 "dataset": dataset,
                 "lr": lr,
@@ -351,6 +443,7 @@ class OSDataHubService(FeatureService):
 
             data = await self.api_client.make_request("PLACES_UPRN", params=params)
 
+            # Return sanitized data as JSON
             return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})

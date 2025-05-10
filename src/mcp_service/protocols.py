@@ -18,6 +18,10 @@ class MCPService(Protocol):
 class FeatureService(Protocol):
     """Protocol for OS NGD feature services"""
 
+    def message_listener(self, message: dict) -> None:
+        """Handle incoming protocol messages"""
+        ...
+
     def hello_world(self) -> str:
         """Test connection to the service"""
         ...
@@ -85,7 +89,7 @@ class FeatureService(Protocol):
 
     async def search_by_uprn(
         self,
-        uprn: int,
+        uprn: str,
         format: str = "JSON",
         dataset: str = "DPA",
         lr: str = "EN",

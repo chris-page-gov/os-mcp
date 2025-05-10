@@ -1,6 +1,5 @@
 import argparse
 import uvicorn
-import logging
 import os
 
 from starlette.applications import Starlette
@@ -13,12 +12,11 @@ from mcp.server.sse import SseServerTransport
 from api_service.os_api import OSAPIClient
 from mcp_service.os_service import OSDataHubService
 from mcp.server.fastmcp import FastMCP
-from auth.sse_auth import AuthMiddleware
-from auth.stdio_auth import StdioAuthenticator
+from middleware.sse_middleware import SSEMiddleware
+from middleware.stdio_middleware import StdioMiddleware
+from utils.logging_config import configure_logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = configure_logging()
 
 
 def create_sse_app(mcp: FastMCP, debug: bool = False) -> Starlette:
@@ -70,7 +68,7 @@ def create_sse_app(mcp: FastMCP, debug: bool = False) -> Starlette:
             Route("/sse", endpoint=handle_sse, methods=["GET"]),
             Mount("/messages/", app=sse.handle_post_message),
         ],
-        middleware=[Middleware(AuthMiddleware)],
+        middleware=[Middleware(SSEMiddleware)],
     )
 
 
@@ -94,11 +92,12 @@ def main():
     args = parser.parse_args()
 
     # Configure logging level
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(level=log_level)
+    configure_logging(debug=args.debug)
 
     # Print startup message
-    logger.info(f"OS NGD API MCP Server starting with {args.transport} transport...")
+    logger.info(
+        f"OS DataHub API MCP Server starting with {args.transport} transport..."
+    )
 
     # Initialise API client
     api_client = OSAPIClient()
@@ -115,21 +114,15 @@ def main():
             logger.info("Starting with stdio transport")
 
             # Initialise stdio authenticator
-            stdio_auth = StdioAuthenticator()
+            stdio_auth = StdioMiddleware()
 
-            # Always require an API key
+            # Handle authentication
             stdio_api_key = os.environ.get("STDIO_API_KEY")
-            if not stdio_api_key:
-                logger.error(
-                    "Authentication required: STDIO_API_KEY environment variable not set"
-                )
+            if not stdio_api_key or not stdio_auth.authenticate(stdio_api_key):
+                logger.error("Authentication failed")
                 return
 
-            # For now, just check that the key is not empty
-            if not stdio_auth.authenticate(stdio_api_key):
-                logger.error("Authentication failed: Empty API key")
-                return
-
+            # Run the service (without rate limiting)
             service.run()
         case "sse":
             logger.info(f"Starting SSE server on {args.host}:{args.port}")

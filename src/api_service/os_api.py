@@ -1,12 +1,12 @@
 import os
-import sys
 import aiohttp
 import asyncio
 from typing import Dict, List, Any, Optional
 from enum import Enum
-
 from .protocols import APIClient
+from utils.logging_config import get_logger
 
+logger = get_logger(__name__)
 
 class NGDAPIEndpoint(Enum):
     """
@@ -123,10 +123,11 @@ class OSAPIClient(APIClient):
 
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
 
-        print(
-            f"Requesting URL: {endpoint_value} with params: {request_params}",
-            file=sys.stderr,
-        )
+        # Log request with client IP if available
+        client_ip = getattr(self.session, '_source_address', None)
+        client_info = f" from {client_ip}" if client_ip else ""
+            
+        logger.info(f"Requesting URL: {endpoint_value}{client_info}")
 
         for attempt in range(1, max_retries + 1):
             try:
@@ -144,7 +145,7 @@ class OSAPIClient(APIClient):
                         error_message = (
                             f"HTTP Error: {response.status} - {await response.text()}"
                         )
-                        print(f"Error: {error_message}", file=sys.stderr)
+                        logger.error(f"Error: {error_message}")
                         raise ValueError(error_message)
 
                     return await response.json()
@@ -153,13 +154,13 @@ class OSAPIClient(APIClient):
                     error_message = (
                         f"Request failed after {max_retries} attempts: {str(e)}"
                     )
-                    print(f"Error: {error_message}", file=sys.stderr)
+                    logger.error(f"Error: {error_message}")
                     raise ValueError(error_message)
                 else:
                     await asyncio.sleep(0.7)
             except Exception as e:
                 error_message = f"Request failed: {str(e)}"
-                print(f"Error: {error_message}", file=sys.stderr)
+                logger.error(f"Error: {error_message}")
                 raise ValueError(error_message)
         raise RuntimeError(
             "Unreachable: make_request exited retry loop without returning or raising"

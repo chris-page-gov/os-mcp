@@ -1,9 +1,11 @@
 import json
-import sys
 from typing import Callable
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
-class StdioAuthenticator:
+class StdioMiddleware:
     """
     Authenticate stdio connections using environment variables.
     Currently just checks that key is not empty.
@@ -12,17 +14,19 @@ class StdioAuthenticator:
 
     def __init__(self):
         self.authenticated = False
+        self.client_id = "anonymous"
 
     def require_auth(self, func: Callable) -> Callable:
         """Decorator to require authentication for a function."""
 
         def wrapper(*args, **kwargs):
+            # Check authentication first
             if not self.authenticated:
-                print(
+                logger.error(
                     json.dumps({"error": "Authentication required", "code": 401}),
-                    file=sys.stderr,
                 )
                 return None
+
             return func(*args, **kwargs)
 
         return wrapper
@@ -31,7 +35,13 @@ class StdioAuthenticator:
         """
         Authenticate with API key.
         Currently just checks that key is not empty.
+        Also sets client_id for identification.
         """
-        # Always require a key, but accept any non-empty value
-        self.authenticated = bool(key and key.strip())
-        return self.authenticated
+        if key and key.strip():
+            self.authenticated = True
+            # Use the key as the client identifier
+            self.client_id = key
+            return True
+        else:
+            self.authenticated = False
+            return False
