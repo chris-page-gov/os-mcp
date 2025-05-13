@@ -2,7 +2,8 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/python
 {
   "name": "os-mcp-dev",
-  "image": "python:3.11",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "remoteUser": "vscode",
   // "features": {
   //   "ghcr.io/astral-sh/uv:0.4.4": {}
   
@@ -11,7 +12,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "pip install uv && uv pip install -r requirements.txt",
+  "postCreateCommand": "sudo pip install uv && sudo uv pip install --system -r requirements.txt",
   "customizations": {
     "vscode": {
       "settings": {},
