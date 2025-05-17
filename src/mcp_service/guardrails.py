@@ -16,7 +16,12 @@ class ToolGuardrails:
     TODO: Add more sophisticated prompt injection detection
     """
 
-    def __init__(self, requests_per_minute: int, window_seconds: int = 60, client_id: str = "default_client"):
+    def __init__(
+        self,
+        requests_per_minute: int,
+        window_seconds: int = 60,
+        client_id: str = "default_client",
+    ):
         # Rate limiting settings
         self.requests_per_minute = requests_per_minute
         self.window_seconds = window_seconds

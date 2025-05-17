@@ -9,6 +9,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
@@ -25,18 +26,20 @@ class OSDataHubService(FeatureService):
         # Use default client ID initially
         # TODO: Remove this once we have a proper client ID - this is broken.
         # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
-        self.session = {"client_id": "default_client"}  
+        self.session = {"client_id": "default_client"}
 
         # Initialise guardrails
         # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
-        self.guardrails = ToolGuardrails(requests_per_minute=25, client_id=self.session["client_id"])
-        
+        self.guardrails = ToolGuardrails(
+            requests_per_minute=25, client_id=self.session["client_id"]
+        )
+
         # Register tools
         self.register_tools()
 
     def register_tools(self) -> None:
         """Register all MCP tools with guardrails"""
-        
+
         self.hello_world = self.mcp.tool()(
             self.guardrails.basic_guardrails(self.hello_world)
         )
@@ -109,7 +112,9 @@ class OSDataHubService(FeatureService):
         except ValueError as e:
             return str(e)
 
-    async def list_collections(self,) -> str:
+    async def list_collections(
+        self,
+    ) -> str:
         """
         List all available feature collections in the OS NGD API.
 
@@ -131,7 +136,10 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    async def get_collection_info(self, collection_id: str,) -> str:
+    async def get_collection_info(
+        self,
+        collection_id: str,
+    ) -> str:
         """
         Get detailed information about a specific collection.
 
@@ -150,7 +158,10 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    async def get_collection_queryables(self, collection_id: str,) -> str:
+    async def get_collection_queryables(
+        self,
+        collection_id: str,
+    ) -> str:
         """
         Get the list of queryable properties for a collection.
 
@@ -178,7 +189,6 @@ class OSDataHubService(FeatureService):
         offset: int = 0,
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
-    
     ) -> str:
         """
         Search for features in a collection with simplified parameters.
@@ -211,7 +221,10 @@ class OSDataHubService(FeatureService):
             return json.dumps({"error": str(e)})
 
     async def get_feature(
-        self, collection_id: str, feature_id: str, crs: Optional[str] = None,
+        self,
+        collection_id: str,
+        feature_id: str,
+        crs: Optional[str] = None,
     ) -> str:
         """
         Get a specific feature by ID.
@@ -240,7 +253,10 @@ class OSDataHubService(FeatureService):
             return json.dumps({"error": f"Error getting feature: {str(e)}"})
 
     async def get_linked_identifiers(
-        self, identifier_type: str, identifier: str, feature_type: Optional[str] = None,
+        self,
+        identifier_type: str,
+        identifier: str,
+        feature_type: Optional[str] = None,
     ) -> str:
         """
         Get linked identifiers for a specified identifier.
@@ -286,7 +302,6 @@ class OSDataHubService(FeatureService):
         collection_id: str,
         identifiers: List[str],
         query_by_attr: Optional[str] = None,
-    
     ) -> str:
         """
         Get multiple features in a single call.
@@ -330,7 +345,6 @@ class OSDataHubService(FeatureService):
         identifier_type: str,
         identifiers: List[str],
         feature_type: Optional[str] = None,
-    
     ) -> str:
         """
         Get linked features for multiple identifiers in a single call.
@@ -358,7 +372,10 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    def get_prompt_templates(self, category: Optional[str] = None,) -> str:
+    def get_prompt_templates(
+        self,
+        category: Optional[str] = None,
+    ) -> str:
         """
         Get standard prompt templates for interacting with this service.
 
@@ -384,7 +401,6 @@ class OSDataHubService(FeatureService):
         lr: str = "EN",
         output_srs: str = "EPSG:27700",
         fq: Optional[List[str]] = None,
-    
     ) -> str:
         """
         Find addresses by UPRN using the OS Places API.
@@ -401,33 +417,15 @@ class OSDataHubService(FeatureService):
             JSON string with matched addresses
         """
         try:
+            # Validate all parameters first
+            errors = self._validate_uprn_params(
+                uprn, format, dataset, lr, output_srs, fq
+            )
+            if errors:
+                return json.dumps({"error": errors})
+
             # Convert UPRN to integer
-            if not uprn.isdigit():
-                return json.dumps({"error": "UPRN must contain only digits"})
             uprn_int = int(uprn)
-
-            # Validate allowed values for format
-            if format not in ["JSON", "XML"]:
-                return json.dumps({"error": "Format must be 'JSON' or 'XML'"})
-
-            # Validate dataset
-            valid_datasets = ["DPA", "LPI"]
-            dataset_parts = dataset.split(",")
-            if not all(part.strip() in valid_datasets for part in dataset_parts):
-                return json.dumps(
-                    {"error": "Dataset must be 'DPA', 'LPI', or both comma-separated"}
-                )
-
-            # Validate language
-            if lr not in ["EN", "CY"]:
-                return json.dumps({"error": "Language must be 'EN' or 'CY'"})
-
-            if output_srs not in ["EPSG:27700"]:
-                return json.dumps({"error": "Output SRS must be 'EPSG:27700'"})
-
-            # Validate filters if provided
-            if fq is not None and not isinstance(fq, list):
-                return json.dumps({"error": "Filters must be provided as a list"})
 
             params = {
                 "uprn": uprn_int,
@@ -447,6 +445,43 @@ class OSDataHubService(FeatureService):
             return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
+
+    def _validate_uprn_params(
+        self,
+        uprn: str,
+        format: str,
+        dataset: str,
+        lr: str,
+        output_srs: str,
+        fq: Optional[List[str]],
+    ) -> Optional[str]:
+        """Validate all parameters for the UPRN search and return error message if invalid."""
+        errors = []
+
+        # Helper function to check condition and add error
+        def check(condition, error_msg):
+            if condition:
+                errors.append(error_msg)
+
+        # Check each parameter
+        check(not uprn.isdigit(), "UPRN must contain only digits")
+        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
+
+        valid_datasets = ["DPA", "LPI"]
+        dataset_parts = dataset.split(",")
+        check(
+            not all(part.strip() in valid_datasets for part in dataset_parts),
+            "Dataset must be 'DPA', 'LPI', or both comma-separated",
+        )
+
+        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
+        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
+        check(
+            fq is not None and not isinstance(fq, list),
+            "Filters must be provided as a list",
+        )
+
+        return errors[0] if errors else None
 
     def run(self) -> None:
         """Run the MCP service"""

@@ -3,90 +3,73 @@ import uvicorn
 import os
 
 from starlette.applications import Starlette
-from starlette.responses import Response, JSONResponse
-from starlette.requests import Request
-from starlette.routing import Mount, Route
+from starlette.responses import JSONResponse
 from starlette.middleware import Middleware
-from mcp.server.sse import SseServerTransport
+from starlette.routing import Mount, Route
+from contextlib import asynccontextmanager
 
 from api_service.os_api import OSAPIClient
 from mcp_service.os_service import OSDataHubService
 from mcp.server.fastmcp import FastMCP
-from middleware.sse_middleware import SSEMiddleware
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from middleware.stdio_middleware import StdioMiddleware
+from middleware.http_middleware import HTTPMiddleware
 from utils.logging_config import configure_logging
 
 logger = configure_logging()
 
 
-def create_sse_app(mcp: FastMCP, debug: bool = False) -> Starlette:
-    """Create a Starlette application for SSE transport."""
+def create_streamable_http_app(mcp: FastMCP, debug: bool = False) -> Starlette:
+    """Create a Starlette application for Streamable HTTP transport."""
 
-    sse = SseServerTransport("/messages/")
+    session_manager = StreamableHTTPSessionManager(
+        app=mcp._mcp_server,
+        json_response=False,
+        stateless=False,
+    )
 
-    async def handle_sse(request: Request) -> Response:
-        """Handle SSE connections and return a response when done."""
-        # Authentication is handled by middleware
-        logger.info(f"SSE connection established from {request.client}")
+    @asynccontextmanager
+    async def lifespan(app: Starlette):
+        """Manages the lifecycle of the StreamableHTTP session manager."""
+        async with session_manager.run():
+            yield
 
-        async with sse.connect_sse(
-            request.scope, request.receive, request._send
-        ) as streams:
-            mcp_server = mcp._mcp_server
-            await mcp_server.run(
-                streams[0], streams[1], mcp_server.create_initialization_options()
-            )
+    async def handle_mcp_endpoint(scope, receive, send):
+        """Handle MCP endpoint requests by delegating to session manager."""
+        await session_manager.handle_request(scope, receive, send)
 
-        return Response()
-
-    async def auth_discovery(request: Request) -> Response:
+    async def auth_discovery(_):
         """Return authentication methods."""
-        auth_methods = {
-            "authMethods": [
-                {"type": "apiKey", "name": "x-api-key", "in": "header"},
-                {
-                    "type": "oauth2",
-                    "flows": {
-                        "password": {
-                            "tokenUrl": "/token",
-                            "scopes": {
-                                "read": "Read access",
-                                "execute": "Execute tools",
-                            },
-                        }
-                    },
-                },
-            ]
-        }
+        auth_methods = {"authMethods": [{"type": "http", "scheme": "bearer"}]}
         return JSONResponse(content=auth_methods)
 
-    # Create Starlette app with routes for SSE and messages
+    # Create Starlette app with routes for Streamable HTTP
     return Starlette(
         debug=debug,
         routes=[
             Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]),
-            Route("/sse", endpoint=handle_sse, methods=["GET"]),
-            Mount("/messages/", app=sse.handle_post_message),
+            Mount("/message", app=handle_mcp_endpoint),
         ],
-        middleware=[Middleware(SSEMiddleware)],
+        middleware=[Middleware(HTTPMiddleware)],
+        lifespan=lifespan,
     )
 
 
 def main():
     """Main entry point"""
     # Set up command line arguments
-    parser = argparse.ArgumentParser(description="OS NGD API MCP Server")
+    parser = argparse.ArgumentParser(description="OS DataHub API MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "sse"],
+        choices=["stdio", "http"],
         default="stdio",
-        help="Transport protocol to use (stdio or sse)",
+        help="Transport protocol to use (stdio or http)",
     )
     parser.add_argument(
-        "--host", default="0.0.0.0", help="Host to bind to for SSE (default: 0.0.0.0)"
+        "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
     )
     parser.add_argument(
-        "--port", type=int, default=8000, help="Port to bind to for SSE (default: 8000)"
+        "--port", type=int, default=8000, help="Port to bind to (default: 8000)"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
@@ -123,10 +106,10 @@ def main():
                 return
 
             service.run()
-        case "sse":
-            logger.info(f"Starting SSE server on {args.host}:{args.port}")
-            # Create Starlette app with SSE support
-            starlette_app = create_sse_app(mcp, debug=args.debug)
+        case "http":
+            logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
+            # Create Starlette app with Streamable HTTP support
+            starlette_app = create_streamable_http_app(mcp, debug=args.debug)
             # Run with uvicorn
             uvicorn.run(
                 starlette_app,

@@ -8,6 +8,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 class NGDAPIEndpoint(Enum):
     """
     Enum for the OS API Endpoints following OGC API Features standard
@@ -124,9 +125,9 @@ class OSAPIClient(APIClient):
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
 
         # Log request with client IP if available
-        client_ip = getattr(self.session, '_source_address', None)
+        client_ip = getattr(self.session, "_source_address", None)
         client_info = f" from {client_ip}" if client_ip else ""
-            
+
         logger.info(f"Requesting URL: {endpoint_value}{client_info}")
 
         for attempt in range(1, max_retries + 1):
