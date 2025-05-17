@@ -22,6 +22,15 @@ The service handles authentication, (basic) rate limiting, and provides a simpli
   - Implements business logic for feature operations
   - Provides a standardized interface for other services
 
+- **middleware** - Middleware for the MCP server
+
+  - Handles basic authentication for stdio transport
+  - Handles basic authentication for http transport
+
+- **prompt_templates** - Prompt templates for common operations
+
+  - Provides pre-configured prompt templates to help you get started with some common operations
+
 ## Features
 
 - Collection management (listing and querying collections)
@@ -48,7 +57,8 @@ Configure in your MCP host configuration file (e.g Claude Desktop):
       "command": "/Users/username/.local/bin/uv",
       "args": ["--directory", "src/", "run", "server.py"],
       "env": {
-        "OS_API_KEY": "your_api_key_here"
+        "OS_API_KEY": "your_api_key_here",
+        "STDIO_KEY": "your_api_key_here"
       }
     }
   }

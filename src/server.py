@@ -100,7 +100,7 @@ def main():
             stdio_auth = StdioMiddleware()
 
             # Handle authentication
-            stdio_api_key = os.environ.get("STDIO_API_KEY")
+            stdio_api_key = os.environ.get("STDIO_KEY")
             if not stdio_api_key or not stdio_auth.authenticate(stdio_api_key):
                 logger.error("Authentication failed")
                 return
