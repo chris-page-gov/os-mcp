@@ -1,58 +1,19 @@
 import argparse
-import uvicorn
 import os
-
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.middleware import Middleware
-from starlette.routing import Mount, Route
-from contextlib import asynccontextmanager
+from utils.logging_config import configure_logging
 
 from api_service.os_api import OSAPIClient
 from mcp_service.os_service import OSDataHubService
 from mcp.server.fastmcp import FastMCP
-from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from middleware.stdio_middleware import StdioMiddleware
 from middleware.http_middleware import HTTPMiddleware
-from utils.logging_config import configure_logging
+from starlette.middleware import Middleware
+from starlette.applications import Starlette
+from starlette.routing import Mount, Route
+from starlette.responses import JSONResponse
+from contextlib import asynccontextmanager
 
 logger = configure_logging()
-
-
-def create_streamable_http_app(mcp: FastMCP, debug: bool = False) -> Starlette:
-    """Create a Starlette application for Streamable HTTP transport."""
-
-    session_manager = StreamableHTTPSessionManager(
-        app=mcp._mcp_server,
-        json_response=False,
-        stateless=False,
-    )
-
-    @asynccontextmanager
-    async def lifespan(app: Starlette):
-        """Manages the lifecycle of the StreamableHTTP session manager."""
-        async with session_manager.run():
-            yield
-
-    async def handle_mcp_endpoint(scope, receive, send):
-        """Handle MCP endpoint requests by delegating to session manager."""
-        await session_manager.handle_request(scope, receive, send)
-
-    async def auth_discovery(_):
-        """Return authentication methods."""
-        auth_methods = {"authMethods": [{"type": "http", "scheme": "bearer"}]}
-        return JSONResponse(content=auth_methods)
-
-    # Create Starlette app with routes for Streamable HTTP
-    return Starlette(
-        debug=debug,
-        routes=[
-            Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]),
-            Mount("/message", app=handle_mcp_endpoint),
-        ],
-        middleware=[Middleware(HTTPMiddleware)],
-        lifespan=lifespan,
-    )
 
 
 def main():
@@ -61,12 +22,12 @@ def main():
     parser = argparse.ArgumentParser(description="OS DataHub API MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "http"],
+        choices=["stdio", "streamable-http"],
         default="stdio",
-        help="Transport protocol to use (stdio or http)",
+        help="Transport protocol to use (stdio or streamable-http)",
     )
     parser.add_argument(
-        "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
+        "--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
     )
     parser.add_argument(
         "--port", type=int, default=8000, help="Port to bind to (default: 8000)"
@@ -85,10 +46,17 @@ def main():
     # Initialise API client
     api_client = OSAPIClient()
 
-    # Create MCP server
-    mcp = FastMCP("os-ngd-api")
+    # Create MCP server with settings
+    mcp = FastMCP(
+        "os-ngd-api",
+        host=args.host,
+        port=args.port,
+        debug=args.debug,
+        json_response=True,
+        log_level="DEBUG" if args.debug else "INFO",
+    )
 
-    # Create service
+    # Create service (this registers all tools with the MCP server)
     service = OSDataHubService(api_client, mcp)
 
     # Run with the specified transport
@@ -105,18 +73,57 @@ def main():
                 logger.error("Authentication failed")
                 return
 
-            service.run()
-        case "http":
+            # Run the service using stdio transport
+            service.run()  # This works because the default in FastMCP.run() is "stdio"
+        case "streamable-http":
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
-            # Create Starlette app with Streamable HTTP support
-            starlette_app = create_streamable_http_app(mcp, debug=args.debug)
-            # Run with uvicorn
+
+            # Instead of using mcp.run(), create our own Starlette app with our middleware
+            # Create session manager
+            if mcp._session_manager is None:
+                from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+                mcp._session_manager = StreamableHTTPSessionManager(
+                    app=mcp._mcp_server,
+                    event_store=mcp._event_store,
+                    json_response=mcp.settings.json_response,
+                    stateless=mcp.settings.stateless_http,
+                )
+
+            @asynccontextmanager
+            async def lifespan(app: Starlette):
+                """Manages the lifecycle of the StreamableHTTP session manager."""
+                async with mcp.session_manager.run():
+                    yield
+
+            async def handle_mcp_endpoint(scope, receive, send):
+                """Handle MCP endpoint requests by delegating to session manager."""
+                await mcp.session_manager.handle_request(scope, receive, send)
+
+            async def auth_discovery(_):
+                """Return authentication methods."""
+                auth_methods = {"authMethods": [{"type": "http", "scheme": "bearer"}]}
+                return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
+
+            # Create Starlette app with routes for Streamable HTTP and our middleware
+            app = Starlette(
+                debug=args.debug,
+                routes=[
+                    Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]),
+                    Mount("/mcp/", app=handle_mcp_endpoint),
+                ],
+                middleware=[Middleware(HTTPMiddleware)],
+                lifespan=lifespan,
+            )
+
+            # Run using uvicorn
+            import uvicorn
             uvicorn.run(
-                starlette_app,
+                app,
                 host=args.host,
                 port=args.port,
-                log_level="debug" if args.debug else "info",
+                log_level="debug" if args.debug else "info"
             )
+
         case _:
             logger.error(f"Unknown transport: {args.transport}")
             return
