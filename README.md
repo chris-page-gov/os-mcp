@@ -1,14 +1,18 @@
 # Ordnance Survey - MCP Server
 
-VERSION: 0.1.0
+VERSION: 0.1.1
 
-A Python-based MCP server that provides access to the Ordnance Survey APIs.
+A Python-based MCP server that provides access to the Ordnance Survey APIs, supporting both STDIO and HTTP (streamable) modes.
 
 ## Overview
 
 This service creates a bridge between MCP clients and the OS APIs, making it easy to query geographic data through a standardised protocol.
 
-The service handles authentication, (basic) rate limiting, and provides a simplified interface to complex OS APIs.
+It can run in two modes:
+
+- STDIO mode: Ideal for Claude Desktop and local tool integration such as Cursor
+
+- HTTP (streamable) mode: Perfect for web clients/applications
 
 ## Project Structure
 
@@ -22,16 +26,24 @@ The service handles authentication, (basic) rate limiting, and provides a simpli
 
   - Converts API responses to MCP-compatible formats
   - Implements business logic for feature operations
-  - Provides a standardized interface for other services
+  - Provides a standardised interface
 
 - **middleware** - Middleware for the MCP server
 
-  - Handles basic authentication for stdio transport
-  - Handles basic authentication for http transport
+  - `stdio_middleware.py`: Handles authentication for STDIO transport
+  - `http_middleware.py`: Handles authentication for HTTP transport
 
 - **prompt_templates** - Prompt templates for common operations
 
   - Provides pre-configured prompt templates to help you get started with some common operations
+
+- **config_docs** - Documentation for OS APIs
+
+  - Provides documentation for the OS APIs
+
+- **utils** - Utility functions for the MCP server
+
+  - Provides utility functions for the MCP server such as logging
 
 ## Features
 
@@ -48,9 +60,13 @@ The service handles authentication, (basic) rate limiting, and provides a simpli
 - You will need to register for an OS Data Hub account to get an API key
 - Dependencies: aiohttp, mcp[cli]
 
-## Usage
+## Running the Server
 
-Configure in your MCP host configuration file (e.g Claude Desktop):
+### 1. STDIO Mode (for Claude Desktop)
+
+This is the default mode, ideal for integration with Claude Desktop or other MCP hosts that use STDIO.
+
+1. **Configure your MCP host** (e.g., in Claude Desktop's configuration):
 
 ```json
 {
@@ -67,21 +83,46 @@ Configure in your MCP host configuration file (e.g Claude Desktop):
 }
 ```
 
-## Claude Desktop Integration
+2. **Start the server manually** (for testing):
 
-This MCP service has only been tested with Claude Desktop.
+```bash
+export OS_API_KEY=your_api_key_here
+export STDIO_KEY=your_stdio_key_here
+python server.py --transport stdio  # or just python server.py
+```
 
-The aim is to make this service work with various MCP hosts/clients, but this has not been tested yet.
+### 2. HTTP (Streamable) Mode
 
-When using with Claude Desktop:
+This mode is ideal for web clients or when you need to stream large datasets.
 
-1. Ensure Claude Desktop is configured to access local tools
-2. The service will be available as a tool once it's running
-3. No additional network configuration is needed
+You will need to set the `OS_API_KEY`and `BEARER_TOKEN` environment variables.
+
+Each request to the MCP server will need to be authenticated with a bearer token - it's currently set to `dev-token` in the client test script.
+
+1. **Start the server:**
+
+```bash
+python server.py --transport streamable-http --host 0.0.0.0 --port 8000
+```
+
+2. **Test using the provided client script:**
+
+```bash
+python src/client_test.py
+```
+
+> **Note:** The client test script (`client_test.py`) is a great way to verify your server setup and see example code for programmatic interaction with the API. It uses the `mcp.client.streamable_http` library to demonstrate proper connection handling and tool calling.
+
+The client script demonstrates:
+
+- Connecting to the MCP server
+- Initialising a session
+- Listing available tools
+- Making test calls (e.g., `hello_world` tool)
 
 ## Available Tools
 
-All of this is a work in progress, but the following tools are available:
+All tools are available in both STDIO and HTTP modes:
 
 - `hello_world` - Test connectivity
 - `check_api_key` - Verify API key configuration
@@ -94,12 +135,17 @@ All of this is a work in progress, but the following tools are available:
 - `get_bulk_features` - Retrieve multiple features in a single call
 - `get_bulk_linked_features` - Get linked features in bulk
 - `get_prompt_templates` - Get standard prompt templates for common operations
+- `search_by_uprn` - Search for addresses by UPRN
 
 ## Using Prompt Templates
 
 This service provides pre-configured prompt templates to help you get started.
 
 To access these templates ask Claude "show me available prompt templates"
+
+Current prompt templates are:
+
+- `connected_usrns` - Find all USRNs that are directly connected to a given USRN
 
 ## Contributing
 
