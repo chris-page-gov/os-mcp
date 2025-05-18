@@ -79,7 +79,10 @@ def main():
 
             # Instead of using mcp.run(), create our own Starlette app with our middleware
             if mcp._session_manager is None:
-                from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+                from mcp.server.streamable_http_manager import (
+                    StreamableHTTPSessionManager,
+                )
+
                 mcp._session_manager = StreamableHTTPSessionManager(
                     app=mcp._mcp_server,
                     event_store=mcp._event_store,
@@ -100,13 +103,19 @@ def main():
             async def auth_discovery(_):
                 """Return authentication methods."""
                 auth_methods = {"authMethods": [{"type": "http", "scheme": "bearer"}]}
-                return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
+                return JSONResponse(
+                    content={"authMethods": [{"type": "http", "scheme": "bearer"}]}
+                )
 
             # Create Starlette app with routes for Streamable HTTP and our middleware
             app = Starlette(
                 debug=args.debug,
                 routes=[
-                    Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]),
+                    Route(
+                        "/.well-known/mcp-auth",
+                        endpoint=auth_discovery,
+                        methods=["GET"],
+                    ),
                     Mount("/mcp/", app=handle_mcp_endpoint),
                 ],
                 middleware=[Middleware(HTTPMiddleware)],
@@ -115,11 +124,12 @@ def main():
 
             # Run using uvicorn!!
             import uvicorn
+
             uvicorn.run(
                 app,
                 host=args.host,
                 port=args.port,
-                log_level="debug" if args.debug else "info"
+                log_level="debug" if args.debug else "info",
             )
 
         case _:

@@ -13,11 +13,15 @@ def get_valid_bearer_tokens() -> List[str]:
     Get valid bearer tokens from environment variable.
     """
     try:
-        tokens = os.environ.get("BEARER_TOKENS", "").split(",")
-        valid_tokens = [t.strip() for t in tokens if t.strip()]  # Added .strip() to clean whitespace
+        tokens = os.environ.get("BEARER_TOKEN", "").split(",")
+        valid_tokens = [
+            t.strip() for t in tokens if t.strip()
+        ]  # Added .strip() to clean whitespace
 
         if not valid_tokens:
-            logger.warning("No BEARER_TOKENS configured, all authentication will be rejected")
+            logger.warning(
+                "No BEARER_TOKENS configured, all authentication will be rejected"
+            )
             return []  # Return empty list to block all authentication attempts
 
         return valid_tokens
@@ -40,6 +44,7 @@ async def verify_bearer_token(token: str) -> bool:
     except Exception as e:
         logger.error(f"Error validating token: {e}")
         return False  # Return False on error to block access
+
 
 class HTTPMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -80,9 +85,13 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 request.state.token = token
                 return await call_next(request)
             else:
-                logger.warning(f"Invalid bearer token attempt from {request.client.host if request.client else 'unknown'}")
+                logger.warning(
+                    f"Invalid bearer token attempt from {request.client.host if request.client else 'unknown'}"
+                )
         else:
-            logger.warning(f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}")
+            logger.warning(
+                f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}"
+            )
 
         return JSONResponse(
             status_code=401,
@@ -108,7 +117,11 @@ class HTTPMiddleware(BaseHTTPMiddleware):
 
         # Check against whitelist domains
         for domain in valid_domains:
-            if origin == domain or origin.startswith(f"https://{domain}") or origin.startswith(f"http://{domain}"):
+            if (
+                origin == domain
+                or origin.startswith(f"https://{domain}")
+                or origin.startswith(f"http://{domain}")
+            ):
                 return True
 
         return False
