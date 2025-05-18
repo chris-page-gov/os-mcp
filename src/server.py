@@ -38,7 +38,6 @@ def main():
     # Configure logging level
     configure_logging(debug=args.debug)
 
-    # Print startup message
     logger.info(
         f"OS DataHub API MCP Server starting with {args.transport} transport..."
     )
@@ -79,7 +78,6 @@ def main():
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
 
             # Instead of using mcp.run(), create our own Starlette app with our middleware
-            # Create session manager
             if mcp._session_manager is None:
                 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
                 mcp._session_manager = StreamableHTTPSessionManager(
@@ -115,7 +113,7 @@ def main():
                 lifespan=lifespan,
             )
 
-            # Run using uvicorn
+            # Run using uvicorn!!
             import uvicorn
             uvicorn.run(
                 app,
