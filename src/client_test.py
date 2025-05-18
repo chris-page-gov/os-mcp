@@ -2,6 +2,12 @@ import asyncio
 import logging
 from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()  # This loads variables from .env into the environment
+OS_API_KEY = os. ("OS_API_KEY")
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)

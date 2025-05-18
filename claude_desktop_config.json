@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "os-ngd-api": {
+      "command": "uv",
+      "args": ["--directory", "src/", "run", "server.py"]
+    }
+  }
+}
