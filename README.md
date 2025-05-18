@@ -136,6 +136,7 @@ All tools are available in both STDIO and HTTP modes:
 - `get_prompt_templates` - Get standard prompt templates for common operations
 - `search_by_uprn` - Search for addresses by UPRN
 - `search_by_post_code` - Search for addresses by POSTCODE
+- `get_map_tile` - Get a map tile in EPSG:27700 projection - THIS DOES NOT WORK - NEED TO FIX
 
 ## Using Prompt Templates
 
