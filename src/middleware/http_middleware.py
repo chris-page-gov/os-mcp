@@ -13,7 +13,7 @@ def get_valid_bearer_tokens() -> List[str]:
     Get valid bearer tokens from environment variable.
     """
     try:
-        tokens = os.environ.get("BEARER_TOKENS", "").split(",")
+        tokens = os.environ.get("BEARER_TOKEN", "").split(",")
         valid_tokens = [t.strip() for t in tokens if t.strip()]  # Added .strip() to clean whitespace
 
         if not valid_tokens:
