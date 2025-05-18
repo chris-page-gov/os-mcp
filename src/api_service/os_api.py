@@ -30,6 +30,12 @@ class NGDAPIEndpoint(Enum):
     # Places API Endpoints
     PLACES_BASE_PATH = "https://api.os.uk/search/places/v1/{}"
     PLACES_UPRN = PLACES_BASE_PATH.format("uprn")
+    POST_CODE = PLACES_BASE_PATH.format("postcode")
+
+    # Maps API ZXY Endpoints
+    MAPS_ZXY_BASE_PATH = "https://api.os.uk/maps/raster/v1/zxy/{}/{}/{}/{}.png"
+    MAPS_ZXY = MAPS_ZXY_BASE_PATH
+
 
 
 class OSAPIClient(APIClient):
@@ -166,3 +172,65 @@ class OSAPIClient(APIClient):
         raise RuntimeError(
             "Unreachable: make_request exited retry loop without returning or raising"
         )
+
+    # TODO: DON'T KNOW IF WE ACTUALLY NEED THIS - TBC
+    async def make_binary_request(
+        self,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        path_params: Optional[List[str]] = None,
+        max_retries: int = 2,
+    ) -> bytes:
+        """
+        Make a request to the OS Maps API expecting binary data (like PNG images).
+        """
+        await self.initialise()
+
+        if self.session is None:
+            raise ValueError("Session not initialised")
+
+        # Rate limiting
+        current_time = asyncio.get_event_loop().time()
+        elapsed = current_time - self.last_request_time
+        if elapsed < self.request_delay:
+            await asyncio.sleep(self.request_delay - elapsed)
+
+        try:
+            endpoint_value = NGDAPIEndpoint[endpoint].value
+        except KeyError:
+            raise ValueError(f"Invalid endpoint: {endpoint}")
+
+        if path_params:
+            endpoint_value = endpoint_value.format(*path_params)
+
+        api_key = self.get_api_key()
+        request_params = params or {}
+        request_params["key"] = api_key
+
+        headers = {"User-Agent": self.user_agent, "Accept": "image/png"}
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.last_request_time = asyncio.get_event_loop().time()
+                timeout = aiohttp.ClientTimeout(total=30.0)
+                async with self.session.get(
+                    endpoint_value,
+                    params=request_params,
+                    headers=headers,
+                    timeout=timeout,
+                ) as response:
+                    if response.status >= 400:
+                        error_message = f"HTTP Error: {response.status} - {await response.text()}"
+                        logger.error(f"Error: {error_message}")
+                        raise ValueError(error_message)
+                    
+                    return await response.read()
+
+            except Exception as e:
+                if attempt == max_retries:
+                    error_message = f"Request failed after {max_retries} attempts: {str(e)}"
+                    logger.error(f"Error: {error_message}")
+                    raise ValueError(error_message)
+                await asyncio.sleep(0.7)
+
+        raise RuntimeError("Unreachable: make_binary_request exited retry loop without returning or raising")

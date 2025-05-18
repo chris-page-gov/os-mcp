@@ -135,6 +135,7 @@ All tools are available in both STDIO and HTTP modes:
 - `get_bulk_linked_features` - Get linked features in bulk
 - `get_prompt_templates` - Get standard prompt templates for common operations
 - `search_by_uprn` - Search for addresses by UPRN
+- `search_by_post_code` - Search for addresses by POSTCODE
 
 ## Using Prompt Templates
 

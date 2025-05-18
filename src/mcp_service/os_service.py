@@ -1,5 +1,6 @@
 import json
 import asyncio
+import os
 
 from typing import Optional, List
 from api_service.protocols import APIClient
@@ -75,6 +76,12 @@ class OSDataHubService(FeatureService):
         )
         self.search_by_uprn = self.mcp.tool()(
             self.guardrails.basic_guardrails(self.search_by_uprn)
+        )
+        self.search_by_post_code = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.search_by_post_code)
+        )
+        self.get_light_map_tile = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_light_map_tile)
         )
 
     # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
@@ -437,7 +444,7 @@ class OSDataHubService(FeatureService):
 
             # Add filters if provided
             if fq:
-                params["fq"] = fq
+                params["fq"] = ",".join(fq)
 
             data = await self.api_client.make_request("PLACES_UPRN", params=params)
 
@@ -482,6 +489,131 @@ class OSDataHubService(FeatureService):
         )
 
         return errors[0] if errors else None
+
+    async def search_by_post_code(
+        self,
+        postcode: str,
+        format: str = "JSON",
+        dataset: str = "DPA",
+        lr: str = "EN",
+        output_srs: str = "EPSG:27700",
+        fq: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Find addresses by POSTCODE using the OS Places API.
+
+        Args:
+            postcode: A valid POSTCODE (e.g. "SW1A 1AA")
+            format: The format the response will be returned in (JSON or XML)
+            dataset: The dataset to return (DPA, LPI or both separated by comma)
+            lr: Language of addresses to return (EN, CY)
+            output_srs: The output spatial reference system
+            fq: Optional filter for classification code, logical status code, etc.
+
+        Returns:
+            JSON string with matched addresses
+        """
+        try:
+            # Validate all parameters first
+            errors = self._validate_post_code_params(
+                postcode, format, dataset, lr, output_srs, fq
+            )
+            if errors:
+                return json.dumps({"error": errors})
+
+            params = {
+                "postcode": postcode,
+                "format": format,
+                "dataset": dataset,
+                "lr": lr,
+                "output_srs": output_srs,
+            }
+
+            # Add filters if provided
+            if fq:
+                params["fq"] = ",".join(fq)
+
+            data = await self.api_client.make_request("POST_CODE", params=params)
+
+            # Return sanitized data as JSON
+            return json.dumps(data)
+        except Exception as e:
+            return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
+
+    def _validate_post_code_params(
+        self,
+        postcode: str,
+        format: str,
+        dataset: str,
+        lr: str,
+        output_srs: str,
+        fq: Optional[List[str]],
+    ) -> Optional[str]:
+        """Validate all parameters for the POSTCODE search and return error message if invalid."""
+        errors = []
+
+        # Helper function to check condition and add error
+        def check(condition, error_msg):
+            if condition:
+                errors.append(error_msg)
+
+        # Check each parameter
+        check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
+        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
+
+        valid_datasets = ["DPA", "LPI"]
+        dataset_parts = dataset.split(",")
+        check(
+            not all(part.strip() in valid_datasets for part in dataset_parts),
+            "Dataset must be 'DPA', 'LPI', or both comma-separated",
+        )
+
+        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
+        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
+        check(
+            fq is not None and not isinstance(fq, list),
+            "Filters must be provided as a list",
+        )
+
+        return errors[0] if errors else None
+
+    # TODO: THIS DOES NOT WORK - NEED TO FIX
+    async def get_light_map_tile(
+        self,
+        z: int,
+        x: int,
+        y: int,
+    ) -> str:
+        """
+        Get a Light style map tile in EPSG:27700 projection.
+        Returns HTML with a clickable image for download.
+        """
+        try:
+            # Get API key
+            api_key = os.environ.get("OS_API_KEY")
+            if not api_key:
+                return "Error: OS_API_KEY environment variable is not set"
+            
+            # Create direct image URL
+            image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
+            
+            # Return HTML with clickable image
+            html = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                <p>Click on the map tile to download:</p>
+                <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
+                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile" 
+                         style="border: 1px solid #ccc; cursor: pointer;">
+                </a>
+                <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
+            </body>
+            </html>
+            """
+            
+            return html
+        except Exception as e:
+            return f"Error getting map tile: {str(e)}"
 
     def run(self) -> None:
         """Run the MCP service"""
