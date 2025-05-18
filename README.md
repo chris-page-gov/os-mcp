@@ -58,7 +58,6 @@ It can run in two modes:
 - Python 3.11+
 - OS API Key (set as environment variable `OS_API_KEY`)
 - You will need to register for an OS Data Hub account to get an API key
-- Dependencies: aiohttp, mcp[cli]
 
 ## Running the Server
 
