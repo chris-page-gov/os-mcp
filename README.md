@@ -6,7 +6,7 @@ A Python-based MCP server that provides access to the Ordnance Survey APIs, supp
 
 ## Overview
 
-This service creates a bridge between MCP clients and the OS APIs, making it easy to query geographic data through a standardised protocol.
+This service creates a bridge between MCP clients and OS DataHub APIs - making it easy to query national geographic data through a standardised protocol.
 
 It can run in two modes:
 
