@@ -7,6 +7,7 @@ from mcp import ClientSession
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 async def test_mcp():
     # Set headers for dev testing authentication
     headers = {"Authorization": "Bearer dev-token"}
@@ -17,7 +18,7 @@ async def test_mcp():
     async with streamablehttp_client("http://127.0.0.1:8000/mcp/", headers=headers) as (
         read_stream,
         write_stream,
-        get_session_id
+        get_session_id,
     ):
         logger.debug("Connection established")
         async with ClientSession(read_stream, write_stream) as session:
@@ -37,6 +38,7 @@ async def test_mcp():
                 print(f"Tool result: {result}")
             except Exception as e:
                 print(f"Error calling tool: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_mcp())
