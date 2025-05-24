@@ -7,7 +7,9 @@ import os
 
 # Load environment variables
 load_dotenv()  # This loads variables from .env into the environment
-OS_API_KEY = os. ("OS_API_KEY")
+OS_API_KEY = os.environ.get("OS_API_KEY")
+if not OS_API_KEY:
+    raise RuntimeError("OS_API_KEY is not set in the environment.")
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
