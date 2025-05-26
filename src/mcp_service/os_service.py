@@ -2,7 +2,7 @@ import json
 import asyncio
 import os
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union, cast
 from api_service.protocols import APIClient
 from .protocols import MCPService, FeatureService
 from .guardrails import ToolGuardrails
@@ -27,7 +27,7 @@ class OSDataHubService(FeatureService):
         # Use default client ID initially
         # TODO: Remove this once we have a proper client ID - this is broken.
         # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
-        self.session = {"client_id": "default_client"}
+        self.session: Dict[str, str] = {"client_id": "default_client"}
 
         # Initialise guardrails
         # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
@@ -85,14 +85,14 @@ class OSDataHubService(FeatureService):
         )
 
     # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
-    def message_listener(self, message: dict):
+    def message_listener(self, message: Dict[str, Any]) -> None:
         """
         Handle incoming protocol messages.
         Extracts client name on 'initialize' and stores it in session.
         """
         if message.get("method") == "initialize":
             try:
-                client_name = message["params"]["clientInfo"]["name"]
+                client_name: str = message["params"]["clientInfo"]["name"]
                 logger.info(f"Client name: {client_name}")
                 self.session["client_id"] = client_name
                 # Update the guardrails client ID
@@ -201,7 +201,7 @@ class OSDataHubService(FeatureService):
         Search for features in a collection with simplified parameters.
         """
         try:
-            params = {}
+            params: Dict[str, Union[str, int]] = {}
 
             # Add standard parameters
             if limit:
@@ -245,7 +245,7 @@ class OSDataHubService(FeatureService):
             JSON string with feature data
         """
         try:
-            params = {}
+            params: Dict[str, str] = {}
             if crs:
                 params["crs"] = crs
 
@@ -286,17 +286,20 @@ class OSDataHubService(FeatureService):
                 return json.dumps(data)
 
             # Filter by feature type
-            identifiers = []
-            if "correlations" in data and isinstance(data["correlations"], list):
-                for item in data["correlations"]:
+            identifiers: List[str] = []
+            if "correlations" in data:
+                assert isinstance(data["correlations"], list), "correlations must be a list"
+                correlations = cast(List[Dict[str, Any]], data["correlations"])
+                for item in correlations:
                     if item.get("correlatedFeatureType") == feature_type:
                         if "correlatedIdentifiers" in item and isinstance(
                             item["correlatedIdentifiers"], list
                         ):
+                            correlated_ids = cast(List[Dict[str, Any]], item["correlatedIdentifiers"])
                             identifiers = [
                                 id_obj["identifier"]
-                                for id_obj in item["correlatedIdentifiers"]
-                                if isinstance(id_obj, dict) and "identifier" in id_obj
+                                for id_obj in correlated_ids
+                                if "identifier" in id_obj
                             ]
                             break
 
@@ -322,7 +325,7 @@ class OSDataHubService(FeatureService):
             JSON string with features data
         """
         try:
-            tasks = []
+            tasks: List[Any] = []
 
             for identifier in identifiers:
                 if query_by_attr:
@@ -338,10 +341,10 @@ class OSDataHubService(FeatureService):
                     # Query by feature ID
                     tasks.append(self.get_feature(collection_id, feature_id=identifier))
 
-            results = await asyncio.gather(*tasks)
+            results: List[str] = await asyncio.gather(*tasks)
 
             # Parse results back to objects for processing
-            parsed_results = [json.loads(result) for result in results]
+            parsed_results: List[Dict[str, Any]] = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
@@ -463,10 +466,10 @@ class OSDataHubService(FeatureService):
         fq: Optional[List[str]],
     ) -> Optional[str]:
         """Validate all parameters for the UPRN search and return error message if invalid."""
-        errors = []
+        errors: List[str] = []
 
         # Helper function to check condition and add error
-        def check(condition, error_msg):
+        def check(condition: bool, error_msg: str) -> None:
             if condition:
                 errors.append(error_msg)
 
@@ -484,8 +487,8 @@ class OSDataHubService(FeatureService):
         check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
         check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
         check(
-            fq is not None and not isinstance(fq, list),
-            "Filters must be provided as a list",
+            fq is not None and len(fq) == 0,
+            "Filters cannot be an empty list",
         )
 
         return errors[0] if errors else None
@@ -550,10 +553,10 @@ class OSDataHubService(FeatureService):
         fq: Optional[List[str]],
     ) -> Optional[str]:
         """Validate all parameters for the POSTCODE search and return error message if invalid."""
-        errors = []
+        errors: List[str] = []
 
         # Helper function to check condition and add error
-        def check(condition, error_msg):
+        def check(condition: bool, error_msg: str) -> None:
             if condition:
                 errors.append(error_msg)
 
@@ -571,7 +574,7 @@ class OSDataHubService(FeatureService):
         check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
         check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
         check(
-            fq is not None and not isinstance(fq, list),
+            fq is not None and len(fq) == 0,  # Changed from isinstance check
             "Filters must be provided as a list",
         )
 

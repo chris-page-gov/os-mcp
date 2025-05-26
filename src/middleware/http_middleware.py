@@ -1,8 +1,8 @@
 import os
-from typing import List
+from typing import List, Callable, Awaitable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import Response, JSONResponse
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -13,7 +13,7 @@ def get_valid_bearer_tokens() -> List[str]:
     Get valid bearer tokens from environment variable.
     """
     try:
-        tokens = os.environ.get("BEARER_TOKEN", "").split(",")
+        tokens = os.environ.get("BEARER_TOKENS", "").split(",")
         valid_tokens = [
             t.strip() for t in tokens if t.strip()
         ]  # Added .strip() to clean whitespace
@@ -47,7 +47,7 @@ async def verify_bearer_token(token: str) -> bool:
 
 
 class HTTPMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         # Skip auth for auth discovery endpoints and OPTIONS requests
         if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
             return await call_next(request)

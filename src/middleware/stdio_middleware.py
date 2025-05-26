@@ -1,9 +1,12 @@
 import json
-from typing import Callable
+from typing import Callable, TypeVar, Any
+from functools import wraps
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# Add this at the top
+F = TypeVar('F', bound=Callable[..., Any])
 
 class StdioMiddleware:
     """
@@ -16,10 +19,11 @@ class StdioMiddleware:
         self.authenticated = False
         self.client_id = "anonymous"
 
-    def require_auth(self, func: Callable) -> Callable:
+    def require_auth(self, func: F) -> F:
         """Decorator to require authentication for a function."""
-
-        def wrapper(*args, **kwargs):
+        
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Check authentication first
             if not self.authenticated:
                 logger.error(
@@ -29,7 +33,7 @@ class StdioMiddleware:
 
             return func(*args, **kwargs)
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     def authenticate(self, key: str) -> bool:
         """

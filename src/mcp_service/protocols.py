@@ -1,11 +1,11 @@
-from typing import Protocol, Optional, Callable, List, runtime_checkable
+from typing import Protocol, Optional, Callable, List, runtime_checkable, Any
 
 
 @runtime_checkable
 class MCPService(Protocol):
     """Protocol for MCP services"""
 
-    def tool(self) -> Callable:
+    def tool(self) -> Callable[..., Any]:
         """Register a function as an MCP tool"""
         ...
 
@@ -18,7 +18,7 @@ class MCPService(Protocol):
 class FeatureService(Protocol):
     """Protocol for OS NGD feature services"""
 
-    def message_listener(self, message: dict) -> None:
+    def message_listener(self, message: dict[str, Any]) -> None:
         """Handle incoming protocol messages"""
         ...
 

@@ -1,5 +1,7 @@
 import argparse
 import os
+import uvicorn
+from typing import Any
 from utils.logging_config import configure_logging
 
 from api_service.os_api import OSAPIClient
@@ -8,17 +10,15 @@ from mcp.server.fastmcp import FastMCP
 from middleware.stdio_middleware import StdioMiddleware
 from middleware.http_middleware import HTTPMiddleware
 from starlette.middleware import Middleware
-from starlette.applications import Starlette
-from starlette.routing import Mount, Route
+from starlette.middleware.cors import CORSMiddleware
+from starlette.routing import Route
 from starlette.responses import JSONResponse
-from contextlib import asynccontextmanager
 
 logger = configure_logging()
 
 
 def main():
     """Main entry point"""
-    # Set up command line arguments
     parser = argparse.ArgumentParser(description="OS DataHub API MCP Server")
     parser.add_argument(
         "--transport",
@@ -35,33 +35,28 @@ def main():
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
-    # Configure logging level
     configure_logging(debug=args.debug)
 
     logger.info(
         f"OS DataHub API MCP Server starting with {args.transport} transport..."
     )
 
-    # Initialise API client
     api_client = OSAPIClient()
 
-    # Create MCP server with settings
-    mcp = FastMCP(
-        "os-ngd-api",
-        host=args.host,
-        port=args.port,
-        debug=args.debug,
-        json_response=True,
-        log_level="DEBUG" if args.debug else "INFO",
-    )
-
-    # Create service (this registers all tools with the MCP server)
-    service = OSDataHubService(api_client, mcp)
-
-    # Run with the specified transport
     match args.transport:
         case "stdio":
             logger.info("Starting with stdio transport")
+
+            # Create MCP server optimized for stdio
+            mcp = FastMCP(
+                "os-ngd-api",
+                debug=args.debug,
+                log_level="DEBUG" if args.debug else "INFO",
+                # No HTTP-specific settings for stdio
+            )
+
+            # Create service (this registers all tools with the MCP server)
+            service = OSDataHubService(api_client, mcp)
 
             # Initialise stdio authenticator
             stdio_auth = StdioMiddleware()
@@ -72,58 +67,51 @@ def main():
                 logger.error("Authentication failed")
                 return
 
-            # Run the service using stdio transport
-            service.run()  # This works because the default in FastMCP.run() is "stdio"
+            service.run()
+
         case "streamable-http":
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
 
-            # Instead of using mcp.run(), create our own Starlette app with our middleware
-            if mcp._session_manager is None:
-                from mcp.server.streamable_http_manager import (
-                    StreamableHTTPSessionManager,
-                )
+            # Create MCP server for HTTP
+            mcp = FastMCP(
+                "os-ngd-api",
+                host=args.host,
+                port=args.port,
+                debug=args.debug,
+                json_response=True,
+                stateless_http=True,
+                log_level="DEBUG" if args.debug else "INFO",
+            )
 
-                mcp._session_manager = StreamableHTTPSessionManager(
-                    app=mcp._mcp_server,
-                    event_store=mcp._event_store,
-                    json_response=mcp.settings.json_response,
-                    stateless=mcp.settings.stateless_http,
-                )
+            service = OSDataHubService(api_client, mcp)
 
-            @asynccontextmanager
-            async def lifespan(app: Starlette):
-                """Manages the lifecycle of the StreamableHTTP session manager."""
-                async with mcp.session_manager.run():
-                    yield
-
-            async def handle_mcp_endpoint(scope, receive, send):
-                """Handle MCP endpoint requests by delegating to session manager."""
-                await mcp.session_manager.handle_request(scope, receive, send)
-
-            async def auth_discovery(_):
+            async def auth_discovery(_: Any) -> JSONResponse:
                 """Return authentication methods."""
-                auth_methods = {"authMethods": [{"type": "http", "scheme": "bearer"}]}
                 return JSONResponse(
                     content={"authMethods": [{"type": "http", "scheme": "bearer"}]}
                 )
 
-            # Create Starlette app with routes for Streamable HTTP and our middleware
-            app = Starlette(
-                debug=args.debug,
-                routes=[
-                    Route(
-                        "/.well-known/mcp-auth",
-                        endpoint=auth_discovery,
-                        methods=["GET"],
-                    ),
-                    Mount("/mcp/", app=handle_mcp_endpoint),
-                ],
-                middleware=[Middleware(HTTPMiddleware)],
-                lifespan=lifespan,
+            app = mcp.streamable_http_app()
+            
+            app.routes.append(
+                Route(
+                    "/.well-known/mcp-auth",
+                    endpoint=auth_discovery,
+                    methods=["GET"],
+                )
             )
-
-            # Run using uvicorn!!
-            import uvicorn
+            
+            # Add my custom middleware to FastMCP's app
+            app.user_middleware.extend([
+                Middleware(CORSMiddleware,
+                    allow_origins=["*"],
+                    allow_credentials=True,
+                    allow_methods=["GET", "POST", "OPTIONS"],
+                    allow_headers=["*"],
+                    expose_headers=["*"],
+                ),
+                Middleware(HTTPMiddleware)
+            ])
 
             uvicorn.run(
                 app,

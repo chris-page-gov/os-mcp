@@ -26,6 +26,7 @@ async def test_mcp():
             logger.debug("Sending initialize request")
             init_result = await session.initialize()
             print(f"Initialized: {init_result}")
+            print(f"Session ID: {get_session_id()}")
 
             # List tools
             logger.debug("Listing tools")
