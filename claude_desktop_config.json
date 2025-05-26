@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "os-ngd-api": {
-      "command": "uv",
-      "args": ["--directory", "src/", "run", "server.py"]
+      "command": "echo",
+      "url": "http://localhost:8000/mcp/",
+      "headers": {
+        "Authorization": "Bearer dev-token"
+      }
     }
   }
 }

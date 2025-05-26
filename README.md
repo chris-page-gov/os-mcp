@@ -101,7 +101,7 @@ Each request to the MCP server will need to be authenticated with a bearer token
 1. **Start the server:**
 
 ```bash
-python server.py --transport streamable-http --host 0.0.0.0 --port 8000
+python src/server.py --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 
 2. **Test using the provided client script:**
