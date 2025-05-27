@@ -1,7 +1,8 @@
 import json
 import asyncio
+import os
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union, cast
 from api_service.protocols import APIClient
 from .protocols import MCPService, FeatureService
 from .guardrails import ToolGuardrails
@@ -26,7 +27,7 @@ class OSDataHubService(FeatureService):
         # Use default client ID initially
         # TODO: Remove this once we have a proper client ID - this is broken.
         # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
-        self.session = {"client_id": "default_client"}
+        self.session: Dict[str, str] = {"client_id": "default_client"}
 
         # Initialise guardrails
         # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
@@ -76,16 +77,22 @@ class OSDataHubService(FeatureService):
         self.search_by_uprn = self.mcp.tool()(
             self.guardrails.basic_guardrails(self.search_by_uprn)
         )
+        self.search_by_post_code = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.search_by_post_code)
+        )
+        self.get_light_map_tile = self.mcp.tool()(
+            self.guardrails.basic_guardrails(self.get_light_map_tile)
+        )
 
     # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
-    def message_listener(self, message: dict):
+    def message_listener(self, message: Dict[str, Any]) -> None:
         """
         Handle incoming protocol messages.
         Extracts client name on 'initialize' and stores it in session.
         """
         if message.get("method") == "initialize":
             try:
-                client_name = message["params"]["clientInfo"]["name"]
+                client_name: str = message["params"]["clientInfo"]["name"]
                 logger.info(f"Client name: {client_name}")
                 self.session["client_id"] = client_name
                 # Update the guardrails client ID
@@ -194,7 +201,7 @@ class OSDataHubService(FeatureService):
         Search for features in a collection with simplified parameters.
         """
         try:
-            params = {}
+            params: Dict[str, Union[str, int]] = {}
 
             # Add standard parameters
             if limit:
@@ -238,7 +245,7 @@ class OSDataHubService(FeatureService):
             JSON string with feature data
         """
         try:
-            params = {}
+            params: Dict[str, str] = {}
             if crs:
                 params["crs"] = crs
 
@@ -279,17 +286,20 @@ class OSDataHubService(FeatureService):
                 return json.dumps(data)
 
             # Filter by feature type
-            identifiers = []
-            if "correlations" in data and isinstance(data["correlations"], list):
-                for item in data["correlations"]:
+            identifiers: List[str] = []
+            if "correlations" in data:
+                assert isinstance(data["correlations"], list), "correlations must be a list"
+                correlations = cast(List[Dict[str, Any]], data["correlations"])
+                for item in correlations:
                     if item.get("correlatedFeatureType") == feature_type:
                         if "correlatedIdentifiers" in item and isinstance(
                             item["correlatedIdentifiers"], list
                         ):
+                            correlated_ids = cast(List[Dict[str, Any]], item["correlatedIdentifiers"])
                             identifiers = [
                                 id_obj["identifier"]
-                                for id_obj in item["correlatedIdentifiers"]
-                                if isinstance(id_obj, dict) and "identifier" in id_obj
+                                for id_obj in correlated_ids
+                                if "identifier" in id_obj
                             ]
                             break
 
@@ -315,7 +325,7 @@ class OSDataHubService(FeatureService):
             JSON string with features data
         """
         try:
-            tasks = []
+            tasks: List[Any] = []
 
             for identifier in identifiers:
                 if query_by_attr:
@@ -331,10 +341,10 @@ class OSDataHubService(FeatureService):
                     # Query by feature ID
                     tasks.append(self.get_feature(collection_id, feature_id=identifier))
 
-            results = await asyncio.gather(*tasks)
+            results: List[str] = await asyncio.gather(*tasks)
 
             # Parse results back to objects for processing
-            parsed_results = [json.loads(result) for result in results]
+            parsed_results: List[Dict[str, Any]] = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
@@ -437,7 +447,7 @@ class OSDataHubService(FeatureService):
 
             # Add filters if provided
             if fq:
-                params["fq"] = fq
+                params["fq"] = ",".join(fq)
 
             data = await self.api_client.make_request("PLACES_UPRN", params=params)
 
@@ -456,10 +466,10 @@ class OSDataHubService(FeatureService):
         fq: Optional[List[str]],
     ) -> Optional[str]:
         """Validate all parameters for the UPRN search and return error message if invalid."""
-        errors = []
+        errors: List[str] = []
 
         # Helper function to check condition and add error
-        def check(condition, error_msg):
+        def check(condition: bool, error_msg: str) -> None:
             if condition:
                 errors.append(error_msg)
 
@@ -477,11 +487,136 @@ class OSDataHubService(FeatureService):
         check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
         check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
         check(
-            fq is not None and not isinstance(fq, list),
+            fq is not None and len(fq) == 0,
+            "Filters cannot be an empty list",
+        )
+
+        return errors[0] if errors else None
+
+    async def search_by_post_code(
+        self,
+        postcode: str,
+        format: str = "JSON",
+        dataset: str = "DPA",
+        lr: str = "EN",
+        output_srs: str = "EPSG:27700",
+        fq: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Find addresses by POSTCODE using the OS Places API.
+
+        Args:
+            postcode: A valid POSTCODE (e.g. "SW1A 1AA")
+            format: The format the response will be returned in (JSON or XML)
+            dataset: The dataset to return (DPA, LPI or both separated by comma)
+            lr: Language of addresses to return (EN, CY)
+            output_srs: The output spatial reference system
+            fq: Optional filter for classification code, logical status code, etc.
+
+        Returns:
+            JSON string with matched addresses
+        """
+        try:
+            # Validate all parameters first
+            errors = self._validate_post_code_params(
+                postcode, format, dataset, lr, output_srs, fq
+            )
+            if errors:
+                return json.dumps({"error": errors})
+
+            params = {
+                "postcode": postcode,
+                "format": format,
+                "dataset": dataset,
+                "lr": lr,
+                "output_srs": output_srs,
+            }
+
+            # Add filters if provided
+            if fq:
+                params["fq"] = ",".join(fq)
+
+            data = await self.api_client.make_request("POST_CODE", params=params)
+
+            # Return sanitized data as JSON
+            return json.dumps(data)
+        except Exception as e:
+            return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
+
+    def _validate_post_code_params(
+        self,
+        postcode: str,
+        format: str,
+        dataset: str,
+        lr: str,
+        output_srs: str,
+        fq: Optional[List[str]],
+    ) -> Optional[str]:
+        """Validate all parameters for the POSTCODE search and return error message if invalid."""
+        errors: List[str] = []
+
+        # Helper function to check condition and add error
+        def check(condition: bool, error_msg: str) -> None:
+            if condition:
+                errors.append(error_msg)
+
+        # Check each parameter
+        check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
+        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
+
+        valid_datasets = ["DPA", "LPI"]
+        dataset_parts = dataset.split(",")
+        check(
+            not all(part.strip() in valid_datasets for part in dataset_parts),
+            "Dataset must be 'DPA', 'LPI', or both comma-separated",
+        )
+
+        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
+        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
+        check(
+            fq is not None and len(fq) == 0,  # Changed from isinstance check
             "Filters must be provided as a list",
         )
 
         return errors[0] if errors else None
+
+    # TODO: THIS DOES NOT WORK - NEED TO FIX
+    async def get_light_map_tile(
+        self,
+        z: int,
+        x: int,
+        y: int,
+    ) -> str:
+        """
+        Get a Light style map tile in EPSG:27700 projection.
+        Returns HTML with a clickable image for download.
+        """
+        try:
+            # Get API key
+            api_key = os.environ.get("OS_API_KEY")
+            if not api_key:
+                return "Error: OS_API_KEY environment variable is not set"
+            
+            # Create direct image URL
+            image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
+            
+            # Return HTML with clickable image
+            html = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                <p>Click on the map tile to download:</p>
+                <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
+                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile" 
+                         style="border: 1px solid #ccc; cursor: pointer;">
+                </a>
+                <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
+            </body>
+            </html>
+            """
+            
+            return html
+        except Exception as e:
+            return f"Error getting map tile: {str(e)}"
 
     def run(self) -> None:
         """Run the MCP service"""

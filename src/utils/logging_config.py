@@ -3,7 +3,7 @@ import sys
 import os
 
 
-def configure_logging(debug=False):
+def configure_logging(debug: bool = False) -> logging.Logger:
     """
     Configure logging for the entire application.
 
@@ -40,7 +40,7 @@ def configure_logging(debug=False):
     return root_logger
 
 
-def get_logger(name):
+def get_logger(name: str) -> logging.Logger:
     """
     Get a logger for a module.
 

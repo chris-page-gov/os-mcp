@@ -4,9 +4,13 @@ import json
 import asyncio
 from collections import defaultdict
 from functools import wraps
+from typing import TypeVar, Callable, Any, Union, Dict, List, cast
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Add TypeVar for generic function typing
+F = TypeVar('F', bound=Callable[..., Any])
 
 
 class ToolGuardrails:
@@ -25,7 +29,7 @@ class ToolGuardrails:
         # Rate limiting settings
         self.requests_per_minute = requests_per_minute
         self.window_seconds = window_seconds
-        self.request_timestamps = defaultdict(list)
+        self.request_timestamps: Dict[str, List[float]] = defaultdict(list)
         self.client_id = client_id
         self.debug = True
 
@@ -46,7 +50,7 @@ class ToolGuardrails:
         if self.debug:
             logger.debug(f"ToolGuardrails initialized with {requests_per_minute} rpm")
 
-    def check_rate_limit(self, client_id):
+    def check_rate_limit(self, client_id: str) -> bool:
         """Check if client has exceeded rate limit"""
         if self.debug:
             logger.debug(f"Checking rate limit for client '{client_id}'")
@@ -83,7 +87,7 @@ class ToolGuardrails:
             )
         return True
 
-    def detect_prompt_injection(self, input_text):
+    def detect_prompt_injection(self, input_text: Any) -> bool:
         """Check if input contains prompt injection attempts"""
         if not isinstance(input_text, str):
             return False
@@ -91,11 +95,11 @@ class ToolGuardrails:
             re.search(pattern, input_text) for pattern in self.suspicious_patterns
         )
 
-    def basic_guardrails(self, func):
+    def basic_guardrails(self, func: F) -> F:
         """Combined decorator for rate limiting and prompt injection protection"""
 
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
             # Check rate limit first - use the current client_id at runtime
             if not self.check_rate_limit(self.client_id):
                 return json.dumps(
@@ -124,7 +128,7 @@ class ToolGuardrails:
             return await func(*args, **kwargs)
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
             # Check rate limit first - use the current client_id at runtime
             if not self.check_rate_limit(self.client_id):
                 return json.dumps(
@@ -153,5 +157,5 @@ class ToolGuardrails:
             return func(*args, **kwargs)
 
         if asyncio.iscoroutinefunction(func):
-            return async_wrapper
-        return sync_wrapper
+            return cast(F, async_wrapper)
+        return cast(F, sync_wrapper)

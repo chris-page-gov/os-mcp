@@ -34,6 +34,8 @@ async def test_mcp():
             logger.debug("Sending initialize request")
             init_result = await session.initialize()
             print(f"Initialized: {init_result}")
+            # TODO: This current returns None - need to fix this and understand why this happens
+            print(f"Session ID: {get_session_id()}")
 
             # List tools
             logger.debug("Listing tools")
