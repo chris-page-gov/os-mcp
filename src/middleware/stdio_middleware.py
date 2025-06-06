@@ -6,7 +6,8 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 # Add this at the top
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
+
 
 class StdioMiddleware:
     """
@@ -21,7 +22,7 @@ class StdioMiddleware:
 
     def require_auth(self, func: F) -> F:
         """Decorator to require authentication for a function."""
-        
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Check authentication first
