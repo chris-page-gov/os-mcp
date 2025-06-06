@@ -47,7 +47,6 @@ def main():
         case "stdio":
             logger.info("Starting with stdio transport")
 
-            # Create MCP server optimized for stdio
             mcp = FastMCP(
                 "os-ngd-api",
                 debug=args.debug,
@@ -57,8 +56,6 @@ def main():
 
             # Create service (this registers all tools with the MCP server)
             service = OSDataHubService(api_client, mcp)
-
-            # Initialise stdio authenticator
             stdio_auth = StdioMiddleware()
 
             # Handle authentication
@@ -72,14 +69,13 @@ def main():
         case "streamable-http":
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
 
-            # Create MCP server for HTTP
             mcp = FastMCP(
                 "os-ngd-api",
                 host=args.host,
                 port=args.port,
                 debug=args.debug,
                 json_response=True,
-                stateless_http=True,
+                stateless_http=False,
                 log_level="DEBUG" if args.debug else "INFO",
             )
 
@@ -92,7 +88,7 @@ def main():
                 )
 
             app = mcp.streamable_http_app()
-            
+
             app.routes.append(
                 Route(
                     "/.well-known/mcp-auth",
@@ -100,18 +96,21 @@ def main():
                     methods=["GET"],
                 )
             )
-            
-            # Add my custom middleware to FastMCP's app
-            app.user_middleware.extend([
-                Middleware(CORSMiddleware,
-                    allow_origins=["*"],
-                    allow_credentials=True,
-                    allow_methods=["GET", "POST", "OPTIONS"],
-                    allow_headers=["*"],
-                    expose_headers=["*"],
-                ),
-                Middleware(HTTPMiddleware)
-            ])
+
+            # Add my custom middleware to FastMCP's app!
+            app.user_middleware.extend(
+                [
+                    Middleware(
+                        CORSMiddleware,
+                        allow_origins=["*"],
+                        allow_credentials=True,
+                        allow_methods=["GET", "POST", "OPTIONS"],
+                        allow_headers=["*"],
+                        expose_headers=["*"],
+                    ),
+                    Middleware(HTTPMiddleware),
+                ]
+            )
 
             uvicorn.run(
                 app,

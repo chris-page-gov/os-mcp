@@ -7,6 +7,7 @@ from api_service.protocols import APIClient
 from .protocols import MCPService, FeatureService
 from .guardrails import ToolGuardrails
 from utils.logging_config import get_logger
+from mcp.server.fastmcp import Context
 
 logger = get_logger(__name__)
 
@@ -24,16 +25,10 @@ class OSDataHubService(FeatureService):
         """
         self.api_client = api_client
         self.mcp = mcp_service
-        # Use default client ID initially
-        # TODO: Remove this once we have a proper client ID - this is broken.
-        # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
-        self.session: Dict[str, str] = {"client_id": "default_client"}
 
         # Initialise guardrails
         # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
-        self.guardrails = ToolGuardrails(
-            requests_per_minute=25, client_id=self.session["client_id"]
-        )
+        self.guardrails = ToolGuardrails(requests_per_minute=25)
 
         # Register tools
         self.register_tools()
@@ -84,32 +79,24 @@ class OSDataHubService(FeatureService):
             self.guardrails.basic_guardrails(self.get_light_map_tile)
         )
 
-    # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
-    def message_listener(self, message: Dict[str, Any]) -> None:
-        """
-        Handle incoming protocol messages.
-        Extracts client name on 'initialize' and stores it in session.
-        """
-        if message.get("method") == "initialize":
-            try:
-                client_name: str = message["params"]["clientInfo"]["name"]
-                logger.info(f"Client name: {client_name}")
-                self.session["client_id"] = client_name
-                # Update the guardrails client ID
-                self.guardrails.client_id = client_name
-                logger.info(f"Set client_id to '{client_name}' in session.")
-            except Exception as e:
-                logger.warning(f"Could not extract client name: {e}")
-        elif message.get("method") == "tools/call":
-            # Ensure the client ID is used for all tool calls
-            # This is crucial for maintaining per-client rate limits
-            if "client_id" in self.session:
-                logger.info(f"Client ID: {self.session['client_id']}")
-                self.guardrails.client_id = self.session["client_id"]
+    # TODO: add in the session ID stuff to all tools!!
+    # Needs improved
+    async def hello_world(self, name: str, ctx: Context) -> str:
+        """Simple hello world tool for testing"""
+        # Get session ID from the context - this is our client identifier
+        session_id = None
+        if hasattr(ctx.request_context.session, "_transport") and hasattr(
+            ctx.request_context.session._transport, "mcp_session_id"
+        ):
+            session_id = ctx.request_context.session._transport.mcp_session_id
+        elif hasattr(ctx.request_context.session, "session_id"):
+            session_id = ctx.request_context.session.session_id
 
-    def hello_world(self) -> str:
-        """A simple test tool that returns a greeting message."""
-        return "Hello from the OS NGD - Features API MCP server! The connection is working correctly."
+        # Fallback to request_id if no session_id available
+        client_identifier = session_id or ctx.request_id
+
+        logger.info(f"Hello world called by session: {client_identifier}")
+        return f"Hello, {name}! 👋 (Session: {client_identifier})"
 
     def check_api_key(self) -> str:
         """Check if the OS API key is available."""
@@ -288,14 +275,18 @@ class OSDataHubService(FeatureService):
             # Filter by feature type
             identifiers: List[str] = []
             if "correlations" in data:
-                assert isinstance(data["correlations"], list), "correlations must be a list"
+                assert isinstance(data["correlations"], list), (
+                    "correlations must be a list"
+                )
                 correlations = cast(List[Dict[str, Any]], data["correlations"])
                 for item in correlations:
                     if item.get("correlatedFeatureType") == feature_type:
                         if "correlatedIdentifiers" in item and isinstance(
                             item["correlatedIdentifiers"], list
                         ):
-                            correlated_ids = cast(List[Dict[str, Any]], item["correlatedIdentifiers"])
+                            correlated_ids = cast(
+                                List[Dict[str, Any]], item["correlatedIdentifiers"]
+                            )
                             identifiers = [
                                 id_obj["identifier"]
                                 for id_obj in correlated_ids
@@ -344,7 +335,9 @@ class OSDataHubService(FeatureService):
             results: List[str] = await asyncio.gather(*tasks)
 
             # Parse results back to objects for processing
-            parsed_results: List[Dict[str, Any]] = [json.loads(result) for result in results]
+            parsed_results: List[Dict[str, Any]] = [
+                json.loads(result) for result in results
+            ]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
@@ -596,24 +589,24 @@ class OSDataHubService(FeatureService):
             api_key = os.environ.get("OS_API_KEY")
             if not api_key:
                 return "Error: OS_API_KEY environment variable is not set"
-            
+
             # Create direct image URL
             image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
-            
+
             # Return HTML with clickable image
             html = f"""
             <html>
             <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
                 <p>Click on the map tile to download:</p>
                 <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
-                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile" 
+                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile"
                          style="border: 1px solid #ccc; cursor: pointer;">
                 </a>
                 <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
             </body>
             </html>
             """
-            
+
             return html
         except Exception as e:
             return f"Error getting map tile: {str(e)}"

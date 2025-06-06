@@ -26,16 +26,16 @@ async def test_mcp():
             logger.debug("Sending initialize request")
             init_result = await session.initialize()
             print(f"Initialized: {init_result}")
-            # TODO: This current returns None - need to fix this and understand why this happens
             print(f"Session ID: {get_session_id()}")
 
             # List tools
-            logger.debug("Listing tools")
-            tools = await session.list_tools()
-            print(f"Available tools: {tools}")
+            # logger.debug("Listing tools")
+            # tools = await session.list_tools()
+            # print(f"Available tools: {tools}")
 
             try:
                 logger.debug("Calling hello_world tool")
+                # REMOVE the 'ctx' parameter - it's injected automatically by the server
                 result = await session.call_tool("hello_world", {"name": "MCP User"})
                 print(f"Tool result: {result}")
             except Exception as e:
