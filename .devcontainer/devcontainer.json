@@ -7,7 +7,8 @@
   "containerEnv": {
     "PYTHONPATH": "src",
     "OS_API_KEY": "${localEnv:OS_API_KEY}",
-    "STDIO_KEY": "${localEnv:OS_API_KEY}"
+    "STDIO_KEY": "${localEnv:OS_API_KEY}",
+    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
   }, //STDIO_KEY is used for local development
   
   // "features": {
