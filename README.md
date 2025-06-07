@@ -135,7 +135,7 @@ Each request to the MCP server will need to be authenticated with a bearer token
 1. **Start the server:**
 
 ```bash
-python src/server.py --transport streamable-http --host 127.0.0.1 --port 8000
+python src/server.py --transport streamable-http --host 0.0.0.0 --port 8000
 ```
 
 2. **Test using the provided client script:**
@@ -152,6 +152,69 @@ The client script demonstrates:
 - Initialising a session
 - Listing available tools
 - Making test calls (e.g., `hello_world` tool)
+
+### 4. Dev Container Setup (for VS Code Development)
+
+If you're running the server in a VS Code dev container:
+
+1. **Ensure your `.devcontainer/devcontainer.json` includes port forwarding:**
+
+```json
+{
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "PYTHONPATH": "src",
+    "OS_API_KEY": "${localEnv:OS_API_KEY}",
+    "STDIO_KEY": "${localEnv:OS_API_KEY}",
+    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
+  },
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "MCP Server",
+      "onAutoForward": "notify"
+    }
+  }
+}
+```
+
+2. **Start the server with host binding to all interfaces:**
+
+```bash
+PYTHONPATH=src python3 src/server.py --transport streamable-http --host 0.0.0.0 --port 8000 --debug
+```
+
+3. **Configure Claude Desktop to connect to the forwarded port:**
+
+```json
+{
+  "mcpServers": {
+    "os-ngd-api": {
+      "url": "http://localhost:8000/mcp/",
+      "headers": {
+        "Authorization": "Bearer dev-token"
+      }
+    }
+  }
+}
+```
+
+**Note:** Remove any `command` field from the Claude Desktop config when using URL-based connection.
+### 5. Testing Connection
+
+To verify your server is working correctly, you can test the connection with curl:
+
+```bash
+# Test the server is responding
+curl -v http://localhost:8000/mcp/ \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "method": "initialize", "id": 1}'
+```
+
+A successful response will include initialization data and session information.
 
 ## Available Tools
 
@@ -238,6 +301,39 @@ Ask Claude to use specific templates:
 - _"Run the freight_routing_usrn analysis for USRN 12345"_
 
 Each template provides step-by-step instructions using the OS NGD API collections and your available MCP tools.
+
+## Troubleshooting
+
+### Connection Issues
+
+If you're having trouble connecting to the server:
+
+1. **Check environment variables** are properly set:
+   ```bash
+   echo "OS_API_KEY: $OS_API_KEY"
+   echo "BEARER_TOKEN: $BEARER_TOKEN"
+   ```
+
+2. **Verify port forwarding** (for dev containers):
+   - Ensure port 8000 is forwarded in your devcontainer config
+   - Check VS Code shows the forwarded port in the PORTS panel
+
+3. **Test server connectivity**:
+   ```bash
+   # From inside container
+   curl -I http://127.0.0.1:8000/mcp/
+   
+   # From host machine (with port forwarding)
+   curl -I http://localhost:8000/mcp/
+   ```
+
+4. **Check server logs** for authentication and connection errors
+
+### Authentication Issues
+
+- Ensure `BEARER_TOKEN` is set to `dev-token` in your environment
+- Verify the Authorization header format: `Bearer dev-token`
+- Check that the token matches between client and server configuration
 
 ## Contributing
 

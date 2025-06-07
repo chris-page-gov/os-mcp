@@ -37,9 +37,9 @@ async def test_mcp():
             print(f"Session ID: {get_session_id()}")
 
             # List tools
-            # logger.debug("Listing tools")
-            # tools = await session.list_tools()
-            # print(f"Available tools: {tools}")
+            logger.debug("Listing tools")
+            tools = await session.list_tools()
+            print(f"Available tools: {[tool.name for tool in tools.tools]}")
 
             try:
                 logger.debug("Calling hello_world tool")
@@ -48,6 +48,15 @@ async def test_mcp():
                 print(f"Tool result: {result}")
             except Exception as e:
                 print(f"Error calling tool: {e}")
+
+            # Test an OS API tool if available
+            if any(tool.name == "list_collections" for tool in tools.tools):
+                try:
+                    logger.debug("Testing list_collections tool")
+                    result = await session.call_tool("list_collections", {})
+                    print(f"OS Collections result: {result}")
+                except Exception as e:
+                    print(f"Error calling list_collections: {e}")
 
 
 if __name__ == "__main__":
