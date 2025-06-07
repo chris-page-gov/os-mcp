@@ -47,7 +47,9 @@ async def verify_bearer_token(token: str) -> bool:
 
 
 class HTTPMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         # Skip auth for auth discovery endpoints and OPTIONS requests
         if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
             return await call_next(request)

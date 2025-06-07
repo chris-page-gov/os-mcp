@@ -18,11 +18,7 @@ class MCPService(Protocol):
 class FeatureService(Protocol):
     """Protocol for OS NGD feature services"""
 
-    def message_listener(self, message: dict[str, Any]) -> None:
-        """Handle incoming protocol messages"""
-        ...
-
-    def hello_world(self) -> str:
+    def hello_world(self, name: str) -> str:
         """Test connection to the service"""
         ...
 

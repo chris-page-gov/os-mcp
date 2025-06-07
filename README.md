@@ -1,6 +1,6 @@
 # Ordnance Survey - MCP Server
 
-VERSION: 0.1.2
+VERSION: 0.1.3
 
 A Python-based MCP server that provides access to the Ordnance Survey APIs, supporting both STDIO and HTTP (streamable) modes.
 
@@ -12,7 +12,7 @@ It can run in two modes:
 
 - STDIO mode: Ideal for Claude Desktop and local tool integration such as Cursor
 
-- HTTP (streamable) mode: Perfect for web clients/applications
+- HTTP (streamable) mode:
 
 ## Project Structure
 
@@ -61,7 +61,41 @@ It can run in two modes:
 
 ## Running the Server
 
-### 1. STDIO Mode (for Claude Desktop)
+### 1. Docker Mode (for Claude Desktop)
+
+The easiest way to run the server with Claude Desktop is using Docker:
+
+1. **Build the Docker image:**
+
+```bash
+docker build -t os-mcp-server .
+```
+
+2. **Configure Claude Desktop** by adding this to your Claude configuration:
+
+```json
+{
+  "mcpServers": {
+    "os-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "STDIO_KEY=your-key-here",
+        "-e",
+        "OS_API_KEY=ADD_KEY",
+        "os-mcp-server"
+      ]
+    }
+  }
+}
+```
+
+> **Note:** Leave `STDIO_KEY` as `"STDIO_KEY=your-key-here"` for now. Replace `ADD_KEY` with your actual OS API key.
+
+### 2. STDIO Mode (for Claude Desktop)
 
 This is the default mode, ideal for integration with Claude Desktop or other MCP hosts that use STDIO.
 
@@ -90,7 +124,7 @@ export STDIO_KEY=your_stdio_key_here
 python server.py --transport stdio  # or just python server.py
 ```
 
-### 2. HTTP (Streamable) Mode
+### 3. HTTP (Streamable) Mode
 
 This mode is ideal for web clients or when you need to stream large datasets.
 
@@ -140,13 +174,70 @@ All tools are available in both STDIO and HTTP modes:
 
 ## Using Prompt Templates
 
-This service provides pre-configured prompt templates to help you get started.
+This service provides comprehensive pre-configured prompt templates to help you get started with complex geospatial analysis workflows.
 
-To access these templates ask Claude "show me available prompt templates"
+To access these templates, ask Claude: **"show me available prompt templates"**
 
-Current prompt templates are:
+### Template Categories
 
-- `connected_usrns` - Find all USRNs that are directly connected to a given USRN
+#### **Basic USRN Analysis**
+
+- `usrn_breakdown` - Break down USRN into component road links for routing analysis
+- `usrn_network_connections` - Find all USRNs directly connected through the road network
+- `usrn_named_road_analysis` - Analyze which named roads include the USRN and routing implications
+
+#### **Routing & Navigation**
+
+- `route_between_usrns` - Build topological route between two USRNs
+- `usrn_to_address_routing` - Route from USRN to specific address using UPRN or postcode
+- `usrn_junction_analysis` - Analyze all junctions involving USRN for routing complexity
+
+#### **Accessibility & Mobility**
+
+- `usrn_accessibility_analysis` - Analyze accessibility routing options including pedestrian access
+- `usrn_path_integration` - Find pedestrian/cycle path integration points
+- `cycling_routing_usrn` - Plan cycling routes involving USRN
+
+#### **Multimodal Transport**
+
+- `usrn_multimodal_access` - Find all transport access points (roads, paths, rail, ferry)
+- `usrn_rail_connections` - Find railway connections near USRN
+- `usrn_tram_analysis` - Analyze tram connections and presence
+
+#### **Network Analysis**
+
+- `build_usrn_network_graph` - Build complete routing network graph centered on USRN
+- `usrn_road_link_analysis` - Detailed analysis of individual Road Links within USRN
+
+#### **Emergency & Specialized Routing**
+
+- `emergency_services_routing` - Plan emergency services routing with multiple access points
+- `freight_routing_usrn` - Plan freight/HGV routing
+- `usrn_traffic_optimization` - Plan traffic-optimized routes
+
+#### **Spatial Analysis**
+
+- `usrn_spatial_analysis` - Comprehensive spatial analysis within specified radius
+- `usrn_compound_structure_analysis` - Find compound structures affecting USRN routing
+- `route_compound_structures_analysis` - Find all compound structures along route between USRNs
+- `route_bridge_tunnel_analysis` - Analyze bridges and tunnels along route
+- `route_infrastructure_obstacles` - Identify infrastructure obstacles and restrictions along route
+- `route_multimodal_crossings` - Find multimodal transport crossings along route
+- `freight_route_structure_clearances` - Analyze structure clearances for freight routing
+
+#### **Linked Identifiers** _(Expanding)_
+
+- `uprn_to_road_infrastructure` - Connect property addresses to road infrastructure
+
+### Example Usage
+
+Ask Claude to use specific templates:
+
+- _"Use the route_between_usrns template to find a route from USRN 12345 to USRN 67890"_
+- _"Apply the emergency_services_routing template for USRN 12345"_
+- _"Run the freight_routing_usrn analysis for USRN 12345"_
+
+Each template provides step-by-step instructions using the OS NGD API collections and your available MCP tools.
 
 ## Contributing
 

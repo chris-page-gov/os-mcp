@@ -37,7 +37,6 @@ class NGDAPIEndpoint(Enum):
     MAPS_ZXY = MAPS_ZXY_BASE_PATH
 
 
-
 class OSAPIClient(APIClient):
     """Implementation of the OS APIs"""
 
@@ -220,17 +219,23 @@ class OSAPIClient(APIClient):
                     timeout=timeout,
                 ) as response:
                     if response.status >= 400:
-                        error_message = f"HTTP Error: {response.status} - {await response.text()}"
+                        error_message = (
+                            f"HTTP Error: {response.status} - {await response.text()}"
+                        )
                         logger.error(f"Error: {error_message}")
                         raise ValueError(error_message)
-                    
+
                     return await response.read()
 
             except Exception as e:
                 if attempt == max_retries:
-                    error_message = f"Request failed after {max_retries} attempts: {str(e)}"
+                    error_message = (
+                        f"Request failed after {max_retries} attempts: {str(e)}"
+                    )
                     logger.error(f"Error: {error_message}")
                     raise ValueError(error_message)
                 await asyncio.sleep(0.7)
 
-        raise RuntimeError("Unreachable: make_binary_request exited retry loop without returning or raising")
+        raise RuntimeError(
+            "Unreachable: make_binary_request exited retry loop without returning or raising"
+        )
