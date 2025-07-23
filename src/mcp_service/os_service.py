@@ -15,88 +15,52 @@ logger = get_logger(__name__)
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
-    def __init__(self, api_client: APIClient, mcp_service: MCPService):
+    def __init__(self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None):
         """
         Initialise the OS NGD service
 
         Args:
             api_client: API client implementation
             mcp_service: MCP service implementation
+            stdio_middleware: Optional STDIO middleware for rate limiting
         """
         self.api_client = api_client
         self.mcp = mcp_service
-
-        # Initialise guardrails
-        # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
-        self.guardrails = ToolGuardrails(requests_per_minute=25)
-
-        # Register tools
+        self.stdio_middleware = stdio_middleware
+        
+        self.guardrails = ToolGuardrails()
+        
         self.register_tools()
 
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails"""
+        """Register all MCP tools with guardrails and optional STDIO middleware"""
+        
+        def apply_middleware(func):
+            """Apply both guardrails and STDIO middleware if available"""
+            wrapped = self.guardrails.basic_guardrails(func)
+            
+            if self.stdio_middleware:
+                wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
+            
+            return wrapped
 
-        self.hello_world = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.hello_world)
-        )
-        self.check_api_key = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.check_api_key)
-        )
-        self.list_collections = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.list_collections)
-        )
-        self.get_collection_info = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_info)
-        )
-        self.get_collection_queryables = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_queryables)
-        )
-        self.search_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_features)
-        )
-        self.get_feature = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_feature)
-        )
-        self.get_linked_identifiers = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_linked_identifiers)
-        )
-        self.get_bulk_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_features)
-        )
-        self.get_bulk_linked_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_linked_features)
-        )
-        self.get_prompt_templates = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_prompt_templates)
-        )
-        self.search_by_uprn = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_uprn)
-        )
-        self.search_by_post_code = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_post_code)
-        )
-        self.get_light_map_tile = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_light_map_tile)
-        )
+        self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
+        self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
+        self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
+        self.get_collection_info = self.mcp.tool()(apply_middleware(self.get_collection_info))
+        self.get_collection_queryables = self.mcp.tool()(apply_middleware(self.get_collection_queryables))
+        self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
+        self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
+        self.get_linked_identifiers = self.mcp.tool()(apply_middleware(self.get_linked_identifiers))
+        self.get_bulk_features = self.mcp.tool()(apply_middleware(self.get_bulk_features))
+        self.get_bulk_linked_features = self.mcp.tool()(apply_middleware(self.get_bulk_linked_features))
+        self.get_prompt_templates = self.mcp.tool()(apply_middleware(self.get_prompt_templates))
+        self.search_by_uprn = self.mcp.tool()(apply_middleware(self.search_by_uprn))
+        self.search_by_post_code = self.mcp.tool()(apply_middleware(self.search_by_post_code))
 
-    # TODO: add in the session ID stuff to all tools!!
-    # Needs improved
-    async def hello_world(self, name: str, ctx: Context) -> str:
+    async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
-        # Get session ID from the context - this is our client identifier
-        session_id = None
-        if hasattr(ctx.request_context.session, "_transport") and hasattr(
-            ctx.request_context.session._transport, "mcp_session_id"
-        ):
-            session_id = ctx.request_context.session._transport.mcp_session_id
-        elif hasattr(ctx.request_context.session, "session_id"):
-            session_id = ctx.request_context.session.session_id
-
-        # Fallback to request_id if no session_id available
-        client_identifier = session_id or ctx.request_id
-
-        logger.info(f"Hello world called by session: {client_identifier}")
-        return f"Hello, {name}! 👋 (Session: {client_identifier})"
+        return f"Hello, {name}! 👋"
 
     def check_api_key(self) -> str:
         """Check if the OS API key is available."""
@@ -190,19 +154,16 @@ class OSDataHubService(FeatureService):
         try:
             params: Dict[str, Union[str, int]] = {}
 
-            # Add standard parameters
             if limit:
                 params["limit"] = limit
             if offset:
                 params["offset"] = offset
 
-            # Add spatial parameters
             if bbox:
                 params["bbox"] = bbox
             if crs:
                 params["crs"] = crs
 
-            # Add query attribute filter
             if query_attr and query_attr_value:
                 params["filter"] = f"{query_attr}={query_attr_value}"
 
@@ -268,11 +229,9 @@ class OSDataHubService(FeatureService):
                 "LINKED_IDENTIFIERS", path_params=[identifier_type, identifier]
             )
 
-            # If no feature_type filter, return raw data
             if not feature_type:
                 return json.dumps(data)
 
-            # Filter by feature type
             identifiers: List[str] = []
             if "correlations" in data:
                 assert isinstance(data["correlations"], list), (
@@ -320,7 +279,6 @@ class OSDataHubService(FeatureService):
 
             for identifier in identifiers:
                 if query_by_attr:
-                    # Query by attribute
                     tasks.append(
                         self.search_features(
                             collection_id,
@@ -329,12 +287,10 @@ class OSDataHubService(FeatureService):
                         )
                     )
                 else:
-                    # Query by feature ID
                     tasks.append(self.get_feature(collection_id, feature_id=identifier))
 
             results: List[str] = await asyncio.gather(*tasks)
 
-            # Parse results back to objects for processing
             parsed_results: List[Dict[str, Any]] = [
                 json.loads(result) for result in results
             ]
@@ -368,7 +324,6 @@ class OSDataHubService(FeatureService):
 
             results = await asyncio.gather(*tasks)
 
-            # Parse results back to objects
             parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
@@ -438,7 +393,6 @@ class OSDataHubService(FeatureService):
                 "output_srs": output_srs,
             }
 
-            # Add filters if provided
             if fq:
                 params["fq"] = ",".join(fq)
 
@@ -461,7 +415,6 @@ class OSDataHubService(FeatureService):
         """Validate all parameters for the UPRN search and return error message if invalid."""
         errors: List[str] = []
 
-        # Helper function to check condition and add error
         def check(condition: bool, error_msg: str) -> None:
             if condition:
                 errors.append(error_msg)
@@ -510,7 +463,6 @@ class OSDataHubService(FeatureService):
             JSON string with matched addresses
         """
         try:
-            # Validate all parameters first
             errors = self._validate_post_code_params(
                 postcode, format, dataset, lr, output_srs, fq
             )
@@ -525,13 +477,11 @@ class OSDataHubService(FeatureService):
                 "output_srs": output_srs,
             }
 
-            # Add filters if provided
             if fq:
                 params["fq"] = ",".join(fq)
 
             data = await self.api_client.make_request("POST_CODE", params=params)
 
-            # Return sanitized data as JSON
             return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
@@ -548,12 +498,10 @@ class OSDataHubService(FeatureService):
         """Validate all parameters for the POSTCODE search and return error message if invalid."""
         errors: List[str] = []
 
-        # Helper function to check condition and add error
         def check(condition: bool, error_msg: str) -> None:
             if condition:
                 errors.append(error_msg)
 
-        # Check each parameter
         check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
         check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
 
@@ -567,49 +515,12 @@ class OSDataHubService(FeatureService):
         check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
         check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
         check(
-            fq is not None and len(fq) == 0,  # Changed from isinstance check
+            fq is not None and len(fq) == 0,
             "Filters must be provided as a list",
         )
 
         return errors[0] if errors else None
 
-    # TODO: THIS DOES NOT WORK - NEED TO FIX
-    async def get_light_map_tile(
-        self,
-        z: int,
-        x: int,
-        y: int,
-    ) -> str:
-        """
-        Get a Light style map tile in EPSG:27700 projection.
-        Returns HTML with a clickable image for download.
-        """
-        try:
-            # Get API key
-            api_key = os.environ.get("OS_API_KEY")
-            if not api_key:
-                return "Error: OS_API_KEY environment variable is not set"
-
-            # Create direct image URL
-            image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
-
-            # Return HTML with clickable image
-            html = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                <p>Click on the map tile to download:</p>
-                <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
-                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile"
-                         style="border: 1px solid #ccc; cursor: pointer;">
-                </a>
-                <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
-            </body>
-            </html>
-            """
-
-            return html
-        except Exception as e:
-            return f"Error getting map tile: {str(e)}"
 
     def run(self) -> None:
         """Run the MCP service"""
