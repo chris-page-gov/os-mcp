@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 class RateLimiter:
     """HTTP-layer rate limiting"""
-    
+
     def __init__(self, requests_per_minute: int = 10, window_seconds: int = 60):
         self.requests_per_minute = requests_per_minute
         self.window_seconds = window_seconds
@@ -41,7 +41,9 @@ def get_valid_bearer_tokens() -> List[str]:
         valid_tokens = [t.strip() for t in tokens if t.strip()]
 
         if not valid_tokens:
-            logger.warning("No BEARER_TOKENS configured, all authentication will be rejected")
+            logger.warning(
+                "No BEARER_TOKENS configured, all authentication will be rejected"
+            )
             return []
 
         return valid_tokens
@@ -67,7 +69,9 @@ class HTTPMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
             return await call_next(request)
 
@@ -80,20 +84,27 @@ class HTTPMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please try again later."},
-                headers={"Retry-After": "60"}
+                headers={"Retry-After": "60"},
             )
 
         origin = request.headers.get("origin", "")
         if origin and not self._is_valid_origin(origin, request):
             client_ip = request.client.host if request.client else "unknown"
-            logger.warning(f"Blocked request with suspicious origin from {client_ip}, Origin: {origin}")
+            logger.warning(
+                f"Blocked request with suspicious origin from {client_ip}, Origin: {origin}"
+            )
             return JSONResponse(status_code=403, content={"detail": "Invalid origin"})
 
         user_agent = request.headers.get("user-agent", "")
         if self._is_browser_plugin(user_agent, request):
             client_ip = request.client.host if request.client else "unknown"
-            logger.warning(f"Blocked browser plugin access from {client_ip}, User-Agent: {user_agent}")
-            return JSONResponse(status_code=403, content={"detail": "Browser plugin access is not allowed"})
+            logger.warning(
+                f"Blocked browser plugin access from {client_ip}, User-Agent: {user_agent}"
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Browser plugin access is not allowed"},
+            )
 
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
@@ -102,9 +113,13 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 request.state.token = token
                 return await call_next(request)
             else:
-                logger.warning(f"Invalid bearer token attempt from {request.client.host if request.client else 'unknown'}")
+                logger.warning(
+                    f"Invalid bearer token attempt from {request.client.host if request.client else 'unknown'}"
+                )
         else:
-            logger.warning(f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}")
+            logger.warning(
+                f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}"
+            )
 
         return JSONResponse(
             status_code=401,
@@ -123,25 +138,33 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 return True
 
         for domain in valid_domains:
-            if (origin == domain or 
-                origin.startswith(f"https://{domain}") or 
-                origin.startswith(f"http://{domain}")):
+            if (
+                origin == domain
+                or origin.startswith(f"https://{domain}")
+                or origin.startswith(f"http://{domain}")
+            ):
                 return True
 
         return False
 
     def _is_browser_plugin(self, user_agent: str, request: Request) -> bool:
         """Check if request is from a browser plugin."""
-        plugin_patterns = ["Chrome-Extension", "Mozilla/5.0 (compatible; Extension)", "Browser-Extension"]
+        plugin_patterns = [
+            "Chrome-Extension",
+            "Mozilla/5.0 (compatible; Extension)",
+            "Browser-Extension",
+        ]
 
         for pattern in plugin_patterns:
             if pattern.lower() in user_agent.lower():
                 return True
 
         origin = request.headers.get("origin", "")
-        if origin and (origin.startswith("chrome-extension://") or 
-                      origin.startswith("moz-extension://") or 
-                      origin.startswith("safari-extension://")):
+        if origin and (
+            origin.startswith("chrome-extension://")
+            or origin.startswith("moz-extension://")
+            or origin.startswith("safari-extension://")
+        ):
             return True
 
         return False

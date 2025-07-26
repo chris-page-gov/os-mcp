@@ -1,13 +1,11 @@
 import json
 import asyncio
-import os
 
-from typing import Optional, List, Dict, Any, Union, cast
+from typing import Optional, List, Dict, Any, Union
 from api_service.protocols import APIClient
 from .protocols import MCPService, FeatureService
 from .guardrails import ToolGuardrails
 from utils.logging_config import get_logger
-from mcp.server.fastmcp import Context
 
 logger = get_logger(__name__)
 
@@ -15,7 +13,9 @@ logger = get_logger(__name__)
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
-    def __init__(self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None):
+    def __init__(
+        self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None
+    ):
         """
         Initialise the OS NGD service
 
@@ -27,39 +27,67 @@ class OSDataHubService(FeatureService):
         self.api_client = api_client
         self.mcp = mcp_service
         self.stdio_middleware = stdio_middleware
-        
+
         self.guardrails = ToolGuardrails()
-        
+
         self.register_tools()
 
+    async def _ensure_openapi_cached(self):
+        """Ensure OpenAPI spec gets cached exactly once"""
+        if not hasattr(self, "_openapi_cached"):
+            self._openapi_cached = True
+            try:
+                logger.info("Caching OpenAPI spec for LLM context...")
+                await self.api_client.cache_openapi_spec()
+                logger.info(
+                    "OpenAPI spec cached successfully - LLM now has full API context"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to cache OpenAPI spec: {e}")
+                logger.info("OpenAPI spec will be fetched on-demand when requested")
+
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails and optional STDIO middleware"""
-        
+        """Register all MCP tools with guardrails and STDIO middleware"""
+
         def apply_middleware(func):
             """Apply both guardrails and STDIO middleware if available"""
             wrapped = self.guardrails.basic_guardrails(func)
-            
+
             if self.stdio_middleware:
                 wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
-            
+
             return wrapped
 
         self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
         self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
+        self.get_api_specification = self.mcp.tool()(
+            apply_middleware(self.get_api_specification)
+        )
         self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
-        self.get_collection_info = self.mcp.tool()(apply_middleware(self.get_collection_info))
-        self.get_collection_queryables = self.mcp.tool()(apply_middleware(self.get_collection_queryables))
+        self.get_collection_info = self.mcp.tool()(
+            apply_middleware(self.get_collection_info)
+        )
+        self.get_collection_queryables = self.mcp.tool()(
+            apply_middleware(self.get_collection_queryables)
+        )
         self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
         self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
-        self.get_linked_identifiers = self.mcp.tool()(apply_middleware(self.get_linked_identifiers))
-        self.get_bulk_features = self.mcp.tool()(apply_middleware(self.get_bulk_features))
-        self.get_bulk_linked_features = self.mcp.tool()(apply_middleware(self.get_bulk_linked_features))
-        self.get_prompt_templates = self.mcp.tool()(apply_middleware(self.get_prompt_templates))
-        self.search_by_uprn = self.mcp.tool()(apply_middleware(self.search_by_uprn))
-        self.search_by_post_code = self.mcp.tool()(apply_middleware(self.search_by_post_code))
+        self.get_linked_identifiers = self.mcp.tool()(
+            apply_middleware(self.get_linked_identifiers)
+        )
+        self.get_bulk_features = self.mcp.tool()(
+            apply_middleware(self.get_bulk_features)
+        )
+        self.get_bulk_linked_features = self.mcp.tool()(
+            apply_middleware(self.get_bulk_linked_features)
+        )
+        self.get_prompt_templates = self.mcp.tool()(
+            apply_middleware(self.get_prompt_templates)
+        )
 
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
+        await self._ensure_openapi_cached()
         return f"Hello, {name}! 👋"
 
     def check_api_key(self) -> str:
@@ -70,6 +98,31 @@ class OSDataHubService(FeatureService):
         except ValueError as e:
             return str(e)
 
+    async def get_api_specification(self) -> str:
+        """
+        Get the cached OpenAPI specification for the OS NGD API.
+        This provides the LLM with comprehensive context about available endpoints,
+        parameters, and data schemas.
+
+        Returns:
+            JSON string with the complete OpenAPI specification
+        """
+        await self._ensure_openapi_cached()
+        try:
+            cached_spec = self.api_client.get_cached_openapi_spec()
+
+            if cached_spec is None:
+                # If not cached yet, try to cache it now
+                logger.info("OpenAPI spec not cached yet, fetching now...")
+                cached_spec = await self.api_client.cache_openapi_spec()
+
+            return json.dumps(cached_spec)
+        except Exception as e:
+            logger.error(f"Error getting API specification: {e}")
+            return json.dumps(
+                {"error": "Failed to retrieve API specification", "message": str(e)}
+            )
+
     async def list_collections(
         self,
     ) -> str:
@@ -79,6 +132,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with collection info (id, title only)
         """
+        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request("COLLECTIONS")
 
@@ -92,6 +146,7 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
+            logger.error("Error listing collections")
             return json.dumps({"error": str(e)})
 
     async def get_collection_info(
@@ -107,6 +162,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with collection information
         """
+        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "COLLECTION_INFO", path_params=[collection_id]
@@ -129,6 +185,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with queryable properties
         """
+        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "COLLECTION_QUERYABLES", path_params=[collection_id]
@@ -151,6 +208,7 @@ class OSDataHubService(FeatureService):
         """
         Search for features in a collection with simplified parameters.
         """
+        await self._ensure_openapi_cached()
         try:
             params: Dict[str, Union[str, int]] = {}
 
@@ -192,6 +250,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with feature data
         """
+        await self._ensure_openapi_cached()
         try:
             params: Dict[str, str] = {}
             if crs:
@@ -224,36 +283,21 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with linked identifiers or filtered results
         """
+        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "LINKED_IDENTIFIERS", path_params=[identifier_type, identifier]
             )
 
-            if not feature_type:
-                return json.dumps(data)
+            if feature_type:
+                # Filter results by feature type
+                filtered_results = []
+                for item in data.get("results", []):
+                    if item.get("featureType") == feature_type:
+                        filtered_results.append(item)
+                return json.dumps({"results": filtered_results})
 
-            identifiers: List[str] = []
-            if "correlations" in data:
-                assert isinstance(data["correlations"], list), (
-                    "correlations must be a list"
-                )
-                correlations = cast(List[Dict[str, Any]], data["correlations"])
-                for item in correlations:
-                    if item.get("correlatedFeatureType") == feature_type:
-                        if "correlatedIdentifiers" in item and isinstance(
-                            item["correlatedIdentifiers"], list
-                        ):
-                            correlated_ids = cast(
-                                List[Dict[str, Any]], item["correlatedIdentifiers"]
-                            )
-                            identifiers = [
-                                id_obj["identifier"]
-                                for id_obj in correlated_ids
-                                if "identifier" in id_obj
-                            ]
-                            break
-
-            return json.dumps({"identifiers": identifiers})
+            return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -268,32 +312,33 @@ class OSDataHubService(FeatureService):
 
         Args:
             collection_id: The collection ID
-            identifiers: List of feature IDs or attribute values
-            query_by_attr: If provided, query by this attribute instead of feature ID
+            identifiers: List of feature identifiers
+            query_by_attr: Attribute to query by (if not provided, assumes feature IDs)
 
         Returns:
             JSON string with features data
         """
+        await self._ensure_openapi_cached()
         try:
             tasks: List[Any] = []
-
             for identifier in identifiers:
                 if query_by_attr:
-                    tasks.append(
-                        self.search_features(
-                            collection_id,
-                            query_attr=query_by_attr,
-                            query_attr_value=identifier,
-                        )
+                    # Query by specific attribute
+                    task = self.search_features(
+                        collection_id=collection_id,
+                        query_attr=query_by_attr,
+                        query_attr_value=identifier,
+                        limit=1,
                     )
                 else:
-                    tasks.append(self.get_feature(collection_id, feature_id=identifier))
+                    # Query by feature ID
+                    task = self.get_feature(collection_id, identifier)
 
-            results: List[str] = await asyncio.gather(*tasks)
+                tasks.append(task)
 
-            parsed_results: List[Dict[str, Any]] = [
-                json.loads(result) for result in results
-            ]
+            results = await asyncio.gather(*tasks)
+
+            parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
@@ -316,6 +361,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with linked features data
         """
+        await self._ensure_openapi_cached()
         try:
             tasks = [
                 self.get_linked_identifiers(identifier_type, identifier, feature_type)
@@ -351,177 +397,15 @@ class OSDataHubService(FeatureService):
 
         return json.dumps(PROMPT_TEMPLATES)
 
-    async def search_by_uprn(
-        self,
-        uprn: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """
-        Find addresses by UPRN using the OS Places API.
-
-        Args:
-            uprn: A valid UPRN (Unique Property Reference Number)
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
-
-        Returns:
-            JSON string with matched addresses
-        """
-        try:
-            # Validate all parameters first
-            errors = self._validate_uprn_params(
-                uprn, format, dataset, lr, output_srs, fq
-            )
-            if errors:
-                return json.dumps({"error": errors})
-
-            # Convert UPRN to integer
-            uprn_int = int(uprn)
-
-            params = {
-                "uprn": uprn_int,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
-
-            if fq:
-                params["fq"] = ",".join(fq)
-
-            data = await self.api_client.make_request("PLACES_UPRN", params=params)
-
-            # Return sanitized data as JSON
-            return json.dumps(data)
-        except Exception as e:
-            return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
-
-    def _validate_uprn_params(
-        self,
-        uprn: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the UPRN search and return error message if invalid."""
-        errors: List[str] = []
-
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        # Check each parameter
-        check(not uprn.isdigit(), "UPRN must contain only digits")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,
-            "Filters cannot be an empty list",
-        )
-
-        return errors[0] if errors else None
-
-    async def search_by_post_code(
-        self,
-        postcode: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """
-        Find addresses by POSTCODE using the OS Places API.
-
-        Args:
-            postcode: A valid POSTCODE (e.g. "SW1A 1AA")
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
-
-        Returns:
-            JSON string with matched addresses
-        """
-        try:
-            errors = self._validate_post_code_params(
-                postcode, format, dataset, lr, output_srs, fq
-            )
-            if errors:
-                return json.dumps({"error": errors})
-
-            params = {
-                "postcode": postcode,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
-
-            if fq:
-                params["fq"] = ",".join(fq)
-
-            data = await self.api_client.make_request("POST_CODE", params=params)
-
-            return json.dumps(data)
-        except Exception as e:
-            return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
-
-    def _validate_post_code_params(
-        self,
-        postcode: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the POSTCODE search and return error message if invalid."""
-        errors: List[str] = []
-
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,
-            "Filters must be provided as a list",
-        )
-
-        return errors[0] if errors else None
-
-
     def run(self) -> None:
         """Run the MCP service"""
-        self.mcp.run()
+        try:
+            self.mcp.run()
+        finally:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.api_client.close())
+            except Exception as e:
+                logger.error(f"Error closing API client: {e}")
+                pass

@@ -26,6 +26,10 @@ class FeatureService(Protocol):
         """Check if API key is available"""
         ...
 
+    async def get_api_specification(self) -> str:
+        """Get the cached OpenAPI specification for the OS NGD API"""
+        ...
+
     async def list_collections(self) -> str:
         """List all available feature collections"""
         ...
@@ -81,16 +85,4 @@ class FeatureService(Protocol):
         feature_type: Optional[str] = None,
     ) -> str:
         """Get linked features for multiple identifiers"""
-        ...
-
-    async def search_by_uprn(
-        self,
-        uprn: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """Find addresses by UPRN using the OS Places API"""
         ...

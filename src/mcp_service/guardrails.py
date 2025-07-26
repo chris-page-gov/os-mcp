@@ -15,12 +15,12 @@ class ToolGuardrails:
     def __init__(self):
         self.suspicious_patterns = [
             r"(?i)ignore previous",
-            r"(?i)ignore all previous instructions", 
+            r"(?i)ignore all previous instructions",
             r"(?i)assistant:",
             r"\{\{.*?\}\}",
             r"(?i)forget",
             r"(?i)show credentials",
-            r"(?i)show secrets", 
+            r"(?i)show secrets",
             r"(?i)reveal password",
             r"(?i)dump (tokens|secrets|passwords|credentials)",
             r"(?i)leak confidential",
@@ -30,7 +30,9 @@ class ToolGuardrails:
         """Check if input contains prompt injection attempts"""
         if not isinstance(input_text, str):
             return False
-        return any(re.search(pattern, input_text) for pattern in self.suspicious_patterns)
+        return any(
+            re.search(pattern, input_text) for pattern in self.suspicious_patterns
+        )
 
     def basic_guardrails(self, func: F) -> F:
         """Prompt injection protection only"""
@@ -43,8 +45,13 @@ class ToolGuardrails:
                         raise ValueError("Prompt injection detected!")
 
                 for name, value in kwargs.items():
-                    if not (hasattr(value, "request_context") and hasattr(value, "request_id")):
-                        if isinstance(value, str) and self.detect_prompt_injection(value):
+                    if not (
+                        hasattr(value, "request_context")
+                        and hasattr(value, "request_id")
+                    ):
+                        if isinstance(value, str) and self.detect_prompt_injection(
+                            value
+                        ):
                             raise ValueError(f"Prompt injection in '{name}'!")
             except ValueError as e:
                 return json.dumps({"error": str(e), "code": 400})
@@ -59,8 +66,13 @@ class ToolGuardrails:
                         raise ValueError("Prompt injection detected!")
 
                 for name, value in kwargs.items():
-                    if not (hasattr(value, "request_context") and hasattr(value, "request_id")):
-                        if isinstance(value, str) and self.detect_prompt_injection(value):
+                    if not (
+                        hasattr(value, "request_context")
+                        and hasattr(value, "request_id")
+                    ):
+                        if isinstance(value, str) and self.detect_prompt_injection(
+                            value
+                        ):
                             raise ValueError(f"Prompt injection in '{name}'!")
             except ValueError as e:
                 return json.dumps({"error": str(e), "code": 400})

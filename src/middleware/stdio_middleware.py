@@ -12,7 +12,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 class StdioRateLimiter:
     """STDIO-specific rate limiting"""
-    
+
     def __init__(self, requests_per_minute: int = 20, window_seconds: int = 60):
         self.requests_per_minute = requests_per_minute
         self.window_seconds = window_seconds
@@ -21,8 +21,11 @@ class StdioRateLimiter:
     def check_rate_limit(self) -> bool:
         """Check rate limit for STDIO client"""
         current_time = time.time()
-        
-        while self.request_timestamps and current_time - self.request_timestamps[0] >= self.window_seconds:
+
+        while (
+            self.request_timestamps
+            and current_time - self.request_timestamps[0] >= self.window_seconds
+        ):
             self.request_timestamps.popleft()
 
         if len(self.request_timestamps) >= self.requests_per_minute:
@@ -47,7 +50,9 @@ class StdioMiddleware:
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
             if not self.authenticated:
-                logger.error(json.dumps({"error": "Authentication required", "code": 401}))
+                logger.error(
+                    json.dumps({"error": "Authentication required", "code": 401})
+                )
                 return json.dumps({"error": "Authentication required", "code": 401})
 
             if not self.rate_limiter.check_rate_limit():
@@ -59,7 +64,9 @@ class StdioMiddleware:
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
             if not self.authenticated:
-                logger.error(json.dumps({"error": "Authentication required", "code": 401}))
+                logger.error(
+                    json.dumps({"error": "Authentication required", "code": 401})
+                )
                 return json.dumps({"error": "Authentication required", "code": 401})
 
             if not self.rate_limiter.check_rate_limit():

@@ -26,11 +26,10 @@ class APIClient(Protocol):
         """Make a request to an API endpoint"""
         ...
 
-    async def make_binary_request(
-        self,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        path_params: Optional[List[str]] = None,
-    ) -> bytes:
-        """Make a request to an API endpoint expecting binary data"""
+    async def cache_openapi_spec(self):
+        """Cache the OpenAPI spec"""
+        ...
+
+    async def get_cached_openapi_spec(self):
+        """Get the cached OpenAPI spec"""
         ...
