@@ -1,5 +1,6 @@
 import json
 import time
+import asyncio
 from collections import deque
 from typing import Callable, TypeVar, Any, Union, cast
 from functools import wraps
@@ -44,7 +45,19 @@ class StdioMiddleware:
         """Decorator for auth and rate limiting"""
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
+            if not self.authenticated:
+                logger.error(json.dumps({"error": "Authentication required", "code": 401}))
+                return json.dumps({"error": "Authentication required", "code": 401})
+
+            if not self.rate_limiter.check_rate_limit():
+                logger.error(json.dumps({"error": "Rate limited", "code": 429}))
+                return json.dumps({"error": "Rate limited", "code": 429})
+
+            return await func(*args, **kwargs)
+
+        @wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Union[str, Any]:
             if not self.authenticated:
                 logger.error(json.dumps({"error": "Authentication required", "code": 401}))
                 return json.dumps({"error": "Authentication required", "code": 401})
@@ -55,7 +68,9 @@ class StdioMiddleware:
 
             return func(*args, **kwargs)
 
-        return cast(F, wrapper)
+        if asyncio.iscoroutinefunction(func):
+            return cast(F, async_wrapper)
+        return cast(F, sync_wrapper)
 
     def authenticate(self, key: str) -> bool:
         """Authenticate with API key"""

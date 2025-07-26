@@ -80,8 +80,8 @@ async def test_usrn_calls():
     print("=" * 50)
     
     # Different USRN values to test
-    usrn_values_1 = ["24501091", "24502114"]  # Example USRN values
-    usrn_values_2 = ["24502114", "24501091"]  # Different USRN values
+    usrn_values_1 = ["24501091", "24502114"]  
+    usrn_values_2 = ["24502114", "24501091"]  
     
     results_a, session_id_a = await test_usrn_search("SESSION-A", usrn_values_1)
     await asyncio.sleep(0.5)
