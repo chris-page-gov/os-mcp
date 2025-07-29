@@ -4,6 +4,7 @@ import functools
 
 from typing import Optional, List, Dict, Any, Union
 from api_service.protocols import APIClient
+from promp_templates.prompt_templates import PROMPT_TEMPLATES
 from mcp_service.protocols import MCPService, FeatureService
 from mcp_service.guardrails import ToolGuardrails
 from workflow_generator.workflow_planner import WorkflowPlanner
@@ -146,43 +147,11 @@ class OSDataHubService(FeatureService):
                             "error": "Workflow context required",
                             "instruction": "You must call get_workflow_context first to plan your approach. This tool provides essential information about available collections and endpoints needed to properly handle the user's request.",
                             "requested_tool": func.__name__,
-                            "user_request": self._extract_user_intent(func.__name__, *args, **kwargs)
                         })
 
-                    # Workflow planner exists, execute the tool
                     return await func(*args, **kwargs)
 
         return wrapper
-
-    def _extract_user_intent(self, func_name: str, *args, **kwargs) -> str:
-        """Extract the user's original intent from the function call"""
-        match func_name:
-            case "search_features":
-                collection_id = kwargs.get("collection_id", "unknown")
-                bbox = kwargs.get("bbox", "")
-                query_attr = kwargs.get("query_attr", "")
-                query_value = kwargs.get("query_attr_value", "")
-
-                intent = (
-                    f"User wants to search for features in collection '{collection_id}'"
-                )
-                if bbox:
-                    intent += f" within bounding box {bbox}"
-                if query_attr and query_value:
-                    intent += f" where {query_attr}={query_value}"
-                return intent
-
-            case "get_linked_identifiers":
-                identifier_type = kwargs.get("identifier_type", "")
-                identifier = kwargs.get("identifier", "")
-                return f"User wants to find linked identifiers for {identifier_type}: {identifier}"
-
-            case "get_collection_info":
-                collection_id = kwargs.get("collection_id", "")
-                return f"User wants information about collection: {collection_id}"
-
-            case _:
-                return f"User made a {func_name} request with parameters: {kwargs}"
 
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
@@ -439,7 +408,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    def get_prompt_templates(
+    async def get_prompt_templates(
         self,
         category: Optional[str] = None,
     ) -> str:
@@ -453,8 +422,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string containing prompt templates
         """
-        from promp_templates.prompt_templates import PROMPT_TEMPLATES
-
         if category and category in PROMPT_TEMPLATES:
             return json.dumps({category: PROMPT_TEMPLATES[category]})
 

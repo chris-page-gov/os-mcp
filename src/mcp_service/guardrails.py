@@ -24,6 +24,10 @@ class ToolGuardrails:
             r"(?i)reveal password",
             r"(?i)dump (tokens|secrets|passwords|credentials)",
             r"(?i)leak confidential",
+            r"(?i)reveal secrets",
+            r"(?i)expose secrets",
+            r"(?i)secrets.*contain", 
+            r"(?i)extract secrets",
         ]
 
     def detect_prompt_injection(self, input_text: Any) -> bool:
