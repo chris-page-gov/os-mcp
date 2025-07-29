@@ -231,19 +231,18 @@ class OSDataHubService(FeatureService):
 
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            match func.__name__:
-                case "get_workflow_context" | "hello_world" | "check_api_key" | "get_prompt_templates":
+            # Only allow get_workflow_context when workflow_planner is None
+            if self.workflow_planner is None:
+                if func.__name__ == "get_workflow_context":
                     return await func(*args, **kwargs)
-                case _:
-                    # For tools that need workflow context - ENFORCE the workflow context call
-                    if self.workflow_planner is None:
-                        return json.dumps({
-                            "error": "Workflow context required",
-                            "instruction": "You must call get_workflow_context first to plan your approach. This tool provides essential information about available collections and endpoints needed to properly handle the user's request.",
-                            "requested_tool": func.__name__,
-                        })
-
-                    return await func(*args, **kwargs)
+                else:
+                    return json.dumps({
+                        "error": "WORKFLOW CONTEXT REQUIRED",
+                        "blocked_tool": func.__name__,
+                        "required_action": "You must call 'get_workflow_context' first",
+                        "message": "No tools are available until you get the workflow context. Please call get_workflow_context() now."
+                    })
+            return await func(*args, **kwargs)
 
         return wrapper
 
