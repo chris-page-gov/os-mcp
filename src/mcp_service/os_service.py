@@ -109,6 +109,7 @@ class OSDataHubService(FeatureService):
                         for collection in collections_list:
                             try:
                                 # TODO: This needs to be split into async tasks and run in parallel
+                                # TODO: This also needs to be shifted into the api_client and cached like the rest of the data
                                 queryables_data = await self.api_client.make_request(
                                     "COLLECTION_QUERYABLES", path_params=[collection.id]
                                 )
