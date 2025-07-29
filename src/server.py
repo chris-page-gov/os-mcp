@@ -97,7 +97,7 @@ def main():
                 )
             )
 
-            # Add my custom middleware to FastMCP's app!
+            # Add custom middleware to FastMCP's app
             app.user_middleware.extend(
                 [
                     Middleware(
@@ -108,7 +108,7 @@ def main():
                         allow_headers=["*"],
                         expose_headers=["*"],
                     ),
-                    Middleware(HTTPMiddleware),
+                    Middleware(HTTPMiddleware, requests_per_minute=25),
                 ]
             )
 

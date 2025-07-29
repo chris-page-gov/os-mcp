@@ -1,11 +1,37 @@
 import os
-from typing import List, Callable, Awaitable
+import time
+from collections import defaultdict, deque
+from typing import List, Callable, Awaitable, Dict, Deque, Any
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+class RateLimiter:
+    """HTTP-layer rate limiting"""
+
+    def __init__(self, requests_per_minute: int = 10, window_seconds: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.window_seconds = window_seconds
+        self.request_timestamps: Dict[str, Deque[float]] = defaultdict(lambda: deque())
+
+    def check_rate_limit(self, client_id: str) -> bool:
+        """Check if client has exceeded rate limit"""
+        current_time = time.time()
+        timestamps = self.request_timestamps[client_id]
+
+        while timestamps and current_time - timestamps[0] >= self.window_seconds:
+            timestamps.popleft()
+
+        if len(timestamps) >= self.requests_per_minute:
+            logger.warning(f"HTTP rate limit exceeded for client {client_id}")
+            return False
+
+        timestamps.append(current_time)
+        return True
 
 
 def get_valid_bearer_tokens() -> List[str]:
@@ -58,12 +84,30 @@ async def verify_bearer_token(token: str) -> bool:
 
 
 class HTTPMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app: Any, requests_per_minute: int = 10):
+        super().__init__(app)
+        self.rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         # Skip auth for auth discovery endpoints and OPTIONS requests
         if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
             return await call_next(request)
+
+        # Rate limiting - get session ID or use client IP
+        session_id = request.headers.get("mcp-session-id")
+        if not session_id:
+            client_ip = request.client.host if request.client else "unknown"
+            session_id = f"ip-{client_ip}"
+
+        # Check rate limit
+        if not self.rate_limiter.check_rate_limit(session_id):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."},
+                headers={"Retry-After": "60"},
+            )
 
         # Validate Origin header
         origin = request.headers.get("origin", "")
@@ -89,7 +133,7 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Browser plugin access is not allowed"},
             )
 
-        # Bearer token authentication
+        # Bearer token authentication with enhanced logging
         auth_header = request.headers.get("Authorization")
         logger.debug(f"Authorization header: {auth_header}")
         
