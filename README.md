@@ -36,13 +36,6 @@ docker build -t os-mcp-server .
 }
 ```
 
-### 3. Alternative: Direct Python
-
-```bash
-export OS_API_KEY=your_api_key_here
-python server.py
-```
-
 ## How it works
 
 ```
