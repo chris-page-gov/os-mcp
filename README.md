@@ -1,6 +1,6 @@
 # Ordnance Survey - MCP Server
 
-VERSION: 0.1.5
+VERSION: 0.1.0
 
 A Python-based MCP server that provides access to the Ordnance Survey APIs, supporting both STDIO and HTTP (streamable) modes.
 
