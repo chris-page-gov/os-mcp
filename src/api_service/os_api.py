@@ -56,7 +56,9 @@ class OSAPIClient(APIClient):
                 raise ValueError(f"Failed to cache OpenAPI spec: {e}")
         return self._cached_openapi_spec
 
-    def _filter_latest_collections(self, collections: List[Dict[str, Any]]) -> List[Collection]:
+    def _filter_latest_collections(
+        self, collections: List[Dict[str, Any]]
+    ) -> List[Collection]:
         """
         Filter collections to keep only the latest version of each collection type.
         For collections with IDs like 'trn-ntwk-roadlink-1', 'trn-ntwk-roadlink-2', 'trn-ntwk-roadlink-3',
@@ -69,28 +71,24 @@ class OSAPIClient(APIClient):
             Filtered list of Collection objects
         """
         latest_versions: Dict[str, Dict[str, Any]] = {}
-        
+
         for col in collections:
             col_id = col.get("id", "")
-            
+
             match = re.match(r"^(.+?)-(\d+)$", col_id)
-            
+
             if match:
                 base_name = match.group(1)
                 version_num = int(match.group(2))
-                
-                # Check if we've seen this base name before
-                if base_name not in latest_versions or version_num > latest_versions[base_name]["version"]:
-                    latest_versions[base_name] = {
-                        "version": version_num,
-                        "data": col
-                    }
+
+                if (
+                    base_name not in latest_versions
+                    or version_num > latest_versions[base_name]["version"]
+                ):
+                    latest_versions[base_name] = {"version": version_num, "data": col}
             else:
-                latest_versions[col_id] = {
-                    "version": 0,
-                    "data": col
-                }
-        
+                latest_versions[col_id] = {"version": 0, "data": col}
+
         filtered_collections = []
         for item in latest_versions.values():
             col_data = item["data"]
@@ -101,10 +99,10 @@ class OSAPIClient(APIClient):
                     description=col_data.get("description", ""),
                     links=col_data.get("links", []),
                     extent=col_data.get("extent", {}),
-                    itemType=col_data.get("itemType", "feature")
+                    itemType=col_data.get("itemType", "feature"),
                 )
             )
-        
+
         return filtered_collections
 
     async def _get_collections(self) -> CollectionsCache:
@@ -114,10 +112,7 @@ class OSAPIClient(APIClient):
             collections_list = response.get("collections", [])
             filtered = self._filter_latest_collections(collections_list)
             logger.debug(f"Filtered collections: {filtered}")
-            return CollectionsCache(
-                collections=filtered,
-                raw_response=response
-            )
+            return CollectionsCache(collections=filtered, raw_response=response)
         except Exception as e:
             logger.error(f"Error getting collections: {e}")
             raise e
@@ -133,7 +128,9 @@ class OSAPIClient(APIClient):
             logger.debug("Caching collections for LLM context...")
             try:
                 self._cached_collections = await self._get_collections()
-                logger.debug(f"Collections successfully cached - {len(self._cached_collections.collections)} collections after filtering")
+                logger.debug(
+                    f"Collections successfully cached - {len(self._cached_collections.collections)} collections after filtering"
+                )
             except Exception as e:
                 raise ValueError(f"Failed to cache collections: {e}")
         return self._cached_collections

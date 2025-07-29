@@ -1,5 +1,6 @@
 from typing import Protocol, Optional, Callable, List, runtime_checkable, Any
 
+
 @runtime_checkable
 class MCPService(Protocol):
     """Protocol for MCP services"""
@@ -11,6 +12,7 @@ class MCPService(Protocol):
     def run(self) -> None:
         """Run the MCP service"""
         ...
+
 
 @runtime_checkable
 class FeatureService(Protocol):

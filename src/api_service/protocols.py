@@ -29,7 +29,7 @@ class APIClient(Protocol):
     async def cache_openapi_spec(self):
         """Cache the OpenAPI spec"""
         ...
-    
+
     async def cache_collections(self):
         """Cache the collections data"""
         ...

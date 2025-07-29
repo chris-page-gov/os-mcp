@@ -33,10 +33,9 @@ class OSDataHubService(FeatureService):
         self.guardrails = ToolGuardrails()
         self.register_tools()
 
-
     def register_tools(self) -> None:
         """Register all MCP tools with guardrails and middleware"""
-        
+
         def apply_middleware(func):
             wrapped = self.guardrails.basic_guardrails(func)
             wrapped = self._require_workflow_context(wrapped)
@@ -45,18 +44,32 @@ class OSDataHubService(FeatureService):
             return wrapped
 
         # Apply middleware to ALL tools
-        self.create_workflow_plan = self.mcp.tool()(apply_middleware(self.create_workflow_plan))
+        self.get_workflow_context = self.mcp.tool()(
+            apply_middleware(self.get_workflow_context)
+        )
         self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
         self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
         self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
-        self.get_collection_info = self.mcp.tool()(apply_middleware(self.get_collection_info))
-        self.get_collection_queryables = self.mcp.tool()(apply_middleware(self.get_collection_queryables))
+        self.get_collection_info = self.mcp.tool()(
+            apply_middleware(self.get_collection_info)
+        )
+        self.get_collection_queryables = self.mcp.tool()(
+            apply_middleware(self.get_collection_queryables)
+        )
         self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
         self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
-        self.get_linked_identifiers = self.mcp.tool()(apply_middleware(self.get_linked_identifiers))
-        self.get_bulk_features = self.mcp.tool()(apply_middleware(self.get_bulk_features))
-        self.get_bulk_linked_features = self.mcp.tool()(apply_middleware(self.get_bulk_linked_features))
-        self.get_prompt_templates = self.mcp.tool()(apply_middleware(self.get_prompt_templates))
+        self.get_linked_identifiers = self.mcp.tool()(
+            apply_middleware(self.get_linked_identifiers)
+        )
+        self.get_bulk_features = self.mcp.tool()(
+            apply_middleware(self.get_bulk_features)
+        )
+        self.get_bulk_linked_features = self.mcp.tool()(
+            apply_middleware(self.get_bulk_linked_features)
+        )
+        self.get_prompt_templates = self.mcp.tool()(
+            apply_middleware(self.get_prompt_templates)
+        )
 
     def run(self) -> None:
         """Run the MCP service"""
@@ -81,72 +94,95 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             logger.error(f"Error closing API client: {e}")
 
-    async def create_workflow_plan(self) -> str:
-        """
-        Get OpenAPI specification and collections information to help plan your approach.
-        Call this FIRST before making any other tool calls.
-        """
+    async def get_workflow_context(self) -> str:
+        """Get workflow context and initialise planner if needed"""
         try:
             if self.workflow_planner is None:
                 cached_spec = await self.api_client.cache_openapi_spec()
                 cached_collections = await self.api_client.cache_collections()
-                
+
                 collections_info = {}
-                if cached_collections and hasattr(cached_collections, 'collections'):
-                    collections_list = getattr(cached_collections, 'collections', [])
-                    if collections_list and hasattr(collections_list, '__iter__'):
+                if cached_collections and hasattr(cached_collections, "collections"):
+                    collections_list = getattr(cached_collections, "collections", [])
+                    if collections_list and hasattr(collections_list, "__iter__"):
                         for collection in collections_list:
                             collections_info[collection.id] = {
                                 "id": collection.id,
                                 "title": collection.title,
                                 "description": collection.description,
                             }
-            
+
                 self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
-                logger.info("Workflow planner initialized for context provision")
-        
+
             context = self.workflow_planner.get_context()
-        
-            return json.dumps({
-                "instruction": "Use this information to plan your approach. Follow these steps: 1) Select appropriate collection(s), 2) Get collection queryables, 3) Execute your query with proper parameters",
-                "available_collections": context["available_collections"],
-                "openapi_endpoints": context["openapi_endpoints"],
-                "guidance": "Start by identifying the most relevant collection for the user's request, then query its queryables to understand available parameters, then execute the appropriate search."
-            })
-        
+            return json.dumps(
+                {
+                    "instruction": "MANDATORY: Before making any tool calls, you must explain your complete plan to the user. Tell them: 1) Which collection you will use and why, 2) What steps you will take, 3) What information you will gather. Only after explaining your plan should you proceed with tool calls.",
+                    "available_collections": context["available_collections"],
+                    "openapi_endpoints": context["openapi_endpoints"],
+                    "workflow_requirement": "You MUST explain your plan to the user before executing any tools",
+                    "guidance": "Start by identifying the most relevant collection for the user's request, then query its queryables to understand available parameters, then execute the appropriate search.",
+                }
+            )
+
         except Exception as e:
             logger.error(f"Error getting workflow context: {e}")
-            return json.dumps({"error": str(e), "instruction": "Proceed with available tools"})
+            return json.dumps(
+                {"error": str(e), "instruction": "Proceed with available tools"}
+            )
 
     def _require_workflow_context(self, func):
         """Middleware to ensure workflow context is provided before any tool execution"""
+
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            if func.__name__ == 'create_workflow_plan':
-                return await func(*args, **kwargs)
-                
-            if self.workflow_planner is None:
-                logger.info(f"Auto-calling create_workflow_plan before {func.__name__}")
-                context_result = await self.create_workflow_plan()
-                
-                tool_result = await func(*args, **kwargs)
-                
-                try:
-                    context_data = json.loads(context_result)
-                    tool_data = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
-                    
-                    combined_result = {
-                        "workflow_context": context_data,
-                        "tool_result": tool_data,
-                        "message": "Workflow context was automatically provided before tool execution"
-                    }
-                    return json.dumps(combined_result)
-                except Exception as e:
-                    logger.error(f"Error combining workflow context and tool result: {e}")
-                    raise ValueError(f"Error combining workflow context and tool result: {e}")
-            else:
-                return await func(*args, **kwargs)
+            match func.__name__:
+                case "get_workflow_context" | "hello_world" | "check_api_key" | "get_prompt_templates":
+                    return await func(*args, **kwargs)
+                case _:
+                    # For tools that need workflow context - ENFORCE the workflow context call
+                    if self.workflow_planner is None:
+                        return json.dumps({
+                            "error": "Workflow context required",
+                            "instruction": "You must call get_workflow_context first to plan your approach. This tool provides essential information about available collections and endpoints needed to properly handle the user's request.",
+                            "requested_tool": func.__name__,
+                            "user_request": self._extract_user_intent(func.__name__, *args, **kwargs)
+                        })
+
+                    # Workflow planner exists, execute the tool
+                    return await func(*args, **kwargs)
+
         return wrapper
+
+    def _extract_user_intent(self, func_name: str, *args, **kwargs) -> str:
+        """Extract the user's original intent from the function call"""
+        match func_name:
+            case "search_features":
+                collection_id = kwargs.get("collection_id", "unknown")
+                bbox = kwargs.get("bbox", "")
+                query_attr = kwargs.get("query_attr", "")
+                query_value = kwargs.get("query_attr_value", "")
+
+                intent = (
+                    f"User wants to search for features in collection '{collection_id}'"
+                )
+                if bbox:
+                    intent += f" within bounding box {bbox}"
+                if query_attr and query_value:
+                    intent += f" where {query_attr}={query_value}"
+                return intent
+
+            case "get_linked_identifiers":
+                identifier_type = kwargs.get("identifier_type", "")
+                identifier = kwargs.get("identifier", "")
+                return f"User wants to find linked identifiers for {identifier_type}: {identifier}"
+
+            case "get_collection_info":
+                collection_id = kwargs.get("collection_id", "")
+                return f"User wants information about collection: {collection_id}"
+
+            case _:
+                return f"User made a {func_name} request with parameters: {kwargs}"
 
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
@@ -156,9 +192,9 @@ class OSDataHubService(FeatureService):
         """Check if the OS API key is available."""
         try:
             await self.api_client.get_api_key()
-            return "OS_API_KEY is set!"
+            return json.dumps({"status": "success", "message": "OS_API_KEY is set!"})
         except ValueError as e:
-            return str(e)
+            return json.dumps({"status": "error", "message": str(e)})
 
     async def list_collections(
         self,
