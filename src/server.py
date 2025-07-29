@@ -77,7 +77,7 @@ def main():
                 log_level="DEBUG" if args.debug else "INFO",
             )
 
-            service = OSDataHubService(api_client, mcp)
+            OSDataHubService(api_client, mcp)
 
             async def auth_discovery(_: Any) -> JSONResponse:
                 """Return authentication methods."""
