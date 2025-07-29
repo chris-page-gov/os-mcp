@@ -1,10 +1,12 @@
 import json
 import asyncio
+import functools
 
 from typing import Optional, List, Dict, Any, Union
 from api_service.protocols import APIClient
-from .protocols import MCPService, FeatureService
-from .guardrails import ToolGuardrails
+from mcp_service.protocols import MCPService, FeatureService
+from mcp_service.guardrails import ToolGuardrails
+from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -27,101 +29,136 @@ class OSDataHubService(FeatureService):
         self.api_client = api_client
         self.mcp = mcp_service
         self.stdio_middleware = stdio_middleware
-
+        self.workflow_planner: Optional[WorkflowPlanner] = None
         self.guardrails = ToolGuardrails()
-
         self.register_tools()
 
-    async def _ensure_openapi_cached(self):
-        """Ensure OpenAPI spec gets cached exactly once"""
-        if not hasattr(self, "_openapi_cached"):
-            self._openapi_cached = True
-            try:
-                logger.info("Caching OpenAPI spec for LLM context...")
-                await self.api_client.cache_openapi_spec()
-                logger.info(
-                    "OpenAPI spec cached successfully - LLM now has full API context"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to cache OpenAPI spec: {e}")
-                logger.info("OpenAPI spec will be fetched on-demand when requested")
 
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails and STDIO middleware"""
-
+        """Register all MCP tools with guardrails and middleware"""
+        
         def apply_middleware(func):
-            """Apply both guardrails and STDIO middleware if available"""
             wrapped = self.guardrails.basic_guardrails(func)
-
+            wrapped = self._require_workflow_context(wrapped)
             if self.stdio_middleware:
                 wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
-
             return wrapped
 
+        # Apply middleware to ALL tools
+        self.create_workflow_plan = self.mcp.tool()(apply_middleware(self.create_workflow_plan))
         self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
         self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
-        self.get_api_specification = self.mcp.tool()(
-            apply_middleware(self.get_api_specification)
-        )
         self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
-        self.get_collection_info = self.mcp.tool()(
-            apply_middleware(self.get_collection_info)
-        )
-        self.get_collection_queryables = self.mcp.tool()(
-            apply_middleware(self.get_collection_queryables)
-        )
+        self.get_collection_info = self.mcp.tool()(apply_middleware(self.get_collection_info))
+        self.get_collection_queryables = self.mcp.tool()(apply_middleware(self.get_collection_queryables))
         self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
         self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
-        self.get_linked_identifiers = self.mcp.tool()(
-            apply_middleware(self.get_linked_identifiers)
-        )
-        self.get_bulk_features = self.mcp.tool()(
-            apply_middleware(self.get_bulk_features)
-        )
-        self.get_bulk_linked_features = self.mcp.tool()(
-            apply_middleware(self.get_bulk_linked_features)
-        )
-        self.get_prompt_templates = self.mcp.tool()(
-            apply_middleware(self.get_prompt_templates)
-        )
+        self.get_linked_identifiers = self.mcp.tool()(apply_middleware(self.get_linked_identifiers))
+        self.get_bulk_features = self.mcp.tool()(apply_middleware(self.get_bulk_features))
+        self.get_bulk_linked_features = self.mcp.tool()(apply_middleware(self.get_bulk_linked_features))
+        self.get_prompt_templates = self.mcp.tool()(apply_middleware(self.get_prompt_templates))
+
+    def run(self) -> None:
+        """Run the MCP service"""
+        try:
+            self.mcp.run()
+        finally:
+            try:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._cleanup())
+                except RuntimeError:
+                    asyncio.run(self._cleanup())
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
+
+    async def _cleanup(self):
+        """Async cleanup method"""
+        try:
+            if hasattr(self, "api_client") and self.api_client:
+                await self.api_client.close()
+                logger.debug("API client closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing API client: {e}")
+
+    async def create_workflow_plan(self) -> str:
+        """
+        Get OpenAPI specification and collections information to help plan your approach.
+        Call this FIRST before making any other tool calls.
+        """
+        try:
+            if self.workflow_planner is None:
+                cached_spec = await self.api_client.cache_openapi_spec()
+                cached_collections = await self.api_client.cache_collections()
+                
+                collections_info = {}
+                if cached_collections and hasattr(cached_collections, 'collections'):
+                    collections_list = getattr(cached_collections, 'collections', [])
+                    if collections_list and hasattr(collections_list, '__iter__'):
+                        for collection in collections_list:
+                            collections_info[collection.id] = {
+                                "id": collection.id,
+                                "title": collection.title,
+                                "description": collection.description,
+                            }
+            
+                self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
+                logger.info("Workflow planner initialized for context provision")
+        
+            context = self.workflow_planner.get_context()
+        
+            return json.dumps({
+                "instruction": "Use this information to plan your approach. Follow these steps: 1) Select appropriate collection(s), 2) Get collection queryables, 3) Execute your query with proper parameters",
+                "available_collections": context["available_collections"],
+                "openapi_endpoints": context["openapi_endpoints"],
+                "guidance": "Start by identifying the most relevant collection for the user's request, then query its queryables to understand available parameters, then execute the appropriate search."
+            })
+        
+        except Exception as e:
+            logger.error(f"Error getting workflow context: {e}")
+            return json.dumps({"error": str(e), "instruction": "Proceed with available tools"})
+
+    def _require_workflow_context(self, func):
+        """Middleware to ensure workflow context is provided before any tool execution"""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            if func.__name__ == 'create_workflow_plan':
+                return await func(*args, **kwargs)
+                
+            if self.workflow_planner is None:
+                logger.info(f"Auto-calling create_workflow_plan before {func.__name__}")
+                context_result = await self.create_workflow_plan()
+                
+                tool_result = await func(*args, **kwargs)
+                
+                try:
+                    context_data = json.loads(context_result)
+                    tool_data = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
+                    
+                    combined_result = {
+                        "workflow_context": context_data,
+                        "tool_result": tool_data,
+                        "message": "Workflow context was automatically provided before tool execution"
+                    }
+                    return json.dumps(combined_result)
+                except Exception as e:
+                    logger.error(f"Error combining workflow context and tool result: {e}")
+                    raise ValueError(f"Error combining workflow context and tool result: {e}")
+            else:
+                return await func(*args, **kwargs)
+        return wrapper
 
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
-        await self._ensure_openapi_cached()
         return f"Hello, {name}! 👋"
 
-    def check_api_key(self) -> str:
+    async def check_api_key(self) -> str:
         """Check if the OS API key is available."""
         try:
-            self.api_client.get_api_key()
+            await self.api_client.get_api_key()
             return "OS_API_KEY is set!"
         except ValueError as e:
             return str(e)
-
-    async def get_api_specification(self) -> str:
-        """
-        Get the cached OpenAPI specification for the OS NGD API.
-        This provides the LLM with comprehensive context about available endpoints,
-        parameters, and data schemas.
-
-        Returns:
-            JSON string with the complete OpenAPI specification
-        """
-        await self._ensure_openapi_cached()
-        try:
-            cached_spec = self.api_client.get_cached_openapi_spec()
-
-            if cached_spec is None:
-                # If not cached yet, try to cache it now
-                logger.info("OpenAPI spec not cached yet, fetching now...")
-                cached_spec = await self.api_client.cache_openapi_spec()
-
-            return json.dumps(cached_spec)
-        except Exception as e:
-            logger.error(f"Error getting API specification: {e}")
-            return json.dumps(
-                {"error": "Failed to retrieve API specification", "message": str(e)}
-            )
 
     async def list_collections(
         self,
@@ -132,7 +169,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with collection info (id, title only)
         """
-        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request("COLLECTIONS")
 
@@ -162,7 +198,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with collection information
         """
-        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "COLLECTION_INFO", path_params=[collection_id]
@@ -185,7 +220,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with queryable properties
         """
-        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "COLLECTION_QUERYABLES", path_params=[collection_id]
@@ -208,7 +242,6 @@ class OSDataHubService(FeatureService):
         """
         Search for features in a collection with simplified parameters.
         """
-        await self._ensure_openapi_cached()
         try:
             params: Dict[str, Union[str, int]] = {}
 
@@ -250,7 +283,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with feature data
         """
-        await self._ensure_openapi_cached()
         try:
             params: Dict[str, str] = {}
             if crs:
@@ -283,7 +315,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with linked identifiers or filtered results
         """
-        await self._ensure_openapi_cached()
         try:
             data = await self.api_client.make_request(
                 "LINKED_IDENTIFIERS", path_params=[identifier_type, identifier]
@@ -318,12 +349,10 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with features data
         """
-        await self._ensure_openapi_cached()
         try:
             tasks: List[Any] = []
             for identifier in identifiers:
                 if query_by_attr:
-                    # Query by specific attribute
                     task = self.search_features(
                         collection_id=collection_id,
                         query_attr=query_by_attr,
@@ -331,7 +360,6 @@ class OSDataHubService(FeatureService):
                         limit=1,
                     )
                 else:
-                    # Query by feature ID
                     task = self.get_feature(collection_id, identifier)
 
                 tasks.append(task)
@@ -361,7 +389,6 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string with linked features data
         """
-        await self._ensure_openapi_cached()
         try:
             tasks = [
                 self.get_linked_identifiers(identifier_type, identifier, feature_type)
@@ -396,16 +423,3 @@ class OSDataHubService(FeatureService):
             return json.dumps({category: PROMPT_TEMPLATES[category]})
 
         return json.dumps(PROMPT_TEMPLATES)
-
-    def run(self) -> None:
-        """Run the MCP service"""
-        try:
-            self.mcp.run()
-        finally:
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.create_task(self.api_client.close())
-            except Exception as e:
-                logger.error(f"Error closing API client: {e}")
-                pass

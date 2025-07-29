@@ -13,7 +13,7 @@ class APIClient(Protocol):
         """Close the aiohttp session"""
         ...
 
-    def get_api_key(self) -> str:
+    async def get_api_key(self) -> str:
         """Get the API key"""
         ...
 
@@ -29,7 +29,7 @@ class APIClient(Protocol):
     async def cache_openapi_spec(self):
         """Cache the OpenAPI spec"""
         ...
-
-    async def get_cached_openapi_spec(self):
-        """Get the cached OpenAPI spec"""
+    
+    async def cache_collections(self):
+        """Cache the collections data"""
         ...

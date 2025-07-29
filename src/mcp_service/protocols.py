@@ -1,6 +1,5 @@
 from typing import Protocol, Optional, Callable, List, runtime_checkable, Any
 
-
 @runtime_checkable
 class MCPService(Protocol):
     """Protocol for MCP services"""
@@ -13,7 +12,6 @@ class MCPService(Protocol):
         """Run the MCP service"""
         ...
 
-
 @runtime_checkable
 class FeatureService(Protocol):
     """Protocol for OS NGD feature services"""
@@ -24,10 +22,6 @@ class FeatureService(Protocol):
 
     def check_api_key(self) -> str:
         """Check if API key is available"""
-        ...
-
-    async def get_api_specification(self) -> str:
-        """Get the cached OpenAPI specification for the OS NGD API"""
         ...
 
     async def list_collections(self) -> str:
