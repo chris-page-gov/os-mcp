@@ -107,22 +107,116 @@ class OSDataHubService(FeatureService):
                     collections_list = getattr(cached_collections, "collections", [])
                     if collections_list and hasattr(collections_list, "__iter__"):
                         for collection in collections_list:
-                            collections_info[collection.id] = {
-                                "id": collection.id,
-                                "title": collection.title,
-                                "description": collection.description,
-                            }
+                            try:
+                                # TODO: This needs to be split into async tasks and run in parallel
+                                queryables_data = await self.api_client.make_request(
+                                    "COLLECTION_QUERYABLES", path_params=[collection.id]
+                                )
+                                
+                                all_queryables = {}
+                                enum_queryables = {}
+                                properties = queryables_data.get("properties", {})
+                                
+                                for prop_name, prop_details in properties.items():
+                                    prop_type = prop_details.get("type", ["string"])
+                                    if isinstance(prop_type, list):
+                                        main_type = prop_type[0] if prop_type else "string"
+                                        is_nullable = "null" in prop_type
+                                    else:
+                                        main_type = prop_type
+                                        is_nullable = False
+                                
+                                    all_queryables[prop_name] = {
+                                        "type": main_type,
+                                        "nullable": is_nullable,
+                                        "description": prop_details.get("description", ""),
+                                        "max_length": prop_details.get("maxLength"),
+                                        "format": prop_details.get("format"),
+                                        "pattern": prop_details.get("pattern"),
+                                        "minimum": prop_details.get("minimum"),
+                                        "maximum": prop_details.get("maximum"),
+                                        "is_enum": prop_details.get("enumeration", False)
+                                    }
+                                    
+                                    if prop_details.get("enumeration") and "enum" in prop_details:
+                                        enum_queryables[prop_name] = {
+                                            "values": prop_details["enum"],
+                                            "type": main_type,
+                                            "nullable": is_nullable,
+                                            "description": prop_details.get("description", ""),
+                                            "max_length": prop_details.get("maxLength")
+                                        }
+                                        all_queryables[prop_name]["enum_values"] = prop_details["enum"]
+                                    
+                                    all_queryables[prop_name] = {
+                                        k: v for k, v in all_queryables[prop_name].items() 
+                                        if v is not None
+                                    }
+                                
+                                collections_info[collection.id] = {
+                                    "id": collection.id,
+                                    "title": collection.title,
+                                    "description": collection.description,
+                                    "all_queryables": all_queryables,
+                                    "enum_queryables": enum_queryables,
+                                    "has_enum_filters": len(enum_queryables) > 0,
+                                    "total_queryables": len(all_queryables),
+                                    "enum_count": len(enum_queryables)
+                                }
+                                
+                            except Exception as e:
+                                logger.warning(f"Failed to fetch queryables for {collection.id}: {e}")
+
+                                collections_info[collection.id] = {
+                                    "id": collection.id,
+                                    "title": collection.title,
+                                    "description": collection.description,
+                                    "all_queryables": {},
+                                    "enum_queryables": {},
+                                    "has_enum_filters": False,
+                                    "total_queryables": 0,
+                                    "enum_count": 0
+                                }
 
                 self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
 
             context = self.workflow_planner.get_context()
             return json.dumps(
                 {
-                    "instruction": "MANDATORY: Before making any tool calls, you must explain your complete plan to the user. Tell them: 1) Which collection you will use and why, 2) What steps you will take, 3) What information you will gather. Only after explaining your plan should you proceed with tool calls.",
+                    "MANDATORY_PLANNING_REQUIREMENT": {
+                        "CRITICAL": "You MUST explain your complete plan to the user BEFORE making any tool calls",
+                        "required_explanation": {
+                            "1": "Which collection you will use and why",
+                            "2": "What specific filters you will apply (show the exact filter string)",
+                            "3": "What steps you will take"
+                        },
+                        "workflow_enforcement": "Do not proceed with tool calls until you have clearly explained your plan to the user",
+                        "example_planning": "I will search the 'lus-fts-site-1' collection using the filter 'oslandusetertiarygroup = \"Cinema\"' to find all cinema locations in your specified area."
+                    },
+
                     "available_collections": context["available_collections"],
                     "openapi_endpoints": context["openapi_endpoints"],
-                    "workflow_requirement": "You MUST explain your plan to the user before executing any tools",
-                    "guidance": "Start by identifying the most relevant collection for the user's request, then query its queryables to understand available parameters, then execute the appropriate search.",
+
+                    "QUICK_FILTERING_GUIDE": {
+                        "primary_tool": "search_features",
+                        "key_parameter": "filter",
+                        "enum_fields": "Use exact values from collection's enum_queryables (e.g., 'Cinema', 'A Road')",
+                        "simple_fields": "Use direct values (e.g., usrn = 12345678)",
+                    },
+
+                    "COMMON_EXAMPLES": {
+                        "cinema_search": "search_features(collection_id='lus-fts-site-1', bbox='...', filter=\"oslandusetertiarygroup = 'Cinema'\")",
+                        "a_road_search": "search_features(collection_id='trn-ntwk-street-1', bbox='...', filter=\"roadclassification = 'A Road'\")",
+                        "usrn_search": "search_features(collection_id='trn-ntwk-street-1', filter='usrn = 12345678')",
+                        "street_name": "search_features(collection_id='trn-ntwk-street-1', filter=\"designatedname1_text LIKE '%high%'\")"
+                    },
+
+                    "CRITICAL_RULES": {
+                        "1": "ALWAYS explain your plan first",
+                        "2": "Use exact enum values from the specific collection's enum_queryables",
+                        "3": "Use the 'filter' parameter for all filtering",
+                        "4": "Quote string values in single quotes"
+                    }
                 }
             )
 
@@ -241,11 +335,40 @@ class OSDataHubService(FeatureService):
         crs: Optional[str] = None,
         limit: int = 10,
         offset: int = 0,
+        filter: Optional[str] = None,
+        filter_lang: Optional[str] = "cql-text",
+        # Keep legacy parameters for backward compatibility
+        # TODO: Remove these parameters in future? 
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
     ) -> str:
         """
-        Search for features in a collection with simplified parameters.
+        Search for features in a collection with full CQL2 filter support.
+        
+        Args:
+            collection_id: The collection ID to search in
+            bbox: Bounding box as "min_lon,min_lat,max_lon,max_lat"
+            crs: Coordinate reference system for the response
+            limit: Maximum number of features to return (default: 10)
+            offset: Number of features to skip (default: 0)
+            filter: CQL2 filter expression (e.g., "oslandusetiera = 'Cinema'" or "roadclassification = 'A Road'")
+            filter_lang: Filter language, defaults to "cql-text"
+            query_attr: [DEPRECATED] Legacy simple attribute name for filtering
+            query_attr_value: [DEPRECATED] Legacy simple attribute value for filtering
+        
+        Returns:
+            JSON string with feature collection data
+            
+        Examples:
+            # Using enum values from workflow context
+            search_features("lus-fts-site-1", bbox="...", filter="oslandusetiera = 'Cinema'")
+            search_features("trn-ntwk-street-1", bbox="...", filter="roadclassification = 'A Road'")
+            
+            # Complex filters
+            search_features("trn-ntwk-street-1", filter="roadclassification = 'A Road' AND operationalstate = 'Open'")
+            
+            # Text matching
+            search_features("trn-ntwk-street-1", filter="designatedname1_text LIKE '%high%'")
         """
         try:
             params: Dict[str, Union[str, int]] = {}
@@ -260,8 +383,17 @@ class OSDataHubService(FeatureService):
             if crs:
                 params["crs"] = crs
 
-            if query_attr and query_attr_value:
-                params["filter"] = f"{query_attr}={query_attr_value}"
+            # Handle CQL filter (preferred method)
+            if filter:
+                params["filter"] = filter
+                if filter_lang:
+                    params["filter-lang"] = filter_lang
+            # Legacy support for simple query_attr/query_attr_value
+            # TODO: Remove these parameters in future? 
+            elif query_attr and query_attr_value:
+                params["filter"] = f"{query_attr} = '{query_attr_value}'"
+                if filter_lang:
+                    params["filter-lang"] = filter_lang
 
             data = await self.api_client.make_request(
                 "COLLECTION_FEATURES", params=params, path_params=[collection_id]

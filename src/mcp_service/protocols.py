@@ -47,10 +47,12 @@ class FeatureService(Protocol):
         crs: Optional[str] = None,
         limit: int = 10,
         offset: int = 0,
+        filter: Optional[str] = None,
+        filter_lang: Optional[str] = "cql-text",
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
     ) -> str:
-        """Search for features in a collection with simplified parameters"""
+        """Search for features in a collection with full CQL filter support"""
         ...
 
     async def get_feature(
