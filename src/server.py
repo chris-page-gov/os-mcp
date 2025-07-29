@@ -51,14 +51,12 @@ def main():
                 "os-ngd-api",
                 debug=args.debug,
                 log_level="DEBUG" if args.debug else "INFO",
-                # No HTTP-specific settings for stdio
             )
 
-            # Create service (this registers all tools with the MCP server)
-            service = OSDataHubService(api_client, mcp)
             stdio_auth = StdioMiddleware()
 
-            # Handle authentication
+            service = OSDataHubService(api_client, mcp, stdio_middleware=stdio_auth)
+
             stdio_api_key = os.environ.get("STDIO_KEY")
             if not stdio_api_key or not stdio_auth.authenticate(stdio_api_key):
                 logger.error("Authentication failed")
@@ -79,7 +77,7 @@ def main():
                 log_level="DEBUG" if args.debug else "INFO",
             )
 
-            service = OSDataHubService(api_client, mcp)
+            OSDataHubService(api_client, mcp)
 
             async def auth_discovery(_: Any) -> JSONResponse:
                 """Return authentication methods."""

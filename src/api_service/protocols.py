@@ -13,7 +13,7 @@ class APIClient(Protocol):
         """Close the aiohttp session"""
         ...
 
-    def get_api_key(self) -> str:
+    async def get_api_key(self) -> str:
         """Get the API key"""
         ...
 
@@ -26,11 +26,10 @@ class APIClient(Protocol):
         """Make a request to an API endpoint"""
         ...
 
-    async def make_binary_request(
-        self,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        path_params: Optional[List[str]] = None,
-    ) -> bytes:
-        """Make a request to an API endpoint expecting binary data"""
+    async def cache_openapi_spec(self):
+        """Cache the OpenAPI spec"""
+        ...
+
+    async def cache_collections(self):
+        """Cache the collections data"""
         ...

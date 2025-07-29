@@ -1,13 +1,14 @@
 import json
 import asyncio
-import os
+import functools
 
-from typing import Optional, List, Dict, Any, Union, cast
+from typing import Optional, List, Dict, Any, Union
 from api_service.protocols import APIClient
-from .protocols import MCPService, FeatureService
-from .guardrails import ToolGuardrails
+from promp_templates.prompt_templates import PROMPT_TEMPLATES
+from mcp_service.protocols import MCPService, FeatureService
+from mcp_service.guardrails import ToolGuardrails
+from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
-from mcp.server.fastmcp import Context
 
 logger = get_logger(__name__)
 
@@ -15,96 +16,154 @@ logger = get_logger(__name__)
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
-    def __init__(self, api_client: APIClient, mcp_service: MCPService):
+    def __init__(
+        self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None
+    ):
         """
         Initialise the OS NGD service
 
         Args:
             api_client: API client implementation
             mcp_service: MCP service implementation
+            stdio_middleware: Optional STDIO middleware for rate limiting
         """
         self.api_client = api_client
         self.mcp = mcp_service
-
-        # Initialise guardrails
-        # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
-        self.guardrails = ToolGuardrails(requests_per_minute=25)
-
-        # Register tools
+        self.stdio_middleware = stdio_middleware
+        self.workflow_planner: Optional[WorkflowPlanner] = None
+        self.guardrails = ToolGuardrails()
         self.register_tools()
 
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails"""
+        """Register all MCP tools with guardrails and middleware"""
 
-        self.hello_world = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.hello_world)
+        def apply_middleware(func):
+            wrapped = self.guardrails.basic_guardrails(func)
+            wrapped = self._require_workflow_context(wrapped)
+            if self.stdio_middleware:
+                wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
+            return wrapped
+
+        # Apply middleware to ALL tools
+        self.get_workflow_context = self.mcp.tool()(
+            apply_middleware(self.get_workflow_context)
         )
-        self.check_api_key = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.check_api_key)
-        )
-        self.list_collections = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.list_collections)
-        )
+        self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
+        self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
+        self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
         self.get_collection_info = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_info)
+            apply_middleware(self.get_collection_info)
         )
         self.get_collection_queryables = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_queryables)
+            apply_middleware(self.get_collection_queryables)
         )
-        self.search_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_features)
-        )
-        self.get_feature = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_feature)
-        )
+        self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
+        self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
         self.get_linked_identifiers = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_linked_identifiers)
+            apply_middleware(self.get_linked_identifiers)
         )
         self.get_bulk_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_features)
+            apply_middleware(self.get_bulk_features)
         )
         self.get_bulk_linked_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_linked_features)
+            apply_middleware(self.get_bulk_linked_features)
         )
         self.get_prompt_templates = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_prompt_templates)
-        )
-        self.search_by_uprn = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_uprn)
-        )
-        self.search_by_post_code = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_post_code)
-        )
-        self.get_light_map_tile = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_light_map_tile)
+            apply_middleware(self.get_prompt_templates)
         )
 
-    # TODO: add in the session ID stuff to all tools!!
-    # Needs improved
-    async def hello_world(self, name: str, ctx: Context) -> str:
+    def run(self) -> None:
+        """Run the MCP service"""
+        try:
+            self.mcp.run()
+        finally:
+            try:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._cleanup())
+                except RuntimeError:
+                    asyncio.run(self._cleanup())
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
+
+    async def _cleanup(self):
+        """Async cleanup method"""
+        try:
+            if hasattr(self, "api_client") and self.api_client:
+                await self.api_client.close()
+                logger.debug("API client closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing API client: {e}")
+
+    async def get_workflow_context(self) -> str:
+        """Get workflow context and initialise planner if needed"""
+        try:
+            if self.workflow_planner is None:
+                cached_spec = await self.api_client.cache_openapi_spec()
+                cached_collections = await self.api_client.cache_collections()
+
+                collections_info = {}
+                if cached_collections and hasattr(cached_collections, "collections"):
+                    collections_list = getattr(cached_collections, "collections", [])
+                    if collections_list and hasattr(collections_list, "__iter__"):
+                        for collection in collections_list:
+                            collections_info[collection.id] = {
+                                "id": collection.id,
+                                "title": collection.title,
+                                "description": collection.description,
+                            }
+
+                self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
+
+            context = self.workflow_planner.get_context()
+            return json.dumps(
+                {
+                    "instruction": "MANDATORY: Before making any tool calls, you must explain your complete plan to the user. Tell them: 1) Which collection you will use and why, 2) What steps you will take, 3) What information you will gather. Only after explaining your plan should you proceed with tool calls.",
+                    "available_collections": context["available_collections"],
+                    "openapi_endpoints": context["openapi_endpoints"],
+                    "workflow_requirement": "You MUST explain your plan to the user before executing any tools",
+                    "guidance": "Start by identifying the most relevant collection for the user's request, then query its queryables to understand available parameters, then execute the appropriate search.",
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting workflow context: {e}")
+            return json.dumps(
+                {"error": str(e), "instruction": "Proceed with available tools"}
+            )
+
+    def _require_workflow_context(self, func):
+        """Middleware to ensure workflow context is provided before any tool execution"""
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            match func.__name__:
+                case "get_workflow_context" | "hello_world" | "check_api_key" | "get_prompt_templates":
+                    return await func(*args, **kwargs)
+                case _:
+                    # For tools that need workflow context - ENFORCE the workflow context call
+                    if self.workflow_planner is None:
+                        return json.dumps({
+                            "error": "Workflow context required",
+                            "instruction": "You must call get_workflow_context first to plan your approach. This tool provides essential information about available collections and endpoints needed to properly handle the user's request.",
+                            "requested_tool": func.__name__,
+                        })
+
+                    return await func(*args, **kwargs)
+
+        return wrapper
+
+    async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
-        # Get session ID from the context - this is our client identifier
-        session_id = None
-        if hasattr(ctx.request_context.session, "_transport") and hasattr(
-            ctx.request_context.session._transport, "mcp_session_id"
-        ):
-            session_id = ctx.request_context.session._transport.mcp_session_id
-        elif hasattr(ctx.request_context.session, "session_id"):
-            session_id = ctx.request_context.session.session_id
+        return f"Hello, {name}! 👋"
 
-        # Fallback to request_id if no session_id available
-        client_identifier = session_id or ctx.request_id
-
-        logger.info(f"Hello world called by session: {client_identifier}")
-        return f"Hello, {name}! 👋 (Session: {client_identifier})"
-
-    def check_api_key(self) -> str:
+    async def check_api_key(self) -> str:
         """Check if the OS API key is available."""
         try:
-            self.api_client.get_api_key()
-            return "OS_API_KEY is set!"
+            await self.api_client.get_api_key()
+            return json.dumps({"status": "success", "message": "OS_API_KEY is set!"})
         except ValueError as e:
-            return str(e)
+            return json.dumps({"status": "error", "message": str(e)})
 
     async def list_collections(
         self,
@@ -128,6 +187,7 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
+            logger.error("Error listing collections")
             return json.dumps({"error": str(e)})
 
     async def get_collection_info(
@@ -190,19 +250,16 @@ class OSDataHubService(FeatureService):
         try:
             params: Dict[str, Union[str, int]] = {}
 
-            # Add standard parameters
             if limit:
                 params["limit"] = limit
             if offset:
                 params["offset"] = offset
 
-            # Add spatial parameters
             if bbox:
                 params["bbox"] = bbox
             if crs:
                 params["crs"] = crs
 
-            # Add query attribute filter
             if query_attr and query_attr_value:
                 params["filter"] = f"{query_attr}={query_attr_value}"
 
@@ -268,33 +325,15 @@ class OSDataHubService(FeatureService):
                 "LINKED_IDENTIFIERS", path_params=[identifier_type, identifier]
             )
 
-            # If no feature_type filter, return raw data
-            if not feature_type:
-                return json.dumps(data)
+            if feature_type:
+                # Filter results by feature type
+                filtered_results = []
+                for item in data.get("results", []):
+                    if item.get("featureType") == feature_type:
+                        filtered_results.append(item)
+                return json.dumps({"results": filtered_results})
 
-            # Filter by feature type
-            identifiers: List[str] = []
-            if "correlations" in data:
-                assert isinstance(data["correlations"], list), (
-                    "correlations must be a list"
-                )
-                correlations = cast(List[Dict[str, Any]], data["correlations"])
-                for item in correlations:
-                    if item.get("correlatedFeatureType") == feature_type:
-                        if "correlatedIdentifiers" in item and isinstance(
-                            item["correlatedIdentifiers"], list
-                        ):
-                            correlated_ids = cast(
-                                List[Dict[str, Any]], item["correlatedIdentifiers"]
-                            )
-                            identifiers = [
-                                id_obj["identifier"]
-                                for id_obj in correlated_ids
-                                if "identifier" in id_obj
-                            ]
-                            break
-
-            return json.dumps({"identifiers": identifiers})
+            return json.dumps(data)
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -309,35 +348,30 @@ class OSDataHubService(FeatureService):
 
         Args:
             collection_id: The collection ID
-            identifiers: List of feature IDs or attribute values
-            query_by_attr: If provided, query by this attribute instead of feature ID
+            identifiers: List of feature identifiers
+            query_by_attr: Attribute to query by (if not provided, assumes feature IDs)
 
         Returns:
             JSON string with features data
         """
         try:
             tasks: List[Any] = []
-
             for identifier in identifiers:
                 if query_by_attr:
-                    # Query by attribute
-                    tasks.append(
-                        self.search_features(
-                            collection_id,
-                            query_attr=query_by_attr,
-                            query_attr_value=identifier,
-                        )
+                    task = self.search_features(
+                        collection_id=collection_id,
+                        query_attr=query_by_attr,
+                        query_attr_value=identifier,
+                        limit=1,
                     )
                 else:
-                    # Query by feature ID
-                    tasks.append(self.get_feature(collection_id, feature_id=identifier))
+                    task = self.get_feature(collection_id, identifier)
 
-            results: List[str] = await asyncio.gather(*tasks)
+                tasks.append(task)
 
-            # Parse results back to objects for processing
-            parsed_results: List[Dict[str, Any]] = [
-                json.loads(result) for result in results
-            ]
+            results = await asyncio.gather(*tasks)
+
+            parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
@@ -368,14 +402,13 @@ class OSDataHubService(FeatureService):
 
             results = await asyncio.gather(*tasks)
 
-            # Parse results back to objects
             parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    def get_prompt_templates(
+    async def get_prompt_templates(
         self,
         category: Optional[str] = None,
     ) -> str:
@@ -389,228 +422,7 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string containing prompt templates
         """
-        from promp_templates.prompt_templates import PROMPT_TEMPLATES
-
         if category and category in PROMPT_TEMPLATES:
             return json.dumps({category: PROMPT_TEMPLATES[category]})
 
         return json.dumps(PROMPT_TEMPLATES)
-
-    async def search_by_uprn(
-        self,
-        uprn: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """
-        Find addresses by UPRN using the OS Places API.
-
-        Args:
-            uprn: A valid UPRN (Unique Property Reference Number)
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
-
-        Returns:
-            JSON string with matched addresses
-        """
-        try:
-            # Validate all parameters first
-            errors = self._validate_uprn_params(
-                uprn, format, dataset, lr, output_srs, fq
-            )
-            if errors:
-                return json.dumps({"error": errors})
-
-            # Convert UPRN to integer
-            uprn_int = int(uprn)
-
-            params = {
-                "uprn": uprn_int,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
-
-            # Add filters if provided
-            if fq:
-                params["fq"] = ",".join(fq)
-
-            data = await self.api_client.make_request("PLACES_UPRN", params=params)
-
-            # Return sanitized data as JSON
-            return json.dumps(data)
-        except Exception as e:
-            return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
-
-    def _validate_uprn_params(
-        self,
-        uprn: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the UPRN search and return error message if invalid."""
-        errors: List[str] = []
-
-        # Helper function to check condition and add error
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        # Check each parameter
-        check(not uprn.isdigit(), "UPRN must contain only digits")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,
-            "Filters cannot be an empty list",
-        )
-
-        return errors[0] if errors else None
-
-    async def search_by_post_code(
-        self,
-        postcode: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """
-        Find addresses by POSTCODE using the OS Places API.
-
-        Args:
-            postcode: A valid POSTCODE (e.g. "SW1A 1AA")
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
-
-        Returns:
-            JSON string with matched addresses
-        """
-        try:
-            # Validate all parameters first
-            errors = self._validate_post_code_params(
-                postcode, format, dataset, lr, output_srs, fq
-            )
-            if errors:
-                return json.dumps({"error": errors})
-
-            params = {
-                "postcode": postcode,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
-
-            # Add filters if provided
-            if fq:
-                params["fq"] = ",".join(fq)
-
-            data = await self.api_client.make_request("POST_CODE", params=params)
-
-            # Return sanitized data as JSON
-            return json.dumps(data)
-        except Exception as e:
-            return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
-
-    def _validate_post_code_params(
-        self,
-        postcode: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the POSTCODE search and return error message if invalid."""
-        errors: List[str] = []
-
-        # Helper function to check condition and add error
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        # Check each parameter
-        check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,  # Changed from isinstance check
-            "Filters must be provided as a list",
-        )
-
-        return errors[0] if errors else None
-
-    # TODO: THIS DOES NOT WORK - NEED TO FIX
-    async def get_light_map_tile(
-        self,
-        z: int,
-        x: int,
-        y: int,
-    ) -> str:
-        """
-        Get a Light style map tile in EPSG:27700 projection.
-        Returns HTML with a clickable image for download.
-        """
-        try:
-            # Get API key
-            api_key = os.environ.get("OS_API_KEY")
-            if not api_key:
-                return "Error: OS_API_KEY environment variable is not set"
-
-            # Create direct image URL
-            image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
-
-            # Return HTML with clickable image
-            html = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                <p>Click on the map tile to download:</p>
-                <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
-                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile"
-                         style="border: 1px solid #ccc; cursor: pointer;">
-                </a>
-                <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
-            </body>
-            </html>
-            """
-
-            return html
-        except Exception as e:
-            return f"Error getting map tile: {str(e)}"
-
-    def run(self) -> None:
-        """Run the MCP service"""
-        self.mcp.run()

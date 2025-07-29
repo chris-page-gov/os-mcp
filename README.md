@@ -1,6 +1,6 @@
 # Ordnance Survey - MCP Server
 
-VERSION: 0.1.3
+VERSION: 0.1.0
 
 A Python-based MCP server that provides access to the Ordnance Survey APIs, supporting both STDIO and HTTP (streamable) modes.
 
@@ -141,17 +141,10 @@ python src/server.py --transport streamable-http --host 0.0.0.0 --port 8000
 2. **Test using the provided client script:**
 
 ```bash
-python src/client_test.py
+python src/http_client_test.py
 ```
 
-> **Note:** The client test script (`client_test.py`) is a great way to verify your server setup and see example code for programmatic interaction with the API. It uses the `mcp.client.streamable_http` library to demonstrate proper connection handling and tool calling.
-
-The client script demonstrates:
-
-- Connecting to the MCP server
-- Initialising a session
-- Listing available tools
-- Making test calls (e.g., `hello_world` tool)
+> **Note:** The client test scripts (`http_client_test.py` and `stdio_client_test.py`) are a great way to verify your server setup.
 
 ### 4. Dev Container Setup (for VS Code Development)
 
@@ -233,7 +226,6 @@ All tools are available in both STDIO and HTTP modes:
 - `get_prompt_templates` - Get standard prompt templates for common operations
 - `search_by_uprn` - Search for addresses by UPRN
 - `search_by_post_code` - Search for addresses by POSTCODE
-- `get_map_tile` - Get a map tile in EPSG:27700 projection - THIS DOES NOT WORK - NEED TO FIX
 
 ## Using Prompt Templates
 
@@ -246,61 +238,6 @@ To access these templates, ask Claude: **"show me available prompt templates"**
 #### **Basic USRN Analysis**
 
 - `usrn_breakdown` - Break down USRN into component road links for routing analysis
-- `usrn_network_connections` - Find all USRNs directly connected through the road network
-- `usrn_named_road_analysis` - Analyze which named roads include the USRN and routing implications
-
-#### **Routing & Navigation**
-
-- `route_between_usrns` - Build topological route between two USRNs
-- `usrn_to_address_routing` - Route from USRN to specific address using UPRN or postcode
-- `usrn_junction_analysis` - Analyze all junctions involving USRN for routing complexity
-
-#### **Accessibility & Mobility**
-
-- `usrn_accessibility_analysis` - Analyze accessibility routing options including pedestrian access
-- `usrn_path_integration` - Find pedestrian/cycle path integration points
-- `cycling_routing_usrn` - Plan cycling routes involving USRN
-
-#### **Multimodal Transport**
-
-- `usrn_multimodal_access` - Find all transport access points (roads, paths, rail, ferry)
-- `usrn_rail_connections` - Find railway connections near USRN
-- `usrn_tram_analysis` - Analyze tram connections and presence
-
-#### **Network Analysis**
-
-- `build_usrn_network_graph` - Build complete routing network graph centered on USRN
-- `usrn_road_link_analysis` - Detailed analysis of individual Road Links within USRN
-
-#### **Emergency & Specialized Routing**
-
-- `emergency_services_routing` - Plan emergency services routing with multiple access points
-- `freight_routing_usrn` - Plan freight/HGV routing
-- `usrn_traffic_optimization` - Plan traffic-optimized routes
-
-#### **Spatial Analysis**
-
-- `usrn_spatial_analysis` - Comprehensive spatial analysis within specified radius
-- `usrn_compound_structure_analysis` - Find compound structures affecting USRN routing
-- `route_compound_structures_analysis` - Find all compound structures along route between USRNs
-- `route_bridge_tunnel_analysis` - Analyze bridges and tunnels along route
-- `route_infrastructure_obstacles` - Identify infrastructure obstacles and restrictions along route
-- `route_multimodal_crossings` - Find multimodal transport crossings along route
-- `freight_route_structure_clearances` - Analyze structure clearances for freight routing
-
-#### **Linked Identifiers** _(Expanding)_
-
-- `uprn_to_road_infrastructure` - Connect property addresses to road infrastructure
-
-### Example Usage
-
-Ask Claude to use specific templates:
-
-- _"Use the route_between_usrns template to find a route from USRN 12345 to USRN 67890"_
-- _"Apply the emergency_services_routing template for USRN 12345"_
-- _"Run the freight_routing_usrn analysis for USRN 12345"_
-
-Each template provides step-by-step instructions using the OS NGD API collections and your available MCP tools.
 
 ## Troubleshooting
 
