@@ -163,6 +163,21 @@ class OSAPIClient(APIClient):
             raise ValueError("OS_API_KEY environment variable is not set")
         return api_key
 
+    def _sanitize_response(self, data: Any) -> Any:
+        """Remove API keys from response URLs recursively"""
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key == "href" and isinstance(value, str):
+                    data[key] = re.sub(r'[?&]key=[^&]*', '', value)
+                    data[key] = re.sub(r'[?&]$', '', data[key])
+                    data[key] = re.sub(r'&{2,}', '&', data[key])
+                elif isinstance(value, (dict, list)):
+                    data[key] = self._sanitize_response(value)
+        elif isinstance(data, list):
+            return [self._sanitize_response(item) for item in data]
+        
+        return data
+
     async def make_request(
         self,
         endpoint: str,
@@ -202,7 +217,7 @@ class OSAPIClient(APIClient):
 
         api_key = await self.get_api_key()
         request_params = params or {}
-        request_params["key"] = api_key
+        request_params["key"] = api_key  
 
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
 
@@ -229,7 +244,9 @@ class OSAPIClient(APIClient):
                         logger.error(f"Error: {error_message}")
                         raise ValueError(error_message)
 
-                    return await response.json()
+                    response_data = await response.json()
+                    
+                    return self._sanitize_response(response_data)
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if attempt == max_retries:
                     error_message = (
