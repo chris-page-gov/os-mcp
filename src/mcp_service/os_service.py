@@ -280,6 +280,18 @@ class OSDataHubService(FeatureService):
 
         return wrapper
 
+    # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
+    # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
+    def _add_retry_context(self, response_data: dict, tool_name: str) -> dict:
+        """Add retry guidance to tool responses"""
+        if "error" in response_data:
+            response_data["retry_guidance"] = {
+                "tool": tool_name,
+                "suggestion": "Review the error message and try again with corrected parameters",
+                "MANDATORY_INSTRUCTION": "YOU MUST call get_workflow_context() if you need to see available options again"
+            }
+        return response_data
+
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
         return f"Hello, {name}! 👋"
@@ -314,8 +326,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
-            logger.error("Error listing collections")
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "list_collections"))
 
     async def get_collection_info(
         self,
@@ -337,7 +349,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_collection_info"))
 
     async def get_collection_queryables(
         self,
@@ -359,7 +372,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_collection_queryables"))
 
     async def search_features(
         self,
@@ -434,7 +448,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "search_features"))
 
     async def get_feature(
         self,
@@ -466,7 +481,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": f"Error getting feature: {str(e)}"})
+            error_response = {"error": f"Error getting feature: {str(e)}"}
+            return json.dumps(self._add_retry_context(error_response, "get_feature"))
 
     async def get_linked_identifiers(
         self,
@@ -500,7 +516,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_linked_identifiers"))
 
     async def get_bulk_features(
         self,
@@ -540,7 +557,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_bulk_features"))
 
     async def get_bulk_linked_features(
         self,
@@ -571,7 +589,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_bulk_linked_features"))
 
     async def get_prompt_templates(
         self,
