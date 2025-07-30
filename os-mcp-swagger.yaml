@@ -255,14 +255,7 @@ definitions:
         type: object
         description: Feature properties/attributes
         additionalProperties: true
-securityDefinitions:
-  bearerAuth:
-    type: apiKey
-    name: Authorization
-    in: header
-    description: Bearer token authentication (use "Bearer dev-token" for development)
-security:
-  - bearerAuth: []
+# Security handled via parameter-level Authorization header
 tags:
   - name: MCP
     description: Model Context Protocol operations
