@@ -13,3 +13,6 @@ wheels/
 .ruff_cache
 uv.lock
 pyrightconfig.json
+*.log
+.pytest_cache/
+.mypy_cache/

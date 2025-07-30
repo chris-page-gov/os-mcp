@@ -37,8 +37,7 @@ class OSAPIClient(APIClient):
             spec = OpenAPISpecification(spec=response)
             return spec
         except Exception as e:
-            logger.error(f"Error getting OpenAPI spec: {e}")
-            raise e
+            raise ValueError(f"Failed to get OpenAPI spec: {e}")
 
     async def cache_openapi_spec(self) -> OpenAPISpecification:
         """
@@ -111,11 +110,14 @@ class OSAPIClient(APIClient):
             response = await self.make_request("COLLECTIONS")
             collections_list = response.get("collections", [])
             filtered = self._filter_latest_collections(collections_list)
-            logger.debug(f"Filtered collections: {filtered}")
+            logger.debug(
+                f"Filtered collections: {len(filtered)} collections"
+            )  # Don't log the actual data
             return CollectionsCache(collections=filtered, raw_response=response)
         except Exception as e:
-            logger.error(f"Error getting collections: {e}")
-            raise e
+            sanitized_error = self._sanitise_api_key(str(e))
+            logger.error(f"Error getting collections: {sanitized_error}")
+            raise ValueError(f"Failed to get collections: {sanitized_error}")
 
     async def cache_collections(self) -> CollectionsCache:
         """
@@ -132,7 +134,8 @@ class OSAPIClient(APIClient):
                     f"Collections successfully cached - {len(self._cached_collections.collections)} collections after filtering"
                 )
             except Exception as e:
-                raise ValueError(f"Failed to cache collections: {e}")
+                sanitized_error = self._sanitise_api_key(str(e))
+                raise ValueError(f"Failed to cache collections: {sanitized_error}")
         return self._cached_collections
 
     async def initialise(self):
@@ -163,19 +166,59 @@ class OSAPIClient(APIClient):
             raise ValueError("OS_API_KEY environment variable is not set")
         return api_key
 
-    def _sanitize_response(self, data: Any) -> Any:
-        """Remove API keys from response URLs recursively"""
+    def _sanitise_api_key(self, text: Any) -> str:
+        """Remove API keys from any text (URLs, error messages, etc.)"""
+        if not isinstance(text, str):
+            return text
+
+        patterns = [
+            r"[?&]key=[^&\s]*",
+            r"[?&]api_key=[^&\s]*",
+            r"[?&]apikey=[^&\s]*",
+            r"[?&]token=[^&\s]*",
+        ]
+
+        sanitized = text
+        for pattern in patterns:
+            sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
+
+        sanitized = re.sub(r"[?&]$", "", sanitized)
+        sanitized = re.sub(r"&{2,}", "&", sanitized)
+        sanitized = re.sub(r"\?&", "?", sanitized)
+
+        return sanitized
+
+    def _sanitise_response(self, data: Any) -> Any:
+        """Remove API keys from response data recursively"""
         if isinstance(data, dict):
+            sanitized_dict = {}
             for key, value in data.items():
-                if key == "href" and isinstance(value, str):
-                    data[key] = re.sub(r'[?&]key=[^&]*', '', value)
-                    data[key] = re.sub(r'[?&]$', '', data[key])
-                    data[key] = re.sub(r'&{2,}', '&', data[key])
+                if isinstance(value, str) and any(
+                    url_indicator in key.lower()
+                    for url_indicator in ["href", "url", "link", "uri"]
+                ):
+                    sanitized_dict[key] = self._sanitise_api_key(value)
                 elif isinstance(value, (dict, list)):
-                    data[key] = self._sanitize_response(value)
+                    sanitized_dict[key] = self._sanitise_response(value)
+                else:
+                    sanitized_dict[key] = value
+            return sanitized_dict
         elif isinstance(data, list):
-            return [self._sanitize_response(item) for item in data]
-        
+            return [self._sanitise_response(item) for item in data]
+        elif isinstance(data, str):
+            if any(
+                indicator in data
+                for indicator in [
+                    "http://",
+                    "https://",
+                    "key=",
+                    "api_key=",
+                    "apikey=",
+                    "token=",
+                ]
+            ):
+                return self._sanitise_api_key(data)
+
         return data
 
     async def make_request(
@@ -217,14 +260,15 @@ class OSAPIClient(APIClient):
 
         api_key = await self.get_api_key()
         request_params = params or {}
-        request_params["key"] = api_key  
+        request_params["key"] = api_key
 
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
 
         client_ip = getattr(self.session, "_source_address", None)
         client_info = f" from {client_ip}" if client_ip else ""
 
-        logger.info(f"Requesting URL: {endpoint_value}{client_info}")
+        sanitized_url = self._sanitise_api_key(endpoint_value)
+        logger.info(f"Requesting URL: {sanitized_url}{client_info}")
 
         for attempt in range(1, max_retries + 1):
             try:
@@ -238,26 +282,29 @@ class OSAPIClient(APIClient):
                     timeout=timeout,
                 ) as response:
                     if response.status >= 400:
+                        # Sanitize error response text
+                        error_text = await response.text()
+                        sanitized_error = self._sanitise_api_key(error_text)
                         error_message = (
-                            f"HTTP Error: {response.status} - {await response.text()}"
+                            f"HTTP Error: {response.status} - {sanitized_error}"
                         )
                         logger.error(f"Error: {error_message}")
                         raise ValueError(error_message)
 
                     response_data = await response.json()
-                    
-                    return self._sanitize_response(response_data)
+
+                    return self._sanitise_response(response_data)
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if attempt == max_retries:
-                    error_message = (
-                        f"Request failed after {max_retries} attempts: {str(e)}"
-                    )
+                    sanitized_exception = self._sanitise_api_key(str(e))
+                    error_message = f"Request failed after {max_retries} attempts: {sanitized_exception}"
                     logger.error(f"Error: {error_message}")
                     raise ValueError(error_message)
                 else:
                     await asyncio.sleep(0.7)
             except Exception as e:
-                error_message = f"Request failed: {str(e)}"
+                sanitized_exception = self._sanitise_api_key(str(e))
+                error_message = f"Request failed: {sanitized_exception}"
                 logger.error(f"Error: {error_message}")
                 raise ValueError(error_message)
         raise RuntimeError(

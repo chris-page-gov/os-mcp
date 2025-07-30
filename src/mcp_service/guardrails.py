@@ -26,7 +26,7 @@ class ToolGuardrails:
             r"(?i)leak confidential",
             r"(?i)reveal secrets",
             r"(?i)expose secrets",
-            r"(?i)secrets.*contain", 
+            r"(?i)secrets.*contain",
             r"(?i)extract secrets",
         ]
 

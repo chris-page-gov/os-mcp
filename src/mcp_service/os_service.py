@@ -1,14 +1,18 @@
 import json
 import asyncio
 import functools
+import concurrent.futures
+import time
+import threading
 
 from typing import Optional, List, Dict, Any, Union
 from api_service.protocols import APIClient
-from promp_templates.prompt_templates import PROMPT_TEMPLATES
+from prompt_templates.prompt_templates import PROMPT_TEMPLATES
 from mcp_service.protocols import MCPService, FeatureService
 from mcp_service.guardrails import ToolGuardrails
 from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
+from models import Collection
 
 logger = get_logger(__name__)
 
@@ -95,6 +99,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             logger.error(f"Error closing API client: {e}")
 
+    # TODO: All this processing should really be done outside of the os mcp service level - and we need to cache the results
     async def get_workflow_context(self) -> str:
         """Get workflow context and initialise planner if needed"""
         try:
@@ -104,12 +109,11 @@ class OSDataHubService(FeatureService):
 
                 collections_info = {}
                 if cached_collections and hasattr(cached_collections, "collections"):
-                    collections_list = getattr(cached_collections, "collections", [])
+                    collections_list: List[Collection] = getattr(cached_collections, "collections", [])
                     if collections_list and hasattr(collections_list, "__iter__"):
-                        for collection in collections_list:
+                        
+                        async def fetch_collection_queryables(collection: Collection) -> Dict[str, Any]:
                             try:
-                                # TODO: This needs to be split into async tasks and run in parallel
-                                # TODO: This also needs to be shifted into the api_client and cached like the rest of the data
                                 queryables_data = await self.api_client.make_request(
                                     "COLLECTION_QUERYABLES", path_params=[collection.id]
                                 )
@@ -154,30 +158,58 @@ class OSDataHubService(FeatureService):
                                         if v is not None
                                     }
                                 
-                                collections_info[collection.id] = {
-                                    "id": collection.id,
-                                    "title": collection.title,
-                                    "description": collection.description,
+                                return {
+                                    "collection": collection,
                                     "all_queryables": all_queryables,
                                     "enum_queryables": enum_queryables,
-                                    "has_enum_filters": len(enum_queryables) > 0,
-                                    "total_queryables": len(all_queryables),
-                                    "enum_count": len(enum_queryables)
                                 }
                                 
                             except Exception as e:
                                 logger.warning(f"Failed to fetch queryables for {collection.id}: {e}")
-
-                                collections_info[collection.id] = {
-                                    "id": collection.id,
-                                    "title": collection.title,
-                                    "description": collection.description,
+                                return {
+                                    "collection": collection,
                                     "all_queryables": {},
                                     "enum_queryables": {},
-                                    "has_enum_filters": False,
-                                    "total_queryables": 0,
-                                    "enum_count": 0
                                 }
+                            
+                        # This should reduce the network io bottleneck and speed it up!
+                        tasks = [fetch_collection_queryables(collection) for collection in collections_list]
+                        queryables_results = await asyncio.gather(*tasks)
+
+                        logger.debug(f"Starting thread pool processing for {len(queryables_results)} results...")
+                        
+                        def process_collection_result(result):
+                            collection = result["collection"]
+                            logger.debug(f"Processing collection {collection.id} in thread {threading.current_thread().name}")
+                            all_queryables = result["all_queryables"]
+                            enum_queryables = result["enum_queryables"]
+                            
+                            return (collection.id, {
+                                "id": collection.id,
+                                "title": collection.title,
+                                "description": collection.description,
+                                "all_queryables": all_queryables,
+                                "enum_queryables": enum_queryables,
+                                "has_enum_filters": len(enum_queryables) > 0,
+                                "total_queryables": len(all_queryables),
+                                "enum_count": len(enum_queryables)
+                            })
+                    
+                        thread_start = time.time()
+
+                        # This should reduce the work required to process the queryables results
+                        # TODO: need to check this really does speed it up
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                            logger.debug(f"Thread pool created with {executor._max_workers} workers")
+                            processed = await asyncio.get_event_loop().run_in_executor(
+                                executor, 
+                                lambda: list(map(process_collection_result, queryables_results))
+                            )
+                        
+                        thread_end = time.time()
+                        logger.debug(f"Thread pool processing completed in {thread_end - thread_start:.4f}s")
+                        
+                        collections_info = dict(processed)
 
                 self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
 
@@ -232,20 +264,33 @@ class OSDataHubService(FeatureService):
 
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Only allow get_workflow_context when workflow_planner is None
             if self.workflow_planner is None:
                 if func.__name__ == "get_workflow_context":
                     return await func(*args, **kwargs)
                 else:
-                    return json.dumps({
-                        "error": "WORKFLOW CONTEXT REQUIRED",
-                        "blocked_tool": func.__name__,
-                        "required_action": "You must call 'get_workflow_context' first",
-                        "message": "No tools are available until you get the workflow context. Please call get_workflow_context() now."
-                    })
+                    return json.dumps(
+                        {
+                            "error": "WORKFLOW CONTEXT REQUIRED",
+                            "blocked_tool": func.__name__,
+                            "required_action": "You must call 'get_workflow_context' first",
+                            "message": "No tools are available until you get the workflow context. Please call get_workflow_context() now.",
+                        }
+                    )
             return await func(*args, **kwargs)
 
         return wrapper
+
+    # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
+    # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
+    def _add_retry_context(self, response_data: dict, tool_name: str) -> dict:
+        """Add retry guidance to tool responses"""
+        if "error" in response_data:
+            response_data["retry_guidance"] = {
+                "tool": tool_name,
+                "suggestion": "Review the error message and try again with corrected parameters",
+                "MANDATORY_INSTRUCTION": "YOU MUST call get_workflow_context() if you need to see available options again"
+            }
+        return response_data
 
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
@@ -281,8 +326,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
-            logger.error("Error listing collections")
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "list_collections"))
 
     async def get_collection_info(
         self,
@@ -304,7 +349,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_collection_info"))
 
     async def get_collection_queryables(
         self,
@@ -326,7 +372,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_collection_queryables"))
 
     async def search_features(
         self,
@@ -338,13 +385,13 @@ class OSDataHubService(FeatureService):
         filter: Optional[str] = None,
         filter_lang: Optional[str] = "cql-text",
         # Keep legacy parameters for backward compatibility
-        # TODO: Remove these parameters in future? 
+        # TODO: Remove these parameters in future?
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
     ) -> str:
         """
         Search for features in a collection with full CQL2 filter support.
-        
+
         Args:
             collection_id: The collection ID to search in
             bbox: Bounding box as "min_lon,min_lat,max_lon,max_lat"
@@ -355,18 +402,18 @@ class OSDataHubService(FeatureService):
             filter_lang: Filter language, defaults to "cql-text"
             query_attr: [DEPRECATED] Legacy simple attribute name for filtering
             query_attr_value: [DEPRECATED] Legacy simple attribute value for filtering
-        
+
         Returns:
             JSON string with feature collection data
-            
+
         Examples:
             # Using enum values from workflow context
             search_features("lus-fts-site-1", bbox="...", filter="oslandusetiera = 'Cinema'")
             search_features("trn-ntwk-street-1", bbox="...", filter="roadclassification = 'A Road'")
-            
+
             # Complex filters
             search_features("trn-ntwk-street-1", filter="roadclassification = 'A Road' AND operationalstate = 'Open'")
-            
+
             # Text matching
             search_features("trn-ntwk-street-1", filter="designatedname1_text LIKE '%high%'")
         """
@@ -389,7 +436,7 @@ class OSDataHubService(FeatureService):
                 if filter_lang:
                     params["filter-lang"] = filter_lang
             # Legacy support for simple query_attr/query_attr_value
-            # TODO: Remove these parameters in future? 
+            # TODO: Remove these parameters in future?
             elif query_attr and query_attr_value:
                 params["filter"] = f"{query_attr} = '{query_attr_value}'"
                 if filter_lang:
@@ -401,7 +448,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "search_features"))
 
     async def get_feature(
         self,
@@ -433,7 +481,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": f"Error getting feature: {str(e)}"})
+            error_response = {"error": f"Error getting feature: {str(e)}"}
+            return json.dumps(self._add_retry_context(error_response, "get_feature"))
 
     async def get_linked_identifiers(
         self,
@@ -467,7 +516,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_linked_identifiers"))
 
     async def get_bulk_features(
         self,
@@ -507,7 +557,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_bulk_features"))
 
     async def get_bulk_linked_features(
         self,
@@ -538,7 +589,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(self._add_retry_context(error_response, "get_bulk_linked_features"))
 
     async def get_prompt_templates(
         self,
