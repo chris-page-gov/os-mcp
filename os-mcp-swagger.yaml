@@ -9,7 +9,7 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-host: localhost:8000
+host: 127.0.0.1:8000
 basePath: /
 schemes:
   - http
@@ -26,32 +26,22 @@ paths:
         Access UK Ordnance Survey geospatial data through Model Context Protocol.
         Provides tools for searching streets, buildings, addresses, land use data and more
         across the UK using bounding boxes, postcodes, and advanced CQL filtering.
-        
-        Available tools include:
-        - hello_world: Test connectivity
-        - check_api_key: Verify OS API key status
-        - get_workflow_context: Get available collections and filtering guidance
-        - list_collections: List all available data collections
-        - search_features: Search for geospatial features with filtering
-        - get_feature: Get specific feature details by ID
-        - get_collection_info: Get detailed collection information
-        - get_collection_queryables: Get available filter fields for a collection
       x-ms-agentic-protocol: mcp-streamable-1.0
       operationId: InvokeMCP
       parameters:
-        - name: Authorization
-          in: header
-          description: Bearer token for authentication
-          required: true
-          type: string
-          default: "Bearer dev-token"
         - name: body
           in: body
-          description: MCP request payload
+          description: MCP JSON-RPC request
           required: true
           schema:
             type: object
             properties:
+              jsonrpc:
+                type: string
+                default: "2.0"
+              id:
+                type: string
+                default: "1"
               method:
                 type: string
                 description: MCP method to invoke
@@ -59,35 +49,30 @@ paths:
                   - initialize
                   - tools/list
                   - tools/call
-                example: "tools/call"
+                default: "tools/call"
               params:
                 type: object
-                description: Parameters for the MCP method
+                description: Method parameters
                 properties:
                   name:
                     type: string
-                    description: Tool name to call
-                    example: "search_features"
+                    description: Tool name (for tools/call)
+                    default: "search_features"
                   arguments:
                     type: object
                     description: Tool arguments
                     properties:
                       collection_id:
                         type: string
-                        description: Data collection to search
-                        example: "trn-ntwk-street-1"
+                        default: "trn-ntwk-street-1"
                       bbox:
                         type: string
-                        description: Bounding box as min_lon,min_lat,max_lon,max_lat
-                        example: "-1.16,52.95,-1.15,52.96"
+                        default: "-1.16,52.95,-1.15,52.96"
                       filter:
                         type: string
-                        description: CQL filter expression
-                        example: "roadclassification = 'A Road'"
                       limit:
                         type: integer
-                        description: Maximum number of results
-                        example: 10
+                        default: 10
       responses:
         '200':
           description: Success
@@ -103,94 +88,12 @@ paths:
               result:
                 type: object
                 description: MCP response data
-                properties:
-                  content:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        type:
-                          type: string
-                          example: "text"
-                        text:
-                          type: string
-                          description: Response content
         '400':
           description: Bad Request
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                  message:
-                    type: string
         '401':
           description: Unauthorized
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 401
-                  message:
-                    type: string
-                    example: "Invalid or missing authentication"
-        '429':
-          description: Rate Limit Exceeded
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 429
-                  message:
-                    type: string
-                    example: "Rate limit exceeded"
         '500':
           description: Internal Server Error
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 500
-                  message:
-                    type: string
-                    example: "Internal server error"
-  /.well-known/mcp-auth:
-    get:
-      summary: MCP Authentication Discovery
-      description: Returns available authentication methods for the MCP server
-      operationId: GetAuthMethods
-      responses:
-        '200':
-          description: Authentication methods
-          schema:
-            type: object
-            properties:
-              authMethods:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    type:
-                      type: string
-                      example: "http"
-                    scheme:
-                      type: string
-                      example: "bearer"
 definitions:
   MCPRequest:
     type: object
@@ -255,7 +158,14 @@ definitions:
         type: object
         description: Feature properties/attributes
         additionalProperties: true
-# Security handled via parameter-level Authorization header
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Enter: Bearer dev-token"
+security:
+  - BearerAuth: []
 tags:
   - name: MCP
     description: Model Context Protocol operations
