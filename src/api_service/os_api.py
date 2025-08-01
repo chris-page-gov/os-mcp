@@ -10,6 +10,7 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+# TODO: We should add in the workflow context processing in here
 class OSAPIClient(APIClient):
     """Implementation an OS API client"""
 

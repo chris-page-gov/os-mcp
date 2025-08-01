@@ -109,106 +109,144 @@ class OSDataHubService(FeatureService):
 
                 collections_info = {}
                 if cached_collections and hasattr(cached_collections, "collections"):
-                    collections_list: List[Collection] = getattr(cached_collections, "collections", [])
+                    collections_list: List[Collection] = getattr(
+                        cached_collections, "collections", []
+                    )
                     if collections_list and hasattr(collections_list, "__iter__"):
-                        
-                        async def fetch_collection_queryables(collection: Collection) -> Dict[str, Any]:
+
+                        async def fetch_collection_queryables(
+                            collection: Collection,
+                        ) -> Dict[str, Any]:
                             try:
                                 queryables_data = await self.api_client.make_request(
                                     "COLLECTION_QUERYABLES", path_params=[collection.id]
                                 )
-                                
+
                                 all_queryables = {}
                                 enum_queryables = {}
                                 properties = queryables_data.get("properties", {})
-                                
+
                                 for prop_name, prop_details in properties.items():
                                     prop_type = prop_details.get("type", ["string"])
                                     if isinstance(prop_type, list):
-                                        main_type = prop_type[0] if prop_type else "string"
+                                        main_type = (
+                                            prop_type[0] if prop_type else "string"
+                                        )
                                         is_nullable = "null" in prop_type
                                     else:
                                         main_type = prop_type
                                         is_nullable = False
-                                
+
                                     all_queryables[prop_name] = {
                                         "type": main_type,
                                         "nullable": is_nullable,
-                                        "description": prop_details.get("description", ""),
+                                        "description": prop_details.get(
+                                            "description", ""
+                                        ),
                                         "max_length": prop_details.get("maxLength"),
                                         "format": prop_details.get("format"),
                                         "pattern": prop_details.get("pattern"),
                                         "minimum": prop_details.get("minimum"),
                                         "maximum": prop_details.get("maximum"),
-                                        "is_enum": prop_details.get("enumeration", False)
+                                        "is_enum": prop_details.get(
+                                            "enumeration", False
+                                        ),
                                     }
-                                    
-                                    if prop_details.get("enumeration") and "enum" in prop_details:
+
+                                    if (
+                                        prop_details.get("enumeration")
+                                        and "enum" in prop_details
+                                    ):
                                         enum_queryables[prop_name] = {
                                             "values": prop_details["enum"],
                                             "type": main_type,
                                             "nullable": is_nullable,
-                                            "description": prop_details.get("description", ""),
-                                            "max_length": prop_details.get("maxLength")
+                                            "description": prop_details.get(
+                                                "description", ""
+                                            ),
+                                            "max_length": prop_details.get("maxLength"),
                                         }
-                                        all_queryables[prop_name]["enum_values"] = prop_details["enum"]
-                                    
+                                        all_queryables[prop_name]["enum_values"] = (
+                                            prop_details["enum"]
+                                        )
+
                                     all_queryables[prop_name] = {
-                                        k: v for k, v in all_queryables[prop_name].items() 
+                                        k: v
+                                        for k, v in all_queryables[prop_name].items()
                                         if v is not None
                                     }
-                                
+
                                 return {
                                     "collection": collection,
                                     "all_queryables": all_queryables,
                                     "enum_queryables": enum_queryables,
                                 }
-                                
+
                             except Exception as e:
-                                logger.warning(f"Failed to fetch queryables for {collection.id}: {e}")
+                                logger.warning(
+                                    f"Failed to fetch queryables for {collection.id}: {e}"
+                                )
                                 return {
                                     "collection": collection,
                                     "all_queryables": {},
                                     "enum_queryables": {},
                                 }
-                            
+
                         # This should reduce the network io bottleneck and speed it up!
-                        tasks = [fetch_collection_queryables(collection) for collection in collections_list]
+                        tasks = [
+                            fetch_collection_queryables(collection)
+                            for collection in collections_list
+                        ]
                         queryables_results = await asyncio.gather(*tasks)
 
-                        logger.debug(f"Starting thread pool processing for {len(queryables_results)} results...")
-                        
+                        logger.debug(
+                            f"Starting thread pool processing for {len(queryables_results)} results..."
+                        )
+
                         def process_collection_result(result):
                             collection = result["collection"]
-                            logger.debug(f"Processing collection {collection.id} in thread {threading.current_thread().name}")
+                            logger.debug(
+                                f"Processing collection {collection.id} in thread {threading.current_thread().name}"
+                            )
                             all_queryables = result["all_queryables"]
                             enum_queryables = result["enum_queryables"]
-                            
-                            return (collection.id, {
-                                "id": collection.id,
-                                "title": collection.title,
-                                "description": collection.description,
-                                "all_queryables": all_queryables,
-                                "enum_queryables": enum_queryables,
-                                "has_enum_filters": len(enum_queryables) > 0,
-                                "total_queryables": len(all_queryables),
-                                "enum_count": len(enum_queryables)
-                            })
-                    
+
+                            return (
+                                collection.id,
+                                {
+                                    "id": collection.id,
+                                    "title": collection.title,
+                                    "description": collection.description,
+                                    "all_queryables": all_queryables,
+                                    "enum_queryables": enum_queryables,
+                                    "has_enum_filters": len(enum_queryables) > 0,
+                                    "total_queryables": len(all_queryables),
+                                    "enum_count": len(enum_queryables),
+                                },
+                            )
+
                         thread_start = time.time()
 
                         # This should reduce the work required to process the queryables results
                         # TODO: need to check this really does speed it up
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                            logger.debug(f"Thread pool created with {executor._max_workers} workers")
-                            processed = await asyncio.get_event_loop().run_in_executor(
-                                executor, 
-                                lambda: list(map(process_collection_result, queryables_results))
+                        with concurrent.futures.ThreadPoolExecutor(
+                            max_workers=4
+                        ) as executor:
+                            logger.debug(
+                                f"Thread pool created with {executor._max_workers} workers"
                             )
-                        
+                            processed = await asyncio.get_event_loop().run_in_executor(
+                                executor,
+                                lambda: list(
+                                    map(process_collection_result, queryables_results)
+                                ),
+                            )
+
                         thread_end = time.time()
-                        logger.debug(f"Thread pool processing completed in {thread_end - thread_start:.4f}s")
-                        
+                        logger.debug(
+                            f"Thread pool processing completed in {thread_end - thread_start:.4f}s"
+                        )
+
                         collections_info = dict(processed)
 
                 self.workflow_planner = WorkflowPlanner(cached_spec, collections_info)
@@ -221,35 +259,31 @@ class OSDataHubService(FeatureService):
                         "required_explanation": {
                             "1": "Which collection you will use and why",
                             "2": "What specific filters you will apply (show the exact filter string)",
-                            "3": "What steps you will take"
+                            "3": "What steps you will take",
                         },
                         "workflow_enforcement": "Do not proceed with tool calls until you have clearly explained your plan to the user",
-                        "example_planning": "I will search the 'lus-fts-site-1' collection using the filter 'oslandusetertiarygroup = \"Cinema\"' to find all cinema locations in your specified area."
+                        "example_planning": "I will search the 'lus-fts-site-1' collection using the filter 'oslandusetertiarygroup = \"Cinema\"' to find all cinema locations in your specified area.",
                     },
-
                     "available_collections": context["available_collections"],
                     "openapi_endpoints": context["openapi_endpoints"],
-
                     "QUICK_FILTERING_GUIDE": {
                         "primary_tool": "search_features",
                         "key_parameter": "filter",
                         "enum_fields": "Use exact values from collection's enum_queryables (e.g., 'Cinema', 'A Road')",
                         "simple_fields": "Use direct values (e.g., usrn = 12345678)",
                     },
-
                     "COMMON_EXAMPLES": {
                         "cinema_search": "search_features(collection_id='lus-fts-site-1', bbox='...', filter=\"oslandusetertiarygroup = 'Cinema'\")",
                         "a_road_search": "search_features(collection_id='trn-ntwk-street-1', bbox='...', filter=\"roadclassification = 'A Road'\")",
                         "usrn_search": "search_features(collection_id='trn-ntwk-street-1', filter='usrn = 12345678')",
-                        "street_name": "search_features(collection_id='trn-ntwk-street-1', filter=\"designatedname1_text LIKE '%high%'\")"
+                        "street_name": "search_features(collection_id='trn-ntwk-street-1', filter=\"designatedname1_text LIKE '%high%'\")",
                     },
-
                     "CRITICAL_RULES": {
                         "1": "ALWAYS explain your plan first",
                         "2": "Use exact enum values from the specific collection's enum_queryables",
                         "3": "Use the 'filter' parameter for all filtering",
-                        "4": "Quote string values in single quotes"
-                    }
+                        "4": "Quote string values in single quotes",
+                    },
                 }
             )
 
@@ -288,7 +322,7 @@ class OSDataHubService(FeatureService):
             response_data["retry_guidance"] = {
                 "tool": tool_name,
                 "suggestion": "Review the error message and try again with corrected parameters",
-                "MANDATORY_INSTRUCTION": "YOU MUST call get_workflow_context() if you need to see available options again"
+                "MANDATORY_INSTRUCTION": "YOU MUST call get_workflow_context() if you need to see available options again",
             }
         return response_data
 
@@ -327,7 +361,9 @@ class OSDataHubService(FeatureService):
             return json.dumps({"collections": collections})
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "list_collections"))
+            return json.dumps(
+                self._add_retry_context(error_response, "list_collections")
+            )
 
     async def get_collection_info(
         self,
@@ -350,7 +386,9 @@ class OSDataHubService(FeatureService):
             return json.dumps(data)
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "get_collection_info"))
+            return json.dumps(
+                self._add_retry_context(error_response, "get_collection_info")
+            )
 
     async def get_collection_queryables(
         self,
@@ -373,7 +411,9 @@ class OSDataHubService(FeatureService):
             return json.dumps(data)
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "get_collection_queryables"))
+            return json.dumps(
+                self._add_retry_context(error_response, "get_collection_queryables")
+            )
 
     async def search_features(
         self,
@@ -449,7 +489,9 @@ class OSDataHubService(FeatureService):
             return json.dumps(data)
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "search_features"))
+            return json.dumps(
+                self._add_retry_context(error_response, "search_features")
+            )
 
     async def get_feature(
         self,
@@ -517,7 +559,9 @@ class OSDataHubService(FeatureService):
             return json.dumps(data)
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "get_linked_identifiers"))
+            return json.dumps(
+                self._add_retry_context(error_response, "get_linked_identifiers")
+            )
 
     async def get_bulk_features(
         self,
@@ -558,7 +602,9 @@ class OSDataHubService(FeatureService):
             return json.dumps({"results": parsed_results})
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "get_bulk_features"))
+            return json.dumps(
+                self._add_retry_context(error_response, "get_bulk_features")
+            )
 
     async def get_bulk_linked_features(
         self,
@@ -590,7 +636,9 @@ class OSDataHubService(FeatureService):
             return json.dumps({"results": parsed_results})
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "get_bulk_linked_features"))
+            return json.dumps(
+                self._add_retry_context(error_response, "get_bulk_linked_features")
+            )
 
     async def get_prompt_templates(
         self,

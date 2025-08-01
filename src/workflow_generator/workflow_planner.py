@@ -5,6 +5,7 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+# TODO: This should be more intelligent with the context it provides to the LLM
 class WorkflowPlanner:
     """Simple context provider for LLM workflow planning"""
 
