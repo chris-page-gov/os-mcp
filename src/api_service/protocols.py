@@ -26,6 +26,15 @@ class APIClient(Protocol):
         """Make a request to an API endpoint"""
         ...
 
+    async def make_request_no_auth(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        max_retries: int = 2,
+    ) -> str:
+        """Make a request without authentication"""
+        ...
+
     async def cache_openapi_spec(self):
         """Cache the OpenAPI spec"""
         ...

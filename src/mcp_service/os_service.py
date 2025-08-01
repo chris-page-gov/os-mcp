@@ -13,6 +13,8 @@ from mcp_service.guardrails import ToolGuardrails
 from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
 from models import Collection
+from mcp_service.resources import OSDocumentationResources
+from mcp_service.prompts import OSWorkflowPrompts
 
 logger = get_logger(__name__)
 
@@ -37,6 +39,13 @@ class OSDataHubService(FeatureService):
         self.workflow_planner: Optional[WorkflowPlanner] = None
         self.guardrails = ToolGuardrails()
         self.register_tools()
+        self.register_resources()
+        self.register_prompts()
+
+    def register_resources(self) -> None:
+        """Register all MCP resources"""
+        doc_resources = OSDocumentationResources(self.mcp, self.api_client)
+        doc_resources.register_all()
 
     def register_tools(self) -> None:
         """Register all MCP tools with guardrails and middleware"""
@@ -75,6 +84,11 @@ class OSDataHubService(FeatureService):
         self.get_prompt_templates = self.mcp.tool()(
             apply_middleware(self.get_prompt_templates)
         )
+
+    def register_prompts(self) -> None:
+        """Register all MCP prompts"""
+        workflow_prompts = OSWorkflowPrompts(self.mcp)
+        workflow_prompts.register_all()
 
     def run(self) -> None:
         """Run the MCP service"""

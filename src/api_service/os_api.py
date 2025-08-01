@@ -283,7 +283,6 @@ class OSAPIClient(APIClient):
                     timeout=timeout,
                 ) as response:
                     if response.status >= 400:
-                        # Sanitize error response text
                         error_text = await response.text()
                         sanitized_error = self._sanitise_api_key(error_text)
                         error_message = (
@@ -310,4 +309,73 @@ class OSAPIClient(APIClient):
                 raise ValueError(error_message)
         raise RuntimeError(
             "Unreachable: make_request exited retry loop without returning or raising"
+        )
+
+    async def make_request_no_auth(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        max_retries: int = 2,
+    ) -> str:
+        """
+        Make a request without authentication (for public endpoints like documentation).
+
+        Args:
+            url: Full URL to request
+            params: Additional query parameters
+            max_retries: Maximum number of retries for transient errors
+
+        Returns:
+            Response text (not JSON parsed)
+        """
+        await self.initialise()
+
+        if self.session is None:
+            raise ValueError("Session not initialised")
+
+        current_time = asyncio.get_event_loop().time()
+        elapsed = current_time - self.last_request_time
+        if elapsed < self.request_delay:
+            await asyncio.sleep(self.request_delay - elapsed)
+
+        request_params = params or {}
+        headers = {"User-Agent": self.user_agent}
+
+        logger.info(f"Requesting URL (no auth): {url}")
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.last_request_time = asyncio.get_event_loop().time()
+
+                timeout = aiohttp.ClientTimeout(total=30.0)
+                async with self.session.get(
+                    url,
+                    params=request_params,
+                    headers=headers,
+                    timeout=timeout,
+                ) as response:
+                    if response.status >= 400:
+                        error_text = await response.text()
+                        error_message = f"HTTP Error: {response.status} - {error_text}"
+                        logger.error(f"Error: {error_message}")
+                        raise ValueError(error_message)
+
+                    return await response.text()
+
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                if attempt == max_retries:
+                    error_message = (
+                        f"Request failed after {max_retries} attempts: {str(e)}"
+                    )
+                    logger.error(f"Error: {error_message}")
+                    raise ValueError(error_message)
+                else:
+                    await asyncio.sleep(0.7)
+            except Exception as e:
+                error_message = f"Request failed: {str(e)}"
+                logger.error(f"Error: {error_message}")
+                raise ValueError(error_message)
+
+        raise RuntimeError(
+            "Unreachable: make_request_no_auth exited retry loop without returning or raising"
         )

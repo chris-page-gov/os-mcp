@@ -9,6 +9,18 @@ class MCPService(Protocol):
         """Register a function as an MCP tool"""
         ...
 
+    def resource(
+        self,
+        uri: str,
+        *,
+        name: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        mime_type: str | None = None,
+    ) -> Callable[[Any], Any]:
+        """Register a function as an MCP resource"""
+        ...
+
     def run(self) -> None:
         """Run the MCP service"""
         ...

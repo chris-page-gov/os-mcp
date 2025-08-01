@@ -28,6 +28,19 @@ class NGDAPIEndpoint(Enum):
     LINKED_IDENTIFIERS_BASE_PATH = "https://api.os.uk/search/links/v1/{}"
     LINKED_IDENTIFIERS = LINKED_IDENTIFIERS_BASE_PATH.format("identifierTypes/{}/{}")
 
+    # Markdown Resources
+    MARKDOWN_BASE_PATH = "https://docs.os.uk/osngd/data-structure/{}"
+    MARKDOWN_STREET = MARKDOWN_BASE_PATH.format("transport/transport-network/street.md")
+    MARKDOWN_ROAD = MARKDOWN_BASE_PATH.format("transport/transport-network/road.md")
+    TRAM_ON_ROAD = MARKDOWN_BASE_PATH.format(
+        "transport/transport-network/tram-on-road.md"
+    )
+    ROAD_NODE = MARKDOWN_BASE_PATH.format("transport/transport-network/road-node.md")
+    ROAD_LINK = MARKDOWN_BASE_PATH.format("transport/transport-network/road-link.md")
+    ROAD_JUNCTION = MARKDOWN_BASE_PATH.format(
+        "transport/transport-network/road-junction.md"
+    )
+
     # Places API Endpoints
     # PLACES_BASE_PATH = "https://api.os.uk/search/places/v1/{}"
     # PLACES_UPRN = PLACES_BASE_PATH.format("uprn")
