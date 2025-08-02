@@ -21,7 +21,5 @@ class WorkflowPlanner:
         """Get context for LLM to plan its own workflow"""
         return {
             "available_collections": self.collections_info,
-            "openapi_endpoints": list(self.spec.spec.get("paths", {}).keys())
-            if self.spec
-            else [],
+            "openapi_spec": self.spec,
         }
