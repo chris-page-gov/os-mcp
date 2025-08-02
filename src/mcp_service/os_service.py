@@ -62,11 +62,11 @@ class OSDataHubService(FeatureService):
         self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
         self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
         self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
-        self.get_collection_info = self.mcp.tool()(
-            apply_middleware(self.get_collection_info)
+        self.get_single_collection = self.mcp.tool()(
+            apply_middleware(self.get_single_collection)
         )
-        self.get_collection_queryables = self.mcp.tool()(
-            apply_middleware(self.get_collection_queryables)
+        self.get_single_collection_queryables = self.mcp.tool()(
+            apply_middleware(self.get_single_collection_queryables)
         )
         self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
         self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
@@ -81,6 +81,9 @@ class OSDataHubService(FeatureService):
         )
         self.get_prompt_templates = self.mcp.tool()(
             apply_middleware(self.get_prompt_templates)
+        )
+        self.fetch_detailed_collections = self.mcp.tool()(
+            apply_middleware(self.fetch_detailed_collections)
         )
 
     def register_prompts(self) -> None:
@@ -115,61 +118,71 @@ class OSDataHubService(FeatureService):
     # Get the workflow context from the cached API client data
     # TODO: Lots of work to do here to reduce the size of the context and make it more readable for the LLM but not sacrificing the information
     async def get_workflow_context(self) -> str:
-        """Get workflow context from cached API client data"""
+        """Get basic workflow context - no detailed queryables yet"""
         try:
             if self.workflow_planner is None:
-                workflow_context = await self.api_client.cache_workflow_context()
-                collections_info = {
-                    coll_id: {
+                collections_cache = await self.api_client.cache_collections()
+                basic_collections_info = {
+                    coll.id: {
                         "id": coll.id,
                         "title": coll.title,
-                        "all_queryables": coll.all_queryables,
-                        "enum_queryables": coll.enum_queryables,
-                        "has_enum_filters": coll.has_enum_filters,
-                        "total_queryables": coll.total_queryables,
-                        "enum_count": coll.enum_count,
+                        "description": coll.description,
+                        # No queryables here - will be fetched on-demand
                     }
-                    for coll_id, coll in workflow_context.collections_info.items()
+                    for coll in collections_cache.collections
                 }
 
                 self.workflow_planner = WorkflowPlanner(
-                    workflow_context.openapi_spec, collections_info
+                    await self.api_client.cache_openapi_spec(), basic_collections_info
                 )
 
-            context = self.workflow_planner.get_context()
+            context = self.workflow_planner.get_basic_context()
             return json.dumps(
                 {
                     "CRITICAL_COLLECTION_LIST": sorted(
                         context["available_collections"].keys()
                     ),
                     "MANDATORY_PLANNING_REQUIREMENT": {
-                        "CRITICAL": "You MUST explain your complete plan to the user BEFORE making any tool calls. You MUST read the available_collections queryables information correctly and use them in your plan.",
+                        "CRITICAL": "You MUST follow the 2-step planning process:",
+                        "step_1": "Explain your complete plan listing which specific collections you will use and why",
+                        "step_2": "Call fetch_detailed_collections('collection-id-1,collection-id-2') to get queryables for those collections BEFORE making search calls",
                         "required_explanation": {
-                            "1": "Which collection you will use and why",
-                            "2": "What specific filters you will apply (show the exact filter string)",
-                            "3": "What steps you will take",
+                            "1": "Which collections you will use and why",
+                            "2": "What you expect to find in those collections",
+                            "3": "What your search strategy will be",
                         },
-                        "workflow_enforcement": "Do not proceed with tool calls until you have clearly explained your plan to the user",
-                        "example_planning": "I will search the 'lus-fts-site-1' collection using the filter 'oslandusetertiarygroup = \"Cinema\"' to find all cinema locations in your specified area.",
+                        "workflow_enforcement": "Do not proceed with search_features until you have fetched detailed queryables",
+                        "example_planning": "I will use 'lus-fts-site-1' for finding cinemas. Let me fetch its detailed queryables first...",
                     },
-                    "available_collections": context["available_collections"],
-                    # "openapi_spec": context["openapi_spec"].model_dump() if context["openapi_spec"] else None,
+                    "available_collections": context[
+                        "available_collections"
+                    ],  # Basic info only - no queryables yet - this is to reduce the size of the context for the LLM
+                    "openapi_spec": context["openapi_spec"].model_dump()
+                    if context["openapi_spec"]
+                    else None,
+                    "TWO_STEP_WORKFLOW": {
+                        "step_1": "Plan with basic collection info (no detailed queryables available yet)",
+                        "step_2": "Use fetch_detailed_collections() to get queryables for your chosen collections",
+                        "step_3": "Execute search_features with proper filters using the fetched queryables",
+                    },
+                    "AVAILABLE_TOOLS": {
+                        "fetch_detailed_collections": "Get detailed queryables for specific collections: fetch_detailed_collections('lus-fts-site-1,trn-ntwk-street-1')",
+                        "search_features": "Search features (requires detailed queryables first)",
+                    },
                     "QUICK_FILTERING_GUIDE": {
                         "primary_tool": "search_features",
                         "key_parameter": "filter",
-                        "enum_fields": "Use exact values from collection's enum_queryables (e.g., 'Cinema', 'A Road')",
+                        "enum_fields": "Use exact values from collection's enum_queryables (fetch these first!)",
                         "simple_fields": "Use direct values (e.g., usrn = 12345678)",
                     },
                     "COMMON_EXAMPLES": {
-                        "cinema_search": "search_features(collection_id='lus-fts-site-1', bbox='...', filter=\"oslandusetertiarygroup = 'Cinema'\")",
-                        "a_road_search": "search_features(collection_id='trn-ntwk-street-1', bbox='...', filter=\"roadclassification = 'A Road'\")",
-                        "usrn_search": "search_features(collection_id='trn-ntwk-street-1', filter='usrn = 12345678')",
-                        "street_name": "search_features(collection_id='trn-ntwk-street-1', filter=\"designatedname1_text LIKE '%high%'\")",
+                        "workflow_example": "1) Explain plan → 2) fetch_detailed_collections('lus-fts-site-1') → 3) search_features with proper filter",
+                        "cinema_search": "After fetching queryables: search_features(collection_id='lus-fts-site-1', filter=\"oslandusetertiarygroup = 'Cinema'\")",
                     },
                     "CRITICAL_RULES": {
                         "1": "ALWAYS explain your plan first",
-                        "2": "Use exact enum values from the specific collection's enum_queryables",
-                        "3": "Use the 'filter' parameter for all filtering",
+                        "2": "ALWAYS call fetch_detailed_collections() before search_features",
+                        "3": "Use exact enum values from the fetched enum_queryables",
                         "4": "Quote string values in single quotes",
                     },
                 }
@@ -255,7 +268,7 @@ class OSDataHubService(FeatureService):
                 self._add_retry_context(error_response, "list_collections")
             )
 
-    async def get_collection_info(
+    async def get_single_collection(
         self,
         collection_id: str,
     ) -> str:
@@ -280,7 +293,7 @@ class OSDataHubService(FeatureService):
                 self._add_retry_context(error_response, "get_collection_info")
             )
 
-    async def get_collection_queryables(
+    async def get_single_collection_queryables(
         self,
         collection_id: str,
     ) -> str:
@@ -416,7 +429,9 @@ class OSDataHubService(FeatureService):
                     params["filter-lang"] = filter_lang
 
             if self.workflow_planner:
-                valid_collections = set(self.workflow_planner.collections_info.keys())
+                valid_collections = set(
+                    self.workflow_planner.basic_collections_info.keys()
+                )
                 if collection_id not in valid_collections:
                     return json.dumps(
                         {
@@ -606,3 +621,91 @@ class OSDataHubService(FeatureService):
             return json.dumps({category: PROMPT_TEMPLATES[category]})
 
         return json.dumps(PROMPT_TEMPLATES)
+
+    async def fetch_detailed_collections(self, collection_ids: str) -> str:
+        """
+        Fetch detailed queryables for specific collections mentioned in LLM workflow plan.
+
+        This is mainly to reduce the size of the context for the LLM.
+
+        Only fetch what you really need.
+
+        Args:
+            collection_ids: Comma-separated list of collection IDs (e.g., "lus-fts-site-1,trn-ntwk-street-1")
+
+        Returns:
+            JSON string with detailed queryables for the specified collections
+        """
+        try:
+            if not self.workflow_planner:
+                return json.dumps(
+                    {
+                        "error": "Workflow planner not initialized. Call get_workflow_context() first."
+                    }
+                )
+
+            requested_collections = [cid.strip() for cid in collection_ids.split(",")]
+
+            valid_collections = set(self.workflow_planner.basic_collections_info.keys())
+            invalid_collections = [
+                cid for cid in requested_collections if cid not in valid_collections
+            ]
+
+            if invalid_collections:
+                return json.dumps(
+                    {
+                        "error": f"Invalid collection IDs: {invalid_collections}",
+                        "valid_collections": sorted(valid_collections),
+                    }
+                )
+
+            cached_collections = [
+                cid
+                for cid in requested_collections
+                if cid in self.workflow_planner.detailed_collections_cache
+            ]
+
+            collections_to_fetch = [
+                cid
+                for cid in requested_collections
+                if cid not in self.workflow_planner.detailed_collections_cache
+            ]
+
+            if collections_to_fetch:
+                logger.info(f"Fetching detailed queryables for: {collections_to_fetch}")
+                detailed_queryables = (
+                    await self.api_client.fetch_collections_queryables(
+                        collections_to_fetch
+                    )
+                )
+
+                for coll_id, queryables in detailed_queryables.items():
+                    self.workflow_planner.detailed_collections_cache[coll_id] = {
+                        "id": queryables.id,
+                        "title": queryables.title,
+                        "description": queryables.description,
+                        "all_queryables": queryables.all_queryables,
+                        "enum_queryables": queryables.enum_queryables,
+                        "has_enum_filters": queryables.has_enum_filters,
+                        "total_queryables": queryables.total_queryables,
+                        "enum_count": queryables.enum_count,
+                    }
+
+            context = self.workflow_planner.get_detailed_context(requested_collections)
+
+            return json.dumps(
+                {
+                    "success": True,
+                    "collections_processed": requested_collections,
+                    "collections_fetched_from_api": collections_to_fetch,
+                    "collections_from_cache": cached_collections,
+                    "detailed_collections": context["available_collections"],
+                    "message": f"Detailed queryables now available for: {', '.join(requested_collections)}",
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error fetching detailed collections: {e}")
+            return json.dumps(
+                {"error": str(e), "suggestion": "Check collection IDs and try again"}
+            )

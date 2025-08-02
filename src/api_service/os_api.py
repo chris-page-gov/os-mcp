@@ -431,6 +431,117 @@ class OSAPIClient(APIClient):
                 raise ValueError(f"Failed to cache workflow context: {sanitized_error}")
         return self._cached_workflow_context
 
+    async def fetch_collections_queryables(
+        self, collection_ids: List[str]
+    ) -> Dict[str, CollectionQueryables]:
+        """Fetch detailed queryables for specific collections only"""
+        if not collection_ids:
+            return {}
+
+        logger.debug(f"Fetching queryables for specific collections: {collection_ids}")
+
+        collections_cache = await self.cache_collections()
+        collections_map = {coll.id: coll for coll in collections_cache.collections}
+
+        tasks = [
+            self.make_request("COLLECTION_QUERYABLES", path_params=[collection_id])
+            for collection_id in collection_ids
+            if collection_id in collections_map
+        ]
+
+        if not tasks:
+            return {}
+
+        raw_queryables = await asyncio.gather(*tasks, return_exceptions=True)
+
+        def process_single_collection_queryables(collection_id, queryables_data):
+            collection = collections_map[collection_id]
+            logger.debug(
+                f"Processing collection {collection.id} in thread {threading.current_thread().name}"
+            )
+
+            if isinstance(queryables_data, Exception):
+                logger.warning(
+                    f"Failed to fetch queryables for {collection.id}: {queryables_data}"
+                )
+                return (
+                    collection.id,
+                    CollectionQueryables(
+                        id=collection.id,
+                        title=collection.title,
+                        description=collection.description,
+                        all_queryables={},
+                        enum_queryables={},
+                        has_enum_filters=False,
+                        total_queryables=0,
+                        enum_count=0,
+                    ),
+                )
+
+            all_queryables = {}
+            enum_queryables = {}
+            properties = queryables_data.get("properties", {})
+
+            for prop_name, prop_details in properties.items():
+                prop_type = prop_details.get("type", ["string"])
+                if isinstance(prop_type, list):
+                    main_type = prop_type[0] if prop_type else "string"
+                    is_nullable = "null" in prop_type
+                else:
+                    main_type = prop_type
+                    is_nullable = False
+
+                all_queryables[prop_name] = {
+                    "type": main_type,
+                    "nullable": is_nullable,
+                    "max_length": prop_details.get("maxLength"),
+                    "format": prop_details.get("format"),
+                    "pattern": prop_details.get("pattern"),
+                    "minimum": prop_details.get("minimum"),
+                    "maximum": prop_details.get("maximum"),
+                    "is_enum": prop_details.get("enumeration", False),
+                }
+
+                if prop_details.get("enumeration") and "enum" in prop_details:
+                    enum_queryables[prop_name] = {
+                        "values": prop_details["enum"],
+                        "type": main_type,
+                        "nullable": is_nullable,
+                        "max_length": prop_details.get("maxLength"),
+                    }
+                    all_queryables[prop_name]["enum_values"] = prop_details["enum"]
+
+                all_queryables[prop_name] = {
+                    k: v for k, v in all_queryables[prop_name].items() if v is not None
+                }
+
+            return (
+                collection.id,
+                CollectionQueryables(
+                    id=collection.id,
+                    title=collection.title,
+                    description=collection.description,
+                    all_queryables=all_queryables,
+                    enum_queryables=enum_queryables,
+                    has_enum_filters=len(enum_queryables) > 0,
+                    total_queryables=len(all_queryables),
+                    enum_count=len(enum_queryables),
+                ),
+            )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            collection_data_pairs = list(zip(collection_ids, raw_queryables))
+            processed = await asyncio.get_event_loop().run_in_executor(
+                executor,
+                lambda: [
+                    process_single_collection_queryables(coll_id, data)
+                    for coll_id, data in collection_data_pairs
+                    if coll_id in collections_map
+                ],
+            )
+
+        return {coll_id: queryables for coll_id, queryables in processed}
+
     # Public async methods
     async def initialise(self):
         """Initialise the aiohttp session if not already created"""
