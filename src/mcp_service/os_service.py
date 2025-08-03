@@ -12,6 +12,7 @@ from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
 from mcp_service.resources import OSDocumentationResources
 from mcp_service.prompts import OSWorkflowPrompts
+from mcp_service.routing_service import OSRoutingService
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,7 @@ class OSDataHubService(FeatureService):
         self.register_tools()
         self.register_resources()
         self.register_prompts()
+        self.routing_service = OSRoutingService(api_client)
 
     # Register all the resources, tools, and prompts
     def register_resources(self) -> None:
@@ -85,6 +87,7 @@ class OSDataHubService(FeatureService):
         self.fetch_detailed_collections = self.mcp.tool()(
             apply_middleware(self.fetch_detailed_collections)
         )
+        self.get_routing_data = self.mcp.tool()(apply_middleware(self.get_routing_data))
 
     def register_prompts(self) -> None:
         """Register all MCP prompts"""
@@ -709,3 +712,52 @@ class OSDataHubService(FeatureService):
             return json.dumps(
                 {"error": str(e), "suggestion": "Check collection IDs and try again"}
             )
+
+    async def get_routing_data(
+        self,
+        bbox: Optional[str] = None,
+        limit: int = 100,
+        include_nodes: bool = True,
+        include_edges: bool = True,
+        build_network: bool = True,
+    ) -> str:
+        """
+        Get routing data - builds network and returns nodes/edges as flat tables.
+
+        Args:
+            bbox: Optional bounding box (format: "minx,miny,maxx,maxy")
+            limit: Maximum number of road links to process (default: 1000)
+            include_nodes: Whether to include nodes in response (default: True)
+            include_edges: Whether to include edges in response (default: True)
+            build_network: Whether to build network first (default: True)
+
+        Returns:
+            JSON string with routing network data
+        """
+        try:
+            result = {}
+
+            if build_network:
+                build_result = await self.routing_service.build_routing_network(
+                    bbox, limit
+                )
+                result["build_status"] = build_result
+
+                if build_result.get("status") != "success":
+                    return json.dumps(result)
+
+            if include_nodes:
+                nodes_result = self.routing_service.get_flat_nodes()
+                result["nodes"] = nodes_result.get("nodes", [])
+
+            if include_edges:
+                edges_result = self.routing_service.get_flat_edges()
+                result["edges"] = edges_result.get("edges", [])
+
+            summary = self.routing_service.get_network_info()
+            result["summary"] = summary.get("network", {})
+            result["status"] = "success"
+
+            return json.dumps(result)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
