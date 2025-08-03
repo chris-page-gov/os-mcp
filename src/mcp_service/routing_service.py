@@ -19,13 +19,13 @@ class RouteEdge:
     """Represents a routing edge (road segment)"""
 
     id: int
-    road_id: str  
+    road_id: str
     road_name: Optional[str]
     source_node_id: int
     target_node_id: int
-    cost: float  
+    cost: float
     reverse_cost: float
-    geometry: Optional[Dict[str, Any]]  
+    geometry: Optional[Dict[str, Any]]
 
 
 class InMemoryRoutingNetwork:
@@ -34,7 +34,7 @@ class InMemoryRoutingNetwork:
     def __init__(self):
         self.nodes: Dict[int, RouteNode] = {}
         self.edges: Dict[int, RouteEdge] = {}
-        self.node_lookup: Dict[str, int] = {}  
+        self.node_lookup: Dict[str, int] = {}
         self.is_built = False
 
     def add_node(self, node_identifier: str) -> int:
@@ -44,7 +44,9 @@ class InMemoryRoutingNetwork:
 
         node_id = len(self.nodes) + 1
         self.nodes[node_id] = RouteNode(
-            id=node_id, node_identifier=node_identifier, connected_edges=set()
+            id=node_id,
+            node_identifier=node_identifier,
+            connected_edges=set(),
         )
         self.node_lookup[node_identifier] = node_id
         return node_id
@@ -60,22 +62,25 @@ class InMemoryRoutingNetwork:
             logger.warning(f"Road link {properties.get('id')} missing node data")
             return
 
-        # Get or create nodes
         source_id = self.add_node(start_node)
         target_id = self.add_node(end_node)
 
-        # Create edge
+        roadlink_id = None
+        road_track_refs = properties.get("roadtrackorpathreference", [])
+        if road_track_refs and len(road_track_refs) > 0:
+            roadlink_id = road_track_refs[0].get("roadlinkid", "")
+
         edge_id = len(self.edges) + 1
-        cost = properties.get("geometry_length", 100.0)  
+        cost = properties.get("geometry_length", 100.0)
 
         edge = RouteEdge(
             id=edge_id,
-            road_id=properties.get("id", ""),
+            road_id=roadlink_id or "NONE",
             road_name=properties.get("name1_text"),
             source_node_id=source_id,
             target_node_id=target_id,
             cost=cost,
-            reverse_cost=cost,  
+            reverse_cost=cost,
             geometry=road_data.get("geometry"),
         )
 
@@ -142,16 +147,53 @@ class OSRoutingService:
     def __init__(self, api_client):
         self.api_client = api_client
         self.network = InMemoryRoutingNetwork()
+        self.raw_restrictions: List[Dict[str, Any]] = []
 
-    async def build_routing_network(
+    async def _fetch_restriction_data(
         self, bbox: Optional[str] = None, limit: int = 1000
-    ) -> Dict[str, Any]:
-        """Build the routing network from OS NGD road links"""
+    ) -> List[Dict[str, Any]]:
+        """Fetch raw restriction data"""
         try:
-            logger.debug("Building routing network from OS NGD data...")
+            logger.debug("Fetching restriction data...")
             params = {
                 "limit": min(limit, 100),
-                "crs": "http://www.opengis.net/def/crs/EPSG/0/4326", 
+                "crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
+            }
+
+            if bbox:
+                params["bbox"] = bbox
+
+            restriction_data = await self.api_client.make_request(
+                "COLLECTION_FEATURES",
+                params=params,
+                path_params=["trn-rami-restriction-1"],
+            )
+
+            features = restriction_data.get("features", [])
+            logger.debug(f"Fetched {len(features)} restriction features")
+
+            return features
+
+        except Exception as e:
+            logger.error(f"Error fetching restriction data: {e}")
+            return []
+
+    async def build_routing_network(
+        self,
+        bbox: Optional[str] = None,
+        limit: int = 1000,
+        include_restrictions: bool = True,
+    ) -> Dict[str, Any]:
+        """Build the routing network from OS NGD road links with optional restriction data"""
+        try:
+            logger.debug("Building routing network from OS NGD data...")
+
+            if include_restrictions:
+                self.raw_restrictions = await self._fetch_restriction_data(bbox, limit)
+
+            params = {
+                "limit": min(limit, 100),
+                "crs": "http://www.opengis.net/def/crs/EPSG/0/4326",
             }
 
             if bbox:
@@ -180,6 +222,10 @@ class OSRoutingService:
                 "status": "success",
                 "message": f"Built routing network with {summary['total_nodes']} nodes and {summary['total_edges']} edges",
                 "network_summary": summary,
+                "restrictions": self.raw_restrictions if include_restrictions else [],
+                "restriction_count": len(self.raw_restrictions)
+                if include_restrictions
+                else 0,
             }
 
         except Exception as e:
@@ -223,4 +269,5 @@ class OSRoutingService:
             "nodes": self.network.get_all_nodes(),
             "edges": self.network.get_all_edges(),
             "summary": self.network.get_summary(),
+            "restrictions": self.raw_restrictions,
         }
