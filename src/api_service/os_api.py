@@ -2,7 +2,6 @@ import os
 import aiohttp
 import asyncio
 import re
-import time
 import concurrent.futures
 import threading
 
@@ -13,7 +12,6 @@ from models import (
     Collection,
     CollectionsCache,
     CollectionQueryables,
-    WorkflowContextCache,
 )
 from api_service.protocols import APIClient
 from utils.logging_config import get_logger
@@ -40,7 +38,6 @@ class OSAPIClient(APIClient):
         self.request_delay = 0.7
         self._cached_openapi_spec: Optional[OpenAPISpecification] = None
         self._cached_collections: Optional[CollectionsCache] = None
-        self._cached_workflow_context: Optional[WorkflowContextCache] = None
 
     # Private helper methods
     def _sanitise_api_key(self, text: Any) -> str:
@@ -286,151 +283,6 @@ class OSAPIClient(APIClient):
                 raise ValueError(f"Failed to cache collections: {sanitized_error}")
         return self._cached_collections
 
-    async def _build_workflow_context(self) -> WorkflowContextCache:
-        """Build the complete workflow context with all collections and queryables"""
-        openapi_spec = await self.cache_openapi_spec()
-        collections_cache = await self.cache_collections()
-
-        collections_info = {}
-        if collections_cache and hasattr(collections_cache, "collections"):
-            collections_list = getattr(collections_cache, "collections", [])
-
-            if collections_list:
-                logger.debug(
-                    f"Fetching raw queryables for {len(collections_list)} collections..."
-                )
-                tasks = [
-                    self.make_request(
-                        "COLLECTION_QUERYABLES", path_params=[collection.id]
-                    )
-                    for collection in collections_list
-                ]
-                raw_queryables = await asyncio.gather(*tasks, return_exceptions=True)
-
-                logger.debug(
-                    f"Processing {len(raw_queryables)} queryables in thread pool..."
-                )
-
-                def process_queryables_data(collection_and_data):
-                    collection, queryables_data = collection_and_data
-                    logger.debug(
-                        f"Processing collection {collection.id} in thread {threading.current_thread().name}"
-                    )
-
-                    if isinstance(queryables_data, Exception):
-                        logger.warning(
-                            f"Failed to fetch queryables for {collection.id}: {queryables_data}"
-                        )
-                        return (
-                            collection.id,
-                            CollectionQueryables(
-                                id=collection.id,
-                                title=collection.title,
-                                description=collection.description,
-                                all_queryables={},
-                                enum_queryables={},
-                                has_enum_filters=False,
-                                total_queryables=0,
-                                enum_count=0,
-                            ),
-                        )
-
-                    all_queryables = {}
-                    enum_queryables = {}
-                    properties = queryables_data.get("properties", {})
-
-                    for prop_name, prop_details in properties.items():
-                        prop_type = prop_details.get("type", ["string"])
-                        if isinstance(prop_type, list):
-                            main_type = prop_type[0] if prop_type else "string"
-                            is_nullable = "null" in prop_type
-                        else:
-                            main_type = prop_type
-                            is_nullable = False
-
-                        all_queryables[prop_name] = {
-                            "type": main_type,
-                            "nullable": is_nullable,
-                            "max_length": prop_details.get("maxLength"),
-                            "format": prop_details.get("format"),
-                            "pattern": prop_details.get("pattern"),
-                            "minimum": prop_details.get("minimum"),
-                            "maximum": prop_details.get("maximum"),
-                            "is_enum": prop_details.get("enumeration", False),
-                        }
-
-                        if prop_details.get("enumeration") and "enum" in prop_details:
-                            enum_queryables[prop_name] = {
-                                "values": prop_details["enum"],
-                                "type": main_type,
-                                "nullable": is_nullable,
-                                "max_length": prop_details.get("maxLength"),
-                            }
-                            all_queryables[prop_name]["enum_values"] = prop_details[
-                                "enum"
-                            ]
-
-                        all_queryables[prop_name] = {
-                            k: v
-                            for k, v in all_queryables[prop_name].items()
-                            if v is not None
-                        }
-
-                    return (
-                        collection.id,
-                        CollectionQueryables(
-                            id=collection.id,
-                            title=collection.title,
-                            description=collection.description,
-                            all_queryables=all_queryables,
-                            enum_queryables=enum_queryables,
-                            has_enum_filters=len(enum_queryables) > 0,
-                            total_queryables=len(all_queryables),
-                            enum_count=len(enum_queryables),
-                        ),
-                    )
-
-                thread_start = time.time()
-                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                    collection_data_pairs = list(zip(collections_list, raw_queryables))
-                    processed = await asyncio.get_event_loop().run_in_executor(
-                        executor,
-                        lambda: list(
-                            map(process_queryables_data, collection_data_pairs)
-                        ),
-                    )
-                thread_end = time.time()
-                logger.debug(
-                    f"Thread pool processing completed in {thread_end - thread_start:.4f}s"
-                )
-
-                collections_info = dict(processed)
-
-        return WorkflowContextCache(
-            collections_info=collections_info,
-            openapi_spec=openapi_spec,
-            cached_at=time.time(),
-        )
-
-    async def cache_workflow_context(self) -> WorkflowContextCache:
-        """
-        Cache the complete workflow context including collections and queryables.
-
-        Returns:
-            The cached workflow context
-        """
-        if self._cached_workflow_context is None:
-            logger.debug("Caching workflow context for LLM...")
-            try:
-                self._cached_workflow_context = await self._build_workflow_context()
-                logger.debug(
-                    f"Workflow context successfully cached - {len(self._cached_workflow_context.collections_info)} collections processed"
-                )
-            except Exception as e:
-                sanitized_error = self._sanitise_api_key(str(e))
-                raise ValueError(f"Failed to cache workflow context: {sanitized_error}")
-        return self._cached_workflow_context
-
     async def fetch_collections_queryables(
         self, collection_ids: List[str]
     ) -> Dict[str, CollectionQueryables]:
@@ -560,7 +412,6 @@ class OSAPIClient(APIClient):
             self.session = None
             self._cached_openapi_spec = None
             self._cached_collections = None
-            self._cached_workflow_context = None
 
     async def get_api_key(self) -> str:
         """Get the OS API key from environment variable or init param."""

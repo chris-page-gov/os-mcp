@@ -2,7 +2,6 @@ from typing import Protocol, Dict, List, Any, Optional, runtime_checkable
 from models import (
     OpenAPISpecification,
     CollectionsCache,
-    WorkflowContextCache,
     CollectionQueryables,
 )
 
@@ -47,10 +46,6 @@ class APIClient(Protocol):
 
     async def cache_collections(self) -> CollectionsCache:
         """Cache the collections data"""
-        ...
-
-    async def cache_workflow_context(self) -> WorkflowContextCache:
-        """Cache the workflow context data"""
         ...
 
     async def fetch_collections_queryables(
