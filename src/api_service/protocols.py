@@ -49,10 +49,6 @@ class APIClient(Protocol):
         """Cache the collections data"""
         ...
 
-    async def cache_workflow_context(self) -> WorkflowContextCache:
-        """Cache the workflow context data"""
-        ...
-
     async def fetch_collections_queryables(
         self, collection_ids: List[str]
     ) -> Dict[str, CollectionQueryables]:

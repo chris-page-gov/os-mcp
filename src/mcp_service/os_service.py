@@ -36,10 +36,11 @@ class OSDataHubService(FeatureService):
         self.stdio_middleware = stdio_middleware
         self.workflow_planner: Optional[WorkflowPlanner] = None
         self.guardrails = ToolGuardrails()
+        self.routing_service = OSRoutingService(api_client)
         self.register_tools()
         self.register_resources()
         self.register_prompts()
-        self.routing_service = OSRoutingService(api_client)
+  
 
     # Register all the resources, tools, and prompts
     def register_resources(self) -> None:
@@ -136,7 +137,7 @@ class OSDataHubService(FeatureService):
                 }
 
                 self.workflow_planner = WorkflowPlanner(
-                    await self.api_client.cache_openapi_spec(), basic_collections_info
+                    await self.api_client.cache_openapi_spec(),     basic_collections_info
                 )
 
             context = self.workflow_planner.get_basic_context()
