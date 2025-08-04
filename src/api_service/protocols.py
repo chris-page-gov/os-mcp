@@ -2,7 +2,6 @@ from typing import Protocol, Dict, List, Any, Optional, runtime_checkable
 from models import (
     OpenAPISpecification,
     CollectionsCache,
-    WorkflowContextCache,
     CollectionQueryables,
 )
 

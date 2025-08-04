@@ -40,7 +40,6 @@ class OSDataHubService(FeatureService):
         self.register_tools()
         self.register_resources()
         self.register_prompts()
-  
 
     # Register all the resources, tools, and prompts
     def register_resources(self) -> None:
@@ -137,7 +136,7 @@ class OSDataHubService(FeatureService):
                 }
 
                 self.workflow_planner = WorkflowPlanner(
-                    await self.api_client.cache_openapi_spec(),     basic_collections_info
+                    await self.api_client.cache_openapi_spec(), basic_collections_info
                 )
 
             context = self.workflow_planner.get_basic_context()
