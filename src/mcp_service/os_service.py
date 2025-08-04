@@ -3,7 +3,7 @@ import asyncio
 import functools
 import re
 
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Callable
 from api_service.protocols import APIClient
 from prompt_templates.prompt_templates import PROMPT_TEMPLATES
 from mcp_service.protocols import MCPService, FeatureService
@@ -50,7 +50,7 @@ class OSDataHubService(FeatureService):
     def register_tools(self) -> None:
         """Register all MCP tools with guardrails and middleware"""
 
-        def apply_middleware(func):
+        def apply_middleware(func: Callable) -> Callable:
             wrapped = self.guardrails.basic_guardrails(func)
             wrapped = self._require_workflow_context(wrapped)
             if self.stdio_middleware:
@@ -197,12 +197,12 @@ class OSDataHubService(FeatureService):
                 {"error": str(e), "instruction": "Proceed with available tools"}
             )
 
-    def _require_workflow_context(self, func):
+    def _require_workflow_context(self, func: Callable) -> Callable:
         # Functions that don't need workflow context
         skip_functions = {"get_workflow_context", "hello_world", "check_api_key"}
 
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             if self.workflow_planner is None:
                 if func.__name__ in skip_functions:
                     return await func(*args, **kwargs)

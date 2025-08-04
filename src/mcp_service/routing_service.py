@@ -150,7 +150,7 @@ class OSRoutingService:
         self.raw_restrictions: List[Dict[str, Any]] = []
 
     async def _fetch_restriction_data(
-        self, bbox: Optional[str] = None, limit: int = 1000
+        self, bbox: Optional[str] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Fetch raw restriction data"""
         try:
