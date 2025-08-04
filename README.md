@@ -54,19 +54,6 @@ Add the following to your Claude Desktop config:
 
 Open Claude Desktop and you show see all available tools, resources, and prompts.
 
-## How it works
-
-```
-1. Ask a question
-   ↓
-2. Server gets workflow context (collections + filtering options)
-   ↓
-3. Smart planning: "I'll search the 'lus-fts-site-1' collection
-   using filter 'oslandusetertiarygroup = \"Cinema\"'"
-   ↓
-4. Precise results using collection-specific enum values
-```
-
 ## Requirements
 
 - Python 3.11+
