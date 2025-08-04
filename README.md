@@ -58,6 +58,7 @@ Open Claude Desktop and you should now see all available tools, resources, and p
 
 - Python 3.11+
 - OS API Key from [OS Data Hub](https://osdatahub.os.uk/)
+- Set a STDIO_KEY env var which can be any value for now whilst auth is improved.
 
 ## License
 
