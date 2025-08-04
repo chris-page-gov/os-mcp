@@ -52,7 +52,7 @@ Add the following to your Claude Desktop config:
 }
 ```
 
-Open Claude Desktop and you show see all available tools, resources, and prompts.
+Open Claude Desktop and you should now see all available tools, resources, and prompts.
 
 ## Requirements
 
