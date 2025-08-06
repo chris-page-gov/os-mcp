@@ -1,4 +1,9 @@
 from typing import Protocol, Dict, List, Any, Optional, runtime_checkable
+from models import (
+    OpenAPISpecification,
+    CollectionsCache,
+    CollectionQueryables,
+)
 
 
 @runtime_checkable
@@ -26,10 +31,25 @@ class APIClient(Protocol):
         """Make a request to an API endpoint"""
         ...
 
-    async def cache_openapi_spec(self):
+    async def make_request_no_auth(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+        max_retries: int = 2,
+    ) -> str:
+        """Make a request without authentication"""
+        ...
+
+    async def cache_openapi_spec(self) -> OpenAPISpecification:
         """Cache the OpenAPI spec"""
         ...
 
-    async def cache_collections(self):
+    async def cache_collections(self) -> CollectionsCache:
         """Cache the collections data"""
+        ...
+
+    async def fetch_collections_queryables(
+        self, collection_ids: List[str]
+    ) -> Dict[str, CollectionQueryables]:
+        """Fetch detailed queryables for specific collections only"""
         ...

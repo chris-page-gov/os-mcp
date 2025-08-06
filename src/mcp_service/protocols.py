@@ -9,6 +9,18 @@ class MCPService(Protocol):
         """Register a function as an MCP tool"""
         ...
 
+    def resource(
+        self,
+        uri: str,
+        *,
+        name: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        mime_type: str | None = None,
+    ) -> Callable[[Any], Any]:
+        """Register a function as an MCP resource"""
+        ...
+
     def run(self) -> None:
         """Run the MCP service"""
         ...
@@ -30,11 +42,11 @@ class FeatureService(Protocol):
         """List all available feature collections"""
         ...
 
-    async def get_collection_info(self, collection_id: str) -> str:
+    async def get_single_collection(self, collection_id: str) -> str:
         """Get detailed information about a specific collection"""
         ...
 
-    async def get_collection_queryables(self, collection_id: str) -> str:
+    async def get_single_collection_queryables(self, collection_id: str) -> str:
         """Get queryable properties for a collection"""
         ...
 
@@ -83,4 +95,8 @@ class FeatureService(Protocol):
         feature_type: Optional[str] = None,
     ) -> str:
         """Get linked features for multiple identifiers"""
+        ...
+
+    async def fetch_detailed_collections(self, collection_ids: List[str]) -> str:
+        """Get detailed information about specific collections for workflow planning"""
         ...

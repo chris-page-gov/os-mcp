@@ -1,6 +1,48 @@
 import logging
 import sys
 import os
+import re
+
+
+class APIKeySanitisingFilter(logging.Filter):
+    """Filter to sanitise API keys from log messages"""
+
+    def __init__(self):
+        super().__init__()
+        self.patterns = [
+            r"[?&]key=[^&\s]*",
+            r"[?&]api_key=[^&\s]*",
+            r"[?&]apikey=[^&\s]*",
+            r"[?&]token=[^&\s]*",
+        ]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Sanitise the log record message"""
+        if hasattr(record, "msg") and isinstance(record.msg, str):
+            record.msg = self._sanitise_text(record.msg)
+
+        if hasattr(record, "args") and record.args:
+            sanitised_args = []
+            for arg in record.args:
+                if isinstance(arg, str):
+                    sanitised_args.append(self._sanitise_text(arg))
+                else:
+                    sanitised_args.append(arg)
+            record.args = tuple(sanitised_args)
+
+        return True
+
+    def _sanitise_text(self, text: str) -> str:
+        """Remove API keys from text"""
+        sanitised = text
+        for pattern in self.patterns:
+            sanitised = re.sub(pattern, "", sanitised, flags=re.IGNORECASE)
+
+        sanitised = re.sub(r"[?&]$", "", sanitised)
+        sanitised = re.sub(r"&{2,}", "&", sanitised)
+        sanitised = re.sub(r"\?&", "?", sanitised)
+
+        return sanitised
 
 
 def configure_logging(debug: bool = False) -> logging.Logger:
@@ -10,31 +52,29 @@ def configure_logging(debug: bool = False) -> logging.Logger:
     Args:
         debug: Whether to enable debug logging or not
     """
-    # Set log level based on debug flag or environment variable
     log_level = (
         logging.DEBUG if (debug or os.environ.get("DEBUG") == "1") else logging.INFO
     )
 
-    # Create formatter
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Clear any existing handlers
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Console handler
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setFormatter(formatter)
     console_handler.setLevel(log_level)
+
+    api_key_filter = APIKeySanitisingFilter()
+    console_handler.addFilter(api_key_filter)
+
     root_logger.addHandler(console_handler)
 
-    # Disable propagation for third-party loggers
     logging.getLogger("uvicorn").propagate = False
 
     return root_logger
