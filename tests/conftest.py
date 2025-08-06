@@ -162,9 +162,9 @@ def mock_os_service():
         "id": "test-feature-1",
         "properties": {"name": "Test Feature"}
     }
-    service.get_collection_info.return_value = {
+    service.get_single_collection.return_value = {
         "id": "test-collection",
-        "title": "Test Collection",
+        "title": "Test Collection", 
         "description": "A test collection"
     }
     

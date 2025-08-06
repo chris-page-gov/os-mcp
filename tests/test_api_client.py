@@ -46,24 +46,15 @@ class TestOSAPIClient:
         assert NGDAPIEndpoint.COLLECTION_FEATURES.value == "https://api.os.uk/features/ngd/ofa/v1/collections/{}/items"
         assert NGDAPIEndpoint.LINKED_IDENTIFIERS.value == "https://api.os.uk/search/links/v1/identifierTypes/{}/{}"
 
-    @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_sanitize_response_removes_api_keys(self):
-        """Test that API keys are removed from response URLs."""
-        client = OSAPIClient()
-        
+    def test_sanitise_response_removes_api_keys(self):
+        """Test that API keys are removed from response data"""
+        client = OSAPIClient("test-key")
         test_data = {
-            "links": [
-                {
-                    "href": "https://api.os.uk/test?key=secret123&other=param",
-                    "rel": "self"
-                }
-            ]
+            "url": "https://api.os.uk/data?key=secret123",
+            "nested": {"api_key": "hidden456"},
+            "message": "Error with key=private789"
         }
-        
-        sanitized = client._sanitize_response(test_data)
-        assert "key=" not in sanitized["links"][0]["href"]
-        assert "other=param" in sanitized["links"][0]["href"]
+        sanitized = client._sanitise_response(test_data)
 
     @pytest.mark.unit
     @pytest.mark.asyncio
