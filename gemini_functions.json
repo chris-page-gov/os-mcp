@@ -1,0 +1,55 @@
+{
+  "functions": [
+    {
+      "name": "search_uk_streets",
+      "description": "Search for streets in a specific area of the UK using Ordnance Survey data. Provide geographic coordinates as a bounding box.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "bbox": {
+            "type": "string",
+            "description": "Bounding box coordinates as 'min_longitude,min_latitude,max_longitude,max_latitude'. Example: '-0.1,51.5,-0.05,51.52' for central London or '-1.52,52.40,-1.50,52.42' for Coventry city centre."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of streets to return",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": ["bbox"]
+      }
+    },
+    {
+      "name": "search_uk_buildings", 
+      "description": "Search for buildings in a specific area of the UK using Ordnance Survey data. Requires PSGA access for detailed building data.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "bbox": {
+            "type": "string", 
+            "description": "Bounding box coordinates as 'min_longitude,min_latitude,max_longitude,max_latitude'. Example: '-1.52,52.40,-1.50,52.42' for Coventry city centre."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of buildings to return",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": ["bbox"]
+      }
+    },
+    {
+      "name": "get_os_collections",
+      "description": "Get list of available Ordnance Survey data collections and their descriptions",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  ]
+}

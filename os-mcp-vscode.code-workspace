@@ -1,0 +1,25 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "mcp.servers": {
+      "os-mcp-server": {
+        "url": "http://localhost:8000/mcp",
+        "headers": {
+          "Authorization": "Bearer dev-token"
+        },
+        "description": "UK Ordnance Survey geospatial data access through MCP",
+        "enabled": true
+      }
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "github.copilot",
+      "github.copilot-chat"
+    ]
+  }
+}
