@@ -9,6 +9,18 @@ class MCPService(Protocol):
         """Register a function as an MCP tool"""
         ...
 
+    def resource(
+        self,
+        uri: str,
+        *,
+        name: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        mime_type: str | None = None,
+    ) -> Callable[[Any], Any]:
+        """Register a function as an MCP resource"""
+        ...
+
     def run(self) -> None:
         """Run the MCP service"""
         ...
@@ -18,11 +30,7 @@ class MCPService(Protocol):
 class FeatureService(Protocol):
     """Protocol for OS NGD feature services"""
 
-    def message_listener(self, message: dict[str, Any]) -> None:
-        """Handle incoming protocol messages"""
-        ...
-
-    def hello_world(self) -> str:
+    def hello_world(self, name: str) -> str:
         """Test connection to the service"""
         ...
 
@@ -34,11 +42,11 @@ class FeatureService(Protocol):
         """List all available feature collections"""
         ...
 
-    async def get_collection_info(self, collection_id: str) -> str:
+    async def get_single_collection(self, collection_id: str) -> str:
         """Get detailed information about a specific collection"""
         ...
 
-    async def get_collection_queryables(self, collection_id: str) -> str:
+    async def get_single_collection_queryables(self, collection_id: str) -> str:
         """Get queryable properties for a collection"""
         ...
 
@@ -51,10 +59,12 @@ class FeatureService(Protocol):
         crs: Optional[str] = None,
         limit: int = 10,
         offset: int = 0,
+        filter: Optional[str] = None,
+        filter_lang: Optional[str] = "cql-text",
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
     ) -> str:
-        """Search for features in a collection with simplified parameters"""
+        """Search for features in a collection with full CQL filter support"""
         ...
 
     async def get_feature(
@@ -87,14 +97,6 @@ class FeatureService(Protocol):
         """Get linked features for multiple identifiers"""
         ...
 
-    async def search_by_uprn(
-        self,
-        uprn: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
-        """Find addresses by UPRN using the OS Places API"""
+    async def fetch_detailed_collections(self, collection_ids: List[str]) -> str:
+        """Get detailed information about specific collections for workflow planning"""
         ...

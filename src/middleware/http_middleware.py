@@ -1,5 +1,7 @@
 import os
-from typing import List, Callable, Awaitable
+import time
+from collections import defaultdict, deque
+from typing import List, Callable, Awaitable, Dict, Deque, Any
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
@@ -8,22 +10,49 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+class RateLimiter:
+    """HTTP-layer rate limiting"""
+
+    def __init__(self, requests_per_minute: int = 10, window_seconds: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.window_seconds = window_seconds
+        self.request_timestamps: Dict[str, Deque[float]] = defaultdict(lambda: deque())
+
+    def check_rate_limit(self, client_id: str) -> bool:
+        """Check if client has exceeded rate limit"""
+        current_time = time.time()
+        timestamps = self.request_timestamps[client_id]
+
+        while timestamps and current_time - timestamps[0] >= self.window_seconds:
+            timestamps.popleft()
+
+        if len(timestamps) >= self.requests_per_minute:
+            logger.warning(f"HTTP rate limit exceeded for client {client_id}")
+            return False
+
+        timestamps.append(current_time)
+        return True
+
+
 def get_valid_bearer_tokens() -> List[str]:
     """
     Get valid bearer tokens from environment variable.
     """
     try:
-        tokens = os.environ.get("BEARER_TOKENS", "").split(",")
+        # Check for both BEARER_TOKENS (plural) and BEARER_TOKEN (singular)
+        tokens_str = os.environ.get("BEARER_TOKENS", "") or os.environ.get("BEARER_TOKEN", "")
+        tokens = tokens_str.split(",")
         valid_tokens = [
             t.strip() for t in tokens if t.strip()
         ]  # Added .strip() to clean whitespace
 
         if not valid_tokens:
             logger.warning(
-                "No BEARER_TOKENS configured, all authentication will be rejected"
+                "No BEARER_TOKENS or BEARER_TOKEN configured, all authentication will be rejected"
             )
             return []  # Return empty list to block all authentication attempts
 
+        logger.debug(f"Loaded {len(valid_tokens)} valid bearer tokens")
         return valid_tokens
     except Exception as e:
         logger.error(f"Error getting valid tokens: {e}")
@@ -34,23 +63,51 @@ async def verify_bearer_token(token: str) -> bool:
     """Verify bearer token is valid."""
     try:
         valid_tokens = get_valid_bearer_tokens()
+        
+        logger.debug(f"Verifying token: '{token}' against {len(valid_tokens)} valid tokens")
 
         # If no valid tokens are configured, or token is empty, reject all requests
         if not valid_tokens or not token:
+            logger.warning(f"Token verification failed: valid_tokens={len(valid_tokens)}, token_empty={not token}")
             return False
 
         # Check if the provided token is in the valid list
-        return token in valid_tokens
+        is_valid = token in valid_tokens
+        if is_valid:
+            logger.debug(f"Token '{token}' is valid")
+        else:
+            logger.warning(f"Token '{token}' not found in valid tokens: {valid_tokens}")
+        return is_valid
     except Exception as e:
         logger.error(f"Error validating token: {e}")
         return False  # Return False on error to block access
 
 
 class HTTPMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    def __init__(self, app: Any, requests_per_minute: int = 10):
+        super().__init__(app)
+        self.rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         # Skip auth for auth discovery endpoints and OPTIONS requests
         if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
             return await call_next(request)
+
+        # Rate limiting - get session ID or use client IP
+        session_id = request.headers.get("mcp-session-id")
+        if not session_id:
+            client_ip = request.client.host if request.client else "unknown"
+            session_id = f"ip-{client_ip}"
+
+        # Check rate limit
+        if not self.rate_limiter.check_rate_limit(session_id):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again later."},
+                headers={"Retry-After": "60"},
+            )
 
         # Validate Origin header
         origin = request.headers.get("origin", "")
@@ -76,13 +133,17 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Browser plugin access is not allowed"},
             )
 
-        # Bearer token authentication
+        # Bearer token authentication with enhanced logging
         auth_header = request.headers.get("Authorization")
+        logger.debug(f"Authorization header: {auth_header}")
+        
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.replace("Bearer ", "")
+            logger.debug(f"Extracted token: '{token}'")
             if await verify_bearer_token(token):
                 # Add token to request state for access in session manager
                 request.state.token = token
+                logger.debug("Token verification successful, proceeding with request")
                 return await call_next(request)
             else:
                 logger.warning(
@@ -90,7 +151,7 @@ class HTTPMiddleware(BaseHTTPMiddleware):
                 )
         else:
             logger.warning(
-                f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}"
+                f"Missing or invalid Authorization header from {request.client.host if request.client else 'unknown'}: {auth_header}"
             )
 
         return JSONResponse(

@@ -1,15 +1,59 @@
 [project]
 name = "os-mcp"
-version = "0.1.0"
+version = "0.1.5"
 description = "A Python MCP server that provides access to Ordnance Survey's DataHub APIs."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.11.18",
     "anthropic>=0.51.0",
-    "fastapi>=0.115.12",
-    "mcp[cli]>=1.9.0",
-    "starlette>=0.46.2",
-    "uvicorn>=0.34.2",
+    "fastapi>=0.116.1",
+    "mcp>=1.12.0",
+    "starlette>=0.47.1",
+    "uvicorn>=0.35.0",
     "python-dotenv>=1.1.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.2.0",
+    "httpx>=0.25.0",
+    "respx>=0.20.0",
+]
+
+dev = [
+    "os-mcp[test]",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+timeout = 300
+markers = [
+    "unit: Unit tests that run quickly",
+    "integration: Integration tests that may take longer",
+    "slow: Slow tests that require extended timeouts",
+    "workflow: Tests that validate workflow functionality",
+    "api: Tests that interact with external APIs",
+]
+addopts = ["-v", "--tb=short"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/client_test.py", "src/http_client_test.py", "src/stdio_client_test.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
 ]

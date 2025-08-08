@@ -1,12 +1,18 @@
 import json
 import asyncio
-import os
+import functools
+import re
 
-from typing import Optional, List, Dict, Any, Union, cast
+from typing import Optional, List, Dict, Any, Union, Callable
 from api_service.protocols import APIClient
-from .protocols import MCPService, FeatureService
-from .guardrails import ToolGuardrails
+from prompt_templates.prompt_templates import PROMPT_TEMPLATES
+from mcp_service.protocols import MCPService, FeatureService
+from mcp_service.guardrails import ToolGuardrails
+from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
+from mcp_service.resources import OSDocumentationResources
+from mcp_service.prompts import OSWorkflowPrompts
+from mcp_service.routing_service import OSRoutingService
 
 logger = get_logger(__name__)
 
@@ -14,110 +20,229 @@ logger = get_logger(__name__)
 class OSDataHubService(FeatureService):
     """Implementation of the OS NGD API service with MCP"""
 
-    def __init__(self, api_client: APIClient, mcp_service: MCPService):
+    def __init__(
+        self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None
+    ):
         """
         Initialise the OS NGD service
 
         Args:
             api_client: API client implementation
             mcp_service: MCP service implementation
+            stdio_middleware: Optional STDIO middleware for rate limiting
         """
         self.api_client = api_client
         self.mcp = mcp_service
-        # Use default client ID initially
-        # TODO: Remove this once we have a proper client ID - this is broken.
-        # Need to find a way to access the actual client ID from the client that is connecting and making the tool calls.
-        self.session: Dict[str, str] = {"client_id": "default_client"}
-
-        # Initialise guardrails
-        # This includes simple rate limiting and prompt injection protection - rate limiting is set to 25 requests per minute at the moment.
-        self.guardrails = ToolGuardrails(
-            requests_per_minute=25, client_id=self.session["client_id"]
-        )
-
-        # Register tools
+        self.stdio_middleware = stdio_middleware
+        self.workflow_planner: Optional[WorkflowPlanner] = None
+        self.guardrails = ToolGuardrails()
+        self.routing_service = OSRoutingService(api_client)
         self.register_tools()
+        self.register_resources()
+        self.register_prompts()
+
+    # Register all the resources, tools, and prompts
+    def register_resources(self) -> None:
+        """Register all MCP resources"""
+        doc_resources = OSDocumentationResources(self.mcp, self.api_client)
+        doc_resources.register_all()
 
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails"""
+        """Register all MCP tools with guardrails and middleware"""
 
-        self.hello_world = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.hello_world)
+        def apply_middleware(func: Callable) -> Callable:
+            wrapped = self.guardrails.basic_guardrails(func)
+            wrapped = self._require_workflow_context(wrapped)
+            if self.stdio_middleware:
+                wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
+            return wrapped
+
+        # Apply middleware to ALL tools
+        self.get_workflow_context = self.mcp.tool()(
+            apply_middleware(self.get_workflow_context)
         )
-        self.check_api_key = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.check_api_key)
+        self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
+        self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
+        self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
+        self.get_single_collection = self.mcp.tool()(
+            apply_middleware(self.get_single_collection)
         )
-        self.list_collections = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.list_collections)
+        self.get_single_collection_queryables = self.mcp.tool()(
+            apply_middleware(self.get_single_collection_queryables)
         )
-        self.get_collection_info = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_info)
-        )
-        self.get_collection_queryables = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_collection_queryables)
-        )
-        self.search_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_features)
-        )
-        self.get_feature = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_feature)
-        )
+        self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
+        self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
         self.get_linked_identifiers = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_linked_identifiers)
+            apply_middleware(self.get_linked_identifiers)
         )
         self.get_bulk_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_features)
+            apply_middleware(self.get_bulk_features)
         )
         self.get_bulk_linked_features = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_bulk_linked_features)
+            apply_middleware(self.get_bulk_linked_features)
         )
         self.get_prompt_templates = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_prompt_templates)
+            apply_middleware(self.get_prompt_templates)
         )
-        self.search_by_uprn = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_uprn)
+        self.fetch_detailed_collections = self.mcp.tool()(
+            apply_middleware(self.fetch_detailed_collections)
         )
-        self.search_by_post_code = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.search_by_post_code)
-        )
-        self.get_light_map_tile = self.mcp.tool()(
-            self.guardrails.basic_guardrails(self.get_light_map_tile)
-        )
+        self.get_routing_data = self.mcp.tool()(apply_middleware(self.get_routing_data))
 
-    # TODO: This is a temporary solution to get the client ID - this will be removed once we have a proper client ID!
-    def message_listener(self, message: Dict[str, Any]) -> None:
-        """
-        Handle incoming protocol messages.
-        Extracts client name on 'initialize' and stores it in session.
-        """
-        if message.get("method") == "initialize":
+    def register_prompts(self) -> None:
+        """Register all MCP prompts"""
+        workflow_prompts = OSWorkflowPrompts(self.mcp)
+        workflow_prompts.register_all()
+
+    # Run the MCP service
+    def run(self) -> None:
+        """Run the MCP service"""
+        try:
+            self.mcp.run()
+        finally:
             try:
-                client_name: str = message["params"]["clientInfo"]["name"]
-                logger.info(f"Client name: {client_name}")
-                self.session["client_id"] = client_name
-                # Update the guardrails client ID
-                self.guardrails.client_id = client_name
-                logger.info(f"Set client_id to '{client_name}' in session.")
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._cleanup())
+                except RuntimeError:
+                    asyncio.run(self._cleanup())
             except Exception as e:
-                logger.warning(f"Could not extract client name: {e}")
-        elif message.get("method") == "tools/call":
-            # Ensure the client ID is used for all tool calls
-            # This is crucial for maintaining per-client rate limits
-            if "client_id" in self.session:
-                logger.info(f"Client ID: {self.session['client_id']}")
-                self.guardrails.client_id = self.session["client_id"]
+                logger.error(f"Error during cleanup: {e}")
 
-    def hello_world(self) -> str:
-        """A simple test tool that returns a greeting message."""
-        return "Hello from the OS NGD - Features API MCP server! The connection is working correctly."
+    async def _cleanup(self):
+        """Async cleanup method"""
+        try:
+            if hasattr(self, "api_client") and self.api_client:
+                await self.api_client.close()
+                logger.debug("API client closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing API client: {e}")
 
-    def check_api_key(self) -> str:
+    # Get the workflow context from the cached API client data
+    # TODO: Lots of work to do here to reduce the size of the context and make it more readable for the LLM but not sacrificing the information
+    async def get_workflow_context(self) -> str:
+        """Get basic workflow context - no detailed queryables yet"""
+        try:
+            if self.workflow_planner is None:
+                collections_cache = await self.api_client.cache_collections()
+                basic_collections_info = {
+                    coll.id: {
+                        "id": coll.id,
+                        "title": coll.title,
+                        "description": coll.description,
+                        # No queryables here - will be fetched on-demand
+                    }
+                    for coll in collections_cache.collections
+                }
+
+                self.workflow_planner = WorkflowPlanner(
+                    await self.api_client.cache_openapi_spec(), basic_collections_info
+                )
+
+            context = self.workflow_planner.get_basic_context()
+            return json.dumps(
+                {
+                    "CRITICAL_COLLECTION_LIST": sorted(
+                        context["available_collections"].keys()
+                    ),
+                    "MANDATORY_PLANNING_REQUIREMENT": {
+                        "CRITICAL": "You MUST follow the 2-step planning process:",
+                        "step_1": "Explain your complete plan listing which specific collections you will use and why",
+                        "step_2": "Call fetch_detailed_collections('collection-id-1,collection-id-2') to get queryables for those collections BEFORE making search calls",
+                        "required_explanation": {
+                            "1": "Which collections you will use and why",
+                            "2": "What you expect to find in those collections",
+                            "3": "What your search strategy will be",
+                        },
+                        "workflow_enforcement": "Do not proceed with search_features until you have fetched detailed queryables",
+                        "example_planning": "I will use 'lus-fts-site-1' for finding cinemas. Let me fetch its detailed queryables first...",
+                    },
+                    "available_collections": context[
+                        "available_collections"
+                    ],  # Basic info only - no queryables yet - this is to reduce the size of the context for the LLM
+                    "openapi_spec": context["openapi_spec"].model_dump()
+                    if context["openapi_spec"]
+                    else None,
+                    "TWO_STEP_WORKFLOW": {
+                        "step_1": "Plan with basic collection info (no detailed queryables available yet)",
+                        "step_2": "Use fetch_detailed_collections() to get queryables for your chosen collections",
+                        "step_3": "Execute search_features with proper filters using the fetched queryables",
+                    },
+                    "AVAILABLE_TOOLS": {
+                        "fetch_detailed_collections": "Get detailed queryables for specific collections: fetch_detailed_collections('lus-fts-site-1,trn-ntwk-street-1')",
+                        "search_features": "Search features (requires detailed queryables first)",
+                    },
+                    "QUICK_FILTERING_GUIDE": {
+                        "primary_tool": "search_features",
+                        "key_parameter": "filter",
+                        "enum_fields": "Use exact values from collection's enum_queryables (fetch these first!)",
+                        "simple_fields": "Use direct values (e.g., usrn = 12345678)",
+                    },
+                    "COMMON_EXAMPLES": {
+                        "workflow_example": "1) Explain plan → 2) fetch_detailed_collections('lus-fts-site-1') → 3) search_features with proper filter",
+                        "cinema_search": "After fetching queryables: search_features(collection_id='lus-fts-site-1', filter=\"oslandusetertiarygroup = 'Cinema'\")",
+                    },
+                    "CRITICAL_RULES": {
+                        "1": "ALWAYS explain your plan first",
+                        "2": "ALWAYS call fetch_detailed_collections() before search_features",
+                        "3": "Use exact enum values from the fetched enum_queryables",
+                        "4": "Quote string values in single quotes",
+                    },
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting workflow context: {e}")
+            return json.dumps(
+                {"error": str(e), "instruction": "Proceed with available tools"}
+            )
+
+    def _require_workflow_context(self, func: Callable) -> Callable:
+        # Functions that don't need workflow context
+        skip_functions = {"get_workflow_context", "hello_world", "check_api_key"}
+
+        @functools.wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            if self.workflow_planner is None:
+                if func.__name__ in skip_functions:
+                    return await func(*args, **kwargs)
+                else:
+                    return json.dumps(
+                        {
+                            "error": "WORKFLOW CONTEXT REQUIRED",
+                            "blocked_tool": func.__name__,
+                            "required_action": "You must call 'get_workflow_context' first",
+                            "message": "No tools are available until you get the workflow context. Please call get_workflow_context() now.",
+                        }
+                    )
+            return await func(*args, **kwargs)
+
+        return wrapper
+
+    # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
+    # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
+    def _add_retry_context(self, response_data: dict, tool_name: str) -> dict:
+        """Add retry guidance to tool responses"""
+        if "error" in response_data:
+            response_data["retry_guidance"] = {
+                "tool": tool_name,
+                "MANDATORY_INSTRUCTION 1": "Review the error message and try again with corrected parameters",
+                "MANDATORY_INSTRUCTION 2": "YOU MUST call get_workflow_context() if you need to see available options again",
+            }
+        return response_data
+
+    # All the tools
+    async def hello_world(self, name: str) -> str:
+        """Simple hello world tool for testing"""
+        return f"Hello, {name}! 👋"
+
+    async def check_api_key(self) -> str:
         """Check if the OS API key is available."""
         try:
-            self.api_client.get_api_key()
-            return "OS_API_KEY is set!"
+            await self.api_client.get_api_key()
+            return json.dumps({"status": "success", "message": "OS_API_KEY is set!"})
         except ValueError as e:
-            return str(e)
+            return json.dumps({"status": "error", "message": str(e)})
 
     async def list_collections(
         self,
@@ -141,9 +266,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "list_collections")
+            )
 
-    async def get_collection_info(
+    async def get_single_collection(
         self,
         collection_id: str,
     ) -> str:
@@ -163,9 +291,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "get_collection_info")
+            )
 
-    async def get_collection_queryables(
+    async def get_single_collection_queryables(
         self,
         collection_id: str,
     ) -> str:
@@ -185,7 +316,10 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "get_collection_queryables")
+            )
 
     async def search_features(
         self,
@@ -194,38 +328,136 @@ class OSDataHubService(FeatureService):
         crs: Optional[str] = None,
         limit: int = 10,
         offset: int = 0,
+        filter: Optional[str] = None,
+        filter_lang: Optional[str] = "cql-text",
         query_attr: Optional[str] = None,
         query_attr_value: Optional[str] = None,
     ) -> str:
-        """
-        Search for features in a collection with simplified parameters.
-        """
+        """Search for features in a collection with full CQL2 filter support."""
         try:
             params: Dict[str, Union[str, int]] = {}
 
-            # Add standard parameters
             if limit:
-                params["limit"] = limit
+                params["limit"] = min(limit, 100)
             if offset:
-                params["offset"] = offset
-
-            # Add spatial parameters
+                params["offset"] = max(0, offset)
             if bbox:
                 params["bbox"] = bbox
             if crs:
                 params["crs"] = crs
+            if filter:
+                if len(filter) > 1000:
+                    raise ValueError("Filter too long")
+                dangerous_patterns = [
+                    r";\s*--",
+                    r";\s*/\*",
+                    r"\bUNION\b",
+                    r"\bSELECT\b",
+                    r"\bINSERT\b",
+                    r"\bUPDATE\b",
+                    r"\bDELETE\b",
+                    r"\bDROP\b",
+                    r"\bCREATE\b",
+                    r"\bALTER\b",
+                    r"\bTRUNCATE\b",
+                    r"\bEXEC\b",
+                    r"\bEXECUTE\b",
+                    r"\bSP_\b",
+                    r"\bXP_\b",
+                    r"<script\b",
+                    r"javascript:",
+                    r"vbscript:",
+                    r"onload\s*=",
+                    r"onerror\s*=",
+                    r"onclick\s*=",
+                    r"\beval\s*\(",
+                    r"document\.",
+                    r"window\.",
+                    r"location\.",
+                    r"cookie",
+                    r"innerHTML",
+                    r"outerHTML",
+                    r"alert\s*\(",
+                    r"confirm\s*\(",
+                    r"prompt\s*\(",
+                    r"setTimeout\s*\(",
+                    r"setInterval\s*\(",
+                    r"Function\s*\(",
+                    r"constructor",
+                    r"prototype",
+                    r"__proto__",
+                    r"process\.",
+                    r"require\s*\(",
+                    r"import\s+",
+                    r"from\s+.*import",
+                    r"\.\./",
+                    r"file://",
+                    r"ftp://",
+                    r"data:",
+                    r"blob:",
+                    r"\\x[0-9a-fA-F]{2}",
+                    r"%[0-9a-fA-F]{2}",
+                    r"&#x[0-9a-fA-F]+;",
+                    r"&[a-zA-Z]+;",
+                    r"\$\{",
+                    r"#\{",
+                    r"<%",
+                    r"%>",
+                    r"{{",
+                    r"}}",
+                    r"\\\w+",
+                    r"\0",
+                    r"\r\n",
+                    r"\n\r",
+                ]
 
-            # Add query attribute filter
-            if query_attr and query_attr_value:
-                params["filter"] = f"{query_attr}={query_attr_value}"
+                for pattern in dangerous_patterns:
+                    if re.search(pattern, filter, re.IGNORECASE):
+                        raise ValueError("Invalid filter content")
+
+                if filter.count("'") % 2 != 0:
+                    raise ValueError("Unmatched quotes in filter")
+
+                params["filter"] = filter.strip()
+                if filter_lang:
+                    params["filter-lang"] = filter_lang
+
+            elif query_attr and query_attr_value:
+                if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", query_attr):
+                    raise ValueError("Invalid field name")
+
+                escaped_value = str(query_attr_value).replace("'", "''")
+                params["filter"] = f"{query_attr} = '{escaped_value}'"
+                if filter_lang:
+                    params["filter-lang"] = filter_lang
+
+            if self.workflow_planner:
+                valid_collections = set(
+                    self.workflow_planner.basic_collections_info.keys()
+                )
+                if collection_id not in valid_collections:
+                    return json.dumps(
+                        {
+                            "error": f"Invalid collection '{collection_id}'. Valid collections: {sorted(valid_collections)[:10]}...",
+                            "suggestion": "Call get_workflow_context() to see all available collections",
+                        }
+                    )
 
             data = await self.api_client.make_request(
                 "COLLECTION_FEATURES", params=params, path_params=[collection_id]
             )
 
             return json.dumps(data)
+        except ValueError as ve:
+            error_response = {"error": f"Invalid input: {str(ve)}"}
+            return json.dumps(
+                self._add_retry_context(error_response, "search_features")
+            )
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "search_features")
+            )
 
     async def get_feature(
         self,
@@ -257,7 +489,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": f"Error getting feature: {str(e)}"})
+            error_response = {"error": f"Error getting feature: {str(e)}"}
+            return json.dumps(self._add_retry_context(error_response, "get_feature"))
 
     async def get_linked_identifiers(
         self,
@@ -281,31 +514,20 @@ class OSDataHubService(FeatureService):
                 "LINKED_IDENTIFIERS", path_params=[identifier_type, identifier]
             )
 
-            # If no feature_type filter, return raw data
-            if not feature_type:
-                return json.dumps(data)
+            if feature_type:
+                # Filter results by feature type
+                filtered_results = []
+                for item in data.get("results", []):
+                    if item.get("featureType") == feature_type:
+                        filtered_results.append(item)
+                return json.dumps({"results": filtered_results})
 
-            # Filter by feature type
-            identifiers: List[str] = []
-            if "correlations" in data:
-                assert isinstance(data["correlations"], list), "correlations must be a list"
-                correlations = cast(List[Dict[str, Any]], data["correlations"])
-                for item in correlations:
-                    if item.get("correlatedFeatureType") == feature_type:
-                        if "correlatedIdentifiers" in item and isinstance(
-                            item["correlatedIdentifiers"], list
-                        ):
-                            correlated_ids = cast(List[Dict[str, Any]], item["correlatedIdentifiers"])
-                            identifiers = [
-                                id_obj["identifier"]
-                                for id_obj in correlated_ids
-                                if "identifier" in id_obj
-                            ]
-                            break
-
-            return json.dumps({"identifiers": identifiers})
+            return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "get_linked_identifiers")
+            )
 
     async def get_bulk_features(
         self,
@@ -318,37 +540,37 @@ class OSDataHubService(FeatureService):
 
         Args:
             collection_id: The collection ID
-            identifiers: List of feature IDs or attribute values
-            query_by_attr: If provided, query by this attribute instead of feature ID
+            identifiers: List of feature identifiers
+            query_by_attr: Attribute to query by (if not provided, assumes feature IDs)
 
         Returns:
             JSON string with features data
         """
         try:
             tasks: List[Any] = []
-
             for identifier in identifiers:
                 if query_by_attr:
-                    # Query by attribute
-                    tasks.append(
-                        self.search_features(
-                            collection_id,
-                            query_attr=query_by_attr,
-                            query_attr_value=identifier,
-                        )
+                    task = self.search_features(
+                        collection_id=collection_id,
+                        query_attr=query_by_attr,
+                        query_attr_value=identifier,
+                        limit=1,
                     )
                 else:
-                    # Query by feature ID
-                    tasks.append(self.get_feature(collection_id, feature_id=identifier))
+                    task = self.get_feature(collection_id, identifier)
 
-            results: List[str] = await asyncio.gather(*tasks)
+                tasks.append(task)
 
-            # Parse results back to objects for processing
-            parsed_results: List[Dict[str, Any]] = [json.loads(result) for result in results]
+            results = await asyncio.gather(*tasks)
+
+            parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "get_bulk_features")
+            )
 
     async def get_bulk_linked_features(
         self,
@@ -375,14 +597,16 @@ class OSDataHubService(FeatureService):
 
             results = await asyncio.gather(*tasks)
 
-            # Parse results back to objects
             parsed_results = [json.loads(result) for result in results]
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            error_response = {"error": str(e)}
+            return json.dumps(
+                self._add_retry_context(error_response, "get_bulk_linked_features")
+            )
 
-    def get_prompt_templates(
+    async def get_prompt_templates(
         self,
         category: Optional[str] = None,
     ) -> str:
@@ -396,228 +620,144 @@ class OSDataHubService(FeatureService):
         Returns:
             JSON string containing prompt templates
         """
-        from promp_templates.prompt_templates import PROMPT_TEMPLATES
-
         if category and category in PROMPT_TEMPLATES:
             return json.dumps({category: PROMPT_TEMPLATES[category]})
 
         return json.dumps(PROMPT_TEMPLATES)
 
-    async def search_by_uprn(
-        self,
-        uprn: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
-    ) -> str:
+    async def fetch_detailed_collections(self, collection_ids: str) -> str:
         """
-        Find addresses by UPRN using the OS Places API.
+        Fetch detailed queryables for specific collections mentioned in LLM workflow plan.
+
+        This is mainly to reduce the size of the context for the LLM.
+
+        Only fetch what you really need.
 
         Args:
-            uprn: A valid UPRN (Unique Property Reference Number)
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
+            collection_ids: Comma-separated list of collection IDs (e.g., "lus-fts-site-1,trn-ntwk-street-1")
 
         Returns:
-            JSON string with matched addresses
+            JSON string with detailed queryables for the specified collections
         """
         try:
-            # Validate all parameters first
-            errors = self._validate_uprn_params(
-                uprn, format, dataset, lr, output_srs, fq
+            if not self.workflow_planner:
+                return json.dumps(
+                    {
+                        "error": "Workflow planner not initialized. Call get_workflow_context() first."
+                    }
+                )
+
+            requested_collections = [cid.strip() for cid in collection_ids.split(",")]
+
+            valid_collections = set(self.workflow_planner.basic_collections_info.keys())
+            invalid_collections = [
+                cid for cid in requested_collections if cid not in valid_collections
+            ]
+
+            if invalid_collections:
+                return json.dumps(
+                    {
+                        "error": f"Invalid collection IDs: {invalid_collections}",
+                        "valid_collections": sorted(valid_collections),
+                    }
+                )
+
+            cached_collections = [
+                cid
+                for cid in requested_collections
+                if cid in self.workflow_planner.detailed_collections_cache
+            ]
+
+            collections_to_fetch = [
+                cid
+                for cid in requested_collections
+                if cid not in self.workflow_planner.detailed_collections_cache
+            ]
+
+            if collections_to_fetch:
+                logger.info(f"Fetching detailed queryables for: {collections_to_fetch}")
+                detailed_queryables = (
+                    await self.api_client.fetch_collections_queryables(
+                        collections_to_fetch
+                    )
+                )
+
+                for coll_id, queryables in detailed_queryables.items():
+                    self.workflow_planner.detailed_collections_cache[coll_id] = {
+                        "id": queryables.id,
+                        "title": queryables.title,
+                        "description": queryables.description,
+                        "all_queryables": queryables.all_queryables,
+                        "enum_queryables": queryables.enum_queryables,
+                        "has_enum_filters": queryables.has_enum_filters,
+                        "total_queryables": queryables.total_queryables,
+                        "enum_count": queryables.enum_count,
+                    }
+
+            context = self.workflow_planner.get_detailed_context(requested_collections)
+
+            return json.dumps(
+                {
+                    "success": True,
+                    "collections_processed": requested_collections,
+                    "collections_fetched_from_api": collections_to_fetch,
+                    "collections_from_cache": cached_collections,
+                    "detailed_collections": context["available_collections"],
+                    "message": f"Detailed queryables now available for: {', '.join(requested_collections)}",
+                }
             )
-            if errors:
-                return json.dumps({"error": errors})
 
-            # Convert UPRN to integer
-            uprn_int = int(uprn)
-
-            params = {
-                "uprn": uprn_int,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
-
-            # Add filters if provided
-            if fq:
-                params["fq"] = ",".join(fq)
-
-            data = await self.api_client.make_request("PLACES_UPRN", params=params)
-
-            # Return sanitized data as JSON
-            return json.dumps(data)
         except Exception as e:
-            return json.dumps({"error": f"Error searching by UPRN: {str(e)}"})
+            logger.error(f"Error fetching detailed collections: {e}")
+            return json.dumps(
+                {"error": str(e), "suggestion": "Check collection IDs and try again"}
+            )
 
-    def _validate_uprn_params(
+    async def get_routing_data(
         self,
-        uprn: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the UPRN search and return error message if invalid."""
-        errors: List[str] = []
-
-        # Helper function to check condition and add error
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        # Check each parameter
-        check(not uprn.isdigit(), "UPRN must contain only digits")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,
-            "Filters cannot be an empty list",
-        )
-
-        return errors[0] if errors else None
-
-    async def search_by_post_code(
-        self,
-        postcode: str,
-        format: str = "JSON",
-        dataset: str = "DPA",
-        lr: str = "EN",
-        output_srs: str = "EPSG:27700",
-        fq: Optional[List[str]] = None,
+        bbox: Optional[str] = None,
+        limit: int = 100,
+        include_nodes: bool = True,
+        include_edges: bool = True,
+        build_network: bool = True,
     ) -> str:
         """
-        Find addresses by POSTCODE using the OS Places API.
+        Get routing data - builds network and returns nodes/edges as flat tables.
 
         Args:
-            postcode: A valid POSTCODE (e.g. "SW1A 1AA")
-            format: The format the response will be returned in (JSON or XML)
-            dataset: The dataset to return (DPA, LPI or both separated by comma)
-            lr: Language of addresses to return (EN, CY)
-            output_srs: The output spatial reference system
-            fq: Optional filter for classification code, logical status code, etc.
+            bbox: Optional bounding box (format: "minx,miny,maxx,maxy")
+            limit: Maximum number of road links to process (default: 1000)
+            include_nodes: Whether to include nodes in response (default: True)
+            include_edges: Whether to include edges in response (default: True)
+            build_network: Whether to build network first (default: True)
 
         Returns:
-            JSON string with matched addresses
+            JSON string with routing network data
         """
         try:
-            # Validate all parameters first
-            errors = self._validate_post_code_params(
-                postcode, format, dataset, lr, output_srs, fq
-            )
-            if errors:
-                return json.dumps({"error": errors})
+            result = {}
 
-            params = {
-                "postcode": postcode,
-                "format": format,
-                "dataset": dataset,
-                "lr": lr,
-                "output_srs": output_srs,
-            }
+            if build_network:
+                build_result = await self.routing_service.build_routing_network(
+                    bbox, limit
+                )
+                result["build_status"] = build_result
 
-            # Add filters if provided
-            if fq:
-                params["fq"] = ",".join(fq)
+                if build_result.get("status") != "success":
+                    return json.dumps(result)
 
-            data = await self.api_client.make_request("POST_CODE", params=params)
+            if include_nodes:
+                nodes_result = self.routing_service.get_flat_nodes()
+                result["nodes"] = nodes_result.get("nodes", [])
 
-            # Return sanitized data as JSON
-            return json.dumps(data)
+            if include_edges:
+                edges_result = self.routing_service.get_flat_edges()
+                result["edges"] = edges_result.get("edges", [])
+
+            summary = self.routing_service.get_network_info()
+            result["summary"] = summary.get("network", {})
+            result["status"] = "success"
+
+            return json.dumps(result)
         except Exception as e:
-            return json.dumps({"error": f"Error searching by POSTCODE: {str(e)}"})
-
-    def _validate_post_code_params(
-        self,
-        postcode: str,
-        format: str,
-        dataset: str,
-        lr: str,
-        output_srs: str,
-        fq: Optional[List[str]],
-    ) -> Optional[str]:
-        """Validate all parameters for the POSTCODE search and return error message if invalid."""
-        errors: List[str] = []
-
-        # Helper function to check condition and add error
-        def check(condition: bool, error_msg: str) -> None:
-            if condition:
-                errors.append(error_msg)
-
-        # Check each parameter
-        check(not postcode.isalnum(), "POSTCODE must contain only letters and numbers")
-        check(format not in ["JSON", "XML"], "Format must be 'JSON' or 'XML'")
-
-        valid_datasets = ["DPA", "LPI"]
-        dataset_parts = dataset.split(",")
-        check(
-            not all(part.strip() in valid_datasets for part in dataset_parts),
-            "Dataset must be 'DPA', 'LPI', or both comma-separated",
-        )
-
-        check(lr not in ["EN", "CY"], "Language must be 'EN' or 'CY'")
-        check(output_srs not in ["EPSG:27700"], "Output SRS must be 'EPSG:27700'")
-        check(
-            fq is not None and len(fq) == 0,  # Changed from isinstance check
-            "Filters must be provided as a list",
-        )
-
-        return errors[0] if errors else None
-
-    # TODO: THIS DOES NOT WORK - NEED TO FIX
-    async def get_light_map_tile(
-        self,
-        z: int,
-        x: int,
-        y: int,
-    ) -> str:
-        """
-        Get a Light style map tile in EPSG:27700 projection.
-        Returns HTML with a clickable image for download.
-        """
-        try:
-            # Get API key
-            api_key = os.environ.get("OS_API_KEY")
-            if not api_key:
-                return "Error: OS_API_KEY environment variable is not set"
-            
-            # Create direct image URL
-            image_url = f"https://api.os.uk/maps/raster/v1/zxy/Light_27700/{z}/{x}/{y}.png?key={api_key}"
-            
-            # Return HTML with clickable image
-            html = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                <p>Click on the map tile to download:</p>
-                <a href="{image_url}" download="os_map_z{z}_x{x}_y{y}.png">
-                    <img src="{image_url}" width="256" height="256" alt="OS Map Tile" 
-                         style="border: 1px solid #ccc; cursor: pointer;">
-                </a>
-                <p><small>OS Light Map Tile (z={z}, x={x}, y={y})</small></p>
-            </body>
-            </html>
-            """
-            
-            return html
-        except Exception as e:
-            return f"Error getting map tile: {str(e)}"
-
-    def run(self) -> None:
-        """Run the MCP service"""
-        self.mcp.run()
+            return json.dumps({"error": str(e)})

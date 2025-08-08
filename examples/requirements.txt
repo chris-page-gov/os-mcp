@@ -1,0 +1,16 @@
+# Requirements for OS MCP Examples
+# Install with: pip install -r requirements.txt
+
+# Core MCP dependencies
+mcp>=0.1.0
+
+# Data analysis and visualization
+pandas>=1.5.0
+matplotlib>=3.5.0
+numpy>=1.21.0
+
+# Additional useful packages for geospatial work (optional)
+# Uncomment these if you want enhanced mapping capabilities:
+# folium>=0.14.0
+# geopandas>=0.13.0
+# plotly>=5.0.0

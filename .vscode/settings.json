@@ -1,0 +1,10 @@
+{
+  "mcp.servers": {
+    "os-datahub": {
+      "url": "http://localhost:8001/mcp",
+      "headers": {
+        "Authorization": "Bearer dev-token"
+      }
+    }
+  }
+}

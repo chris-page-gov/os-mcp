@@ -1,0 +1,123 @@
+swagger: '2.0'
+info:
+  title: OS MCP REST Wrapper
+  description: REST API wrapper for OS MCP Server - Power Apps compatible
+  version: 1.0.0
+host: 127.0.0.1:8001
+basePath: /
+schemes:
+  - http
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check if the service is running
+      operationId: HealthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              service:
+                type: string
+  /tools/hello:
+    post:
+      summary: Hello World Test
+      description: Test connectivity with the MCP server
+      operationId: HelloWorld
+      parameters:
+        - name: name
+          in: query
+          description: Name to greet
+          required: false
+          type: string
+          default: "World"
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+  /search/features:
+    post:
+      summary: Search Geospatial Features
+      description: Search for streets, buildings, addresses and other geospatial data
+      operationId: SearchFeatures
+      parameters:
+        - name: collection_id
+          in: query
+          description: Data collection to search
+          required: false
+          type: string
+          default: "trn-ntwk-street-1"
+          enum:
+            - "trn-ntwk-street-1"
+            - "adr-fts-addressbasepremium-1"
+            - "lus-fts-site-1"
+            - "bld-fts-buildingline-1"
+        - name: bbox
+          in: query
+          description: Bounding box (min_lon,min_lat,max_lon,max_lat)
+          required: false
+          type: string
+          default: "-1.16,52.95,-1.15,52.96"
+        - name: filter
+          in: query
+          description: CQL filter expression
+          required: false
+          type: string
+        - name: limit
+          in: query
+          description: Maximum number of results
+          required: false
+          type: integer
+          default: 10
+      responses:
+        '200':
+          description: Search results
+          schema:
+            type: object
+  /collections:
+    get:
+      summary: List Data Collections
+      description: Get all available data collections
+      operationId: ListCollections
+      responses:
+        '200':
+          description: List of collections
+          schema:
+            type: object
+  /workflow/context:
+    get:
+      summary: Get Workflow Context
+      description: Get available collections and filtering guidance
+      operationId: GetWorkflowContext
+      responses:
+        '200':
+          description: Workflow context
+          schema:
+            type: object
+  /tools/list:
+    post:
+      summary: List Available Tools
+      description: Get all available MCP tools
+      operationId: ListTools
+      responses:
+        '200':
+          description: Available tools
+          schema:
+            type: object
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Enter: Bearer dev-token"
+security:
+  - BearerAuth: []

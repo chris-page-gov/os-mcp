@@ -7,15 +7,20 @@
   "containerEnv": {
     "PYTHONPATH": "src",
     "OS_API_KEY": "${localEnv:OS_API_KEY}",
-    "STDIO_KEY": "${localEnv:OS_API_KEY}"
+    "STDIO_KEY": "${localEnv:OS_API_KEY}",
+    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
   }, //STDIO_KEY is used for local development
   
-  // "features": {
-  //   "ghcr.io/astral-sh/uv:0.4.4": {}
+  // Add this line to forward port 8000
+  "forwardPorts": [8000],
   
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+  // Optional: make the port publicly accessible
+  // "portsAttributes": {
+  //   "8000": {
+  //     "label": "MCP Server",
+  //     "onAutoForward": "notify"
+  //   }
+  // },
 
 	// Use 'postCreateCommand' to run commands after the container is created.
   "postCreateCommand": "sudo pip install uv && sudo uv pip install --system .",

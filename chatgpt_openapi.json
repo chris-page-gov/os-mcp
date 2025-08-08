@@ -1,0 +1,230 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UK Ordnance Survey Geospatial API",
+    "version": "1.0.0",
+    "description": "Access UK geospatial data including streets, buildings, and points of interest from Ordnance Survey"
+  },
+  "servers": [
+    {
+      "url": "https://localhost",
+      "description": "Local OS MCP Bridge Server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "getApiInfo",
+        "summary": "API Information",
+        "description": "Get information about available endpoints",
+        "responses": {
+          "200": {
+            "description": "API information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {"type": "string"},
+                    "description": {"type": "string"},
+                    "endpoints": {"type": "object"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health Check",
+        "description": "Check if the service is running",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string"},
+                    "service": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections": {
+      "get": {
+        "operationId": "getCollections",
+        "summary": "Get Data Collections",
+        "description": "Get list of available geospatial data collections from Ordnance Survey",
+        "responses": {
+          "200": {
+            "description": "List of available collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string"},
+                          "title": {"type": "string"},
+                          "description": {"type": "string"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/streets": {
+      "get": {
+        "operationId": "searchStreets",
+        "summary": "Search Streets",
+        "description": "Search for streets within a bounding box area in the UK",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Bounding box coordinates as 'min_longitude,min_latitude,max_longitude,max_latitude'. Example: '-0.1,51.5,-0.05,51.52' for central London",
+            "example": "-0.1,51.5,-0.05,51.52"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of streets to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Streets found in the specified area",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "features": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "properties": {
+                            "type": "object",
+                            "properties": {
+                              "name": {"type": "string"},
+                              "type": {"type": "string"}
+                            }
+                          },
+                          "geometry": {
+                            "type": "object",
+                            "properties": {
+                              "type": {"type": "string"},
+                              "coordinates": {"type": "array"}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/buildings": {
+      "get": {
+        "operationId": "searchBuildings",
+        "summary": "Search Buildings",
+        "description": "Search for buildings within a bounding box area in the UK",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Bounding box coordinates as 'min_longitude,min_latitude,max_longitude,max_latitude'. Example: '-1.52,52.40,-1.50,52.42' for Coventry city centre",
+            "example": "-1.52,52.40,-1.50,52.42"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Maximum number of buildings to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Buildings found in the specified area",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "features": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "properties": {
+                            "type": "object",
+                            "properties": {
+                              "name": {"type": "string"},
+                              "type": {"type": "string"},
+                              "height": {"type": "number"}
+                            }
+                          },
+                          "geometry": {
+                            "type": "object",
+                            "properties": {
+                              "type": {"type": "string"},
+                              "coordinates": {"type": "array"}
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
