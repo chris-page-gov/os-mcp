@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/error-envelope.json",
+  "title": "Standard Tool Error Envelope",
+  "type": "object",
+  "required": ["error", "retry_guidance"],
+  "additionalProperties": true,
+  "properties": {
+    "error": {
+      "type": "string",
+      "description": "Human readable error message (legacy field kept for backward compatibility)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Normalized error message field (preferred)"
+    },
+    "tool": {"type": "string", "description": "Tool name where the error occurred"},
+    "error_code": {"type": "string", "description": "Stable machine-readable error code"},
+    "retry_guidance": {
+      "type": "object",
+      "required": ["tool"],
+      "properties": {
+        "tool": {"type": "string", "description": "Tool name for retry context"},
+        "hint": {"type": "string", "description": "Short retry hint"},
+        "next_step": {"type": "string", "description": "Action the model should take next"},
+        "examples": {
+          "type": "array",
+            "items": {"type": "string"},
+            "description": "Example corrected calls"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
