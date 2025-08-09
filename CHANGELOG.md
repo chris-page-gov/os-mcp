@@ -9,6 +9,8 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
 - Caching / performance instrumentation documentation.
+### Internal / Planning
+- Added frontend MVP design document (`docs/frontend_mvp.md`).
 
 ## [0.1.9] - 2025-08-09
 ### Added
