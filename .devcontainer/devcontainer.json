@@ -15,7 +15,37 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance"
-      ]
+      ],
+      "mcp": {
+        "inputs": [
+          {
+            "id": "os-api-key",
+            "type": "promptString",
+            "description": "Ordnance Survey Data Hub API Key",
+            "password": true
+          },
+          {
+            "id": "stdio-key",
+            "type": "promptString",
+            "description": "STDIO auth key (can reuse OS key)",
+            "password": false
+          }
+        ],
+        "servers": {
+          "osNgd": {
+            "type": "stdio",
+            "command": "python",
+            "args": ["-m", "server", "--transport", "stdio"],
+            "env": {
+              "OS_API_KEY": "${input:os-api-key}",
+              "STDIO_KEY": "${input:stdio-key}"
+            },
+            "dev": {
+              "watch": "src/**/*.py"
+            }
+          }
+        }
+      }
     }
   }
 }
