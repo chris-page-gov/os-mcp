@@ -83,6 +83,22 @@ Open Claude Desktop and you should now see all available tools, resources, and p
 
 See `docs/mcp_integration.md` for full guidance, including routing and diagnostics prompts.
 
+### HTTP Health Check
+If you run the HTTP transport:
+```
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
+```
+You can verify the server is up (no auth required):
+```
+curl -s http://127.0.0.1:8000/health
+```
+Response:
+```
+{"status":"ok"}
+```
+
+For a full cURL tutorial of the MCP /mcp endpoint, see `docs/http_usage.md`.
+
 ## Requirements
 
 - Python 3.11+

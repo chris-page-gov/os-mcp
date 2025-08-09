@@ -17,6 +17,8 @@ This document describes how to integrate the `os-mcp` Model Context Protocol (MC
 | stdio | Local dev / fastest startup | Simple, low latency | Per-session only |
 | streamable-http | Shared / multi-client | Reusable endpoint, easier auth via Bearer | Slightly more setup |
 
+Health Check (HTTP transport): once running you can probe `GET /health` (no auth) for `{ "status": "ok" }` to support editor/task readiness checks.
+
 ## Required Environment Variables
 | Variable | Purpose | When Required |
 |----------|---------|---------------|
@@ -84,6 +86,7 @@ HTTP variant (combining launch & discovery):
 | get_bulk_linked_features | On-demand batch | Batch cross-links |
 | get_prompt_templates | Anytime | Discover prompt patterns |
 | get_routing_data | Specialized | Build+extract routing network slices |
+| (HTTP only) /health | N/A | Out-of-band liveness check (not a tool call) |
 
 ### Listing Tools in VS Code Chat
 In the Copilot Chat panel, type:
@@ -225,6 +228,9 @@ In another terminal run unit tests:
 pytest -q
 ```
 All tests (currently >20) should pass; category tests validate prompt filtering.
+
+## Raw HTTP / cURL Usage
+For detailed examples of posting MCP JSON envelopes (tools/call) directly to the `/mcp` endpoint—including `get_workflow_context`, `fetch_detailed_collections`, `search_features`, prompts filtering, routing, and error handling—see `http_usage.md` in this directory.
 
 ## VS Code Launch Task (Optional)
 Create `.vscode/tasks.json`:

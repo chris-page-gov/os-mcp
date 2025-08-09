@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Planned
+### Added
+- `/health` unauthenticated liveness endpoint (HTTP transport) with integration test.
+- `docs/http_usage.md` detailed cURL tutorial.
+
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
 - Caching / performance instrumentation documentation.
