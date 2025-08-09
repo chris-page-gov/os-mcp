@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug MCP (stdio)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "src.server",
+      "args": ["--transport", "stdio"],
+      "justMyCode": true,
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "STDIO_KEY": "dev-key"
+      }
+    },
+    {
+      "name": "Debug MCP (http)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "src.server",
+      "args": ["--transport", "streamable-http", "--host", "127.0.0.1", "--port", "8000"],
+      "justMyCode": true,
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "BEARER_TOKENS": "dev-token"
+      }
+    }
+  ]
+}

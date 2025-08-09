@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run MCP (stdio)",
+      "type": "shell",
+      "command": "python -m src.server --transport stdio",
+      "options": {
+        "env": {
+          "OS_API_KEY": "${env:OS_API_KEY}",
+          "STDIO_KEY": "dev-key"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {"reveal": "always", "panel": "new"}
+    },
+    {
+      "label": "Run MCP (http)",
+      "type": "shell",
+      "command": "python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000",
+      "options": {
+        "env": {
+          "OS_API_KEY": "${env:OS_API_KEY}",
+          "BEARER_TOKENS": "dev-token"
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {"reveal": "always", "panel": "dedicated"}
+    }
+  ]
+}
