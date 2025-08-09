@@ -6,7 +6,7 @@ A MCP server for accessing UK geospatial data through Ordnance Survey APIs.
 
 Provides LLM access to the Ordnance Survey's Data Hub APIs. 
 
-Ask simple questions such as find me all cinemas in Leeds City Centre or use the prompts templates for more complex, speciifc use cases - relating to street works, planning, etc.
+Ask simple questions such as find me all cinemas in Leeds City Centre or use the prompt templates for more complex, specific use cases - relating to street works, planning, etc.
 
 This MCP server enforces a 2 step workflow plan to ensure that the user gets the best results possible.
 
@@ -19,9 +19,9 @@ Register at [OS Data Hub](https://osdatahub.os.uk/) to get your free API key and
 ### 2. Run with Docker (Claude Desktop) or VS Code MCP Chat
 
 ```bash
-Clone the repository:
-git clone https://github.com/your-username/os-mcp-server.git
-cd os-mcp-server
+# Clone the repository:
+git clone https://github.com/chris-page-gov/os-mcp.git
+cd os-mcp
 ```
 
 Then build the Docker image:
@@ -99,11 +99,48 @@ Response:
 
 For a full cURL tutorial of the MCP /mcp endpoint, see `docs/http_usage.md`.
 
+## Frontend (Experimental)
+A browser UI scaffold (React + Vite + TypeScript + Leaflet) lives in `frontend/` providing:
+- Tutorial prompt chips
+- Chat panel (local only for now)
+- Output panel with Answer / Map / Data tabs
+
+MVP design goals & roadmap are documented in `docs/frontend_mvp.md`.
+
+Run it locally (against a running HTTP MCP server):
+```bash
+# In one terminal: start MCP HTTP server
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
+# In another terminal: start frontend dev server
+cd frontend
+npm install
+npm run dev
+# Open the printed localhost URL (typically http://localhost:5173)
+```
+The scaffold currently does not yet stream live MCP calls—gateway / SSE wiring is planned. Map tab initializes only when opened.
+
 ## Requirements
 
 - Python 3.11+
 - OS API Key from [OS Data Hub](https://osdatahub.os.uk/)
-- Set a STDIO_KEY env var which can be any value for now whilst auth is improved.
+- Set a STDIO_KEY env var (any value currently) for stdio auth
+- (Frontend) Node 18+ & npm if you want to run the experimental UI
+
+## Development
+
+Python tests:
+```bash
+pytest
+```
+Type checking:
+```bash
+mypy src
+```
+Frontend build:
+```bash
+cd frontend
+npm run build
+```
 
 ## License
 
