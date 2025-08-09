@@ -12,3 +12,12 @@ dependencies = [
     "starlette>=0.47.1",
     "uvicorn>=0.35.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: fast unit tests",
+    "integration: integration tests requiring app/network",
+    "manual: manual or exploratory tests (skipped by default)",
+]

@@ -10,6 +10,7 @@ from mcp_service.protocols import MCPService, FeatureService
 from mcp_service.guardrails import ToolGuardrails
 from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
+from utils.error_envelope import build_error_envelope
 from mcp_service.resources import OSDocumentationResources
 from mcp_service.prompts import OSWorkflowPrompts
 from mcp_service.routing_service import OSRoutingService
@@ -449,14 +450,18 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except ValueError as ve:
-            error_response = {"error": f"Invalid input: {str(ve)}"}
             return json.dumps(
-                self._add_retry_context(error_response, "search_features")
+                build_error_envelope(
+                    tool="search_features",
+                    code="INVALID_INPUT",
+                    message=f"Invalid input: {str(ve)}",
+                )
             )
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "search_features")
+                build_error_envelope(
+                    tool="search_features", code="GENERAL_ERROR", message=str(e)
+                )
             )
 
     async def get_feature(
@@ -489,8 +494,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            error_response = {"error": f"Error getting feature: {str(e)}"}
-            return json.dumps(self._add_retry_context(error_response, "get_feature"))
+            return json.dumps(
+                build_error_envelope(
+                    tool="get_feature",
+                    message=f"Error getting feature: {str(e)}",
+                )
+            )
 
     async def get_linked_identifiers(
         self,
@@ -524,9 +533,10 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "get_linked_identifiers")
+                build_error_envelope(
+                    tool="get_linked_identifiers", message=str(e)
+                )
             )
 
     async def get_bulk_features(
@@ -567,9 +577,8 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "get_bulk_features")
+                build_error_envelope(tool="get_bulk_features", message=str(e))
             )
 
     async def get_bulk_linked_features(
@@ -601,9 +610,10 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"results": parsed_results})
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "get_bulk_linked_features")
+                build_error_envelope(
+                    tool="get_bulk_linked_features", message=str(e)
+                )
             )
 
     async def get_prompt_templates(
@@ -710,7 +720,11 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             logger.error(f"Error fetching detailed collections: {e}")
             return json.dumps(
-                {"error": str(e), "suggestion": "Check collection IDs and try again"}
+                build_error_envelope(
+                    tool="fetch_detailed_collections",
+                    message=str(e),
+                    details={"suggestion": "Check collection IDs and try again"},
+                )
             )
 
     async def get_routing_data(
@@ -760,4 +774,6 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(result)
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            return json.dumps(
+                build_error_envelope(tool="get_routing_data", message=str(e))
+            )
