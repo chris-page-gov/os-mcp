@@ -1,7 +1,7 @@
 import os
 import time
 from collections import defaultdict, deque
-from typing import List, Callable, Awaitable
+from typing import List, Callable, Awaitable, Deque, DefaultDict, Any
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
@@ -16,7 +16,7 @@ class RateLimiter:
     def __init__(self, requests_per_minute: int = 10, window_seconds: int = 60):
         self.requests_per_minute = requests_per_minute
         self.window_seconds = window_seconds
-        self.request_timestamps = defaultdict(lambda: deque())
+        self.request_timestamps: DefaultDict[str, Deque[float]] = defaultdict(lambda: deque())
 
     def check_rate_limit(self, client_id: str) -> bool:
         """Check if client has exceeded rate limit"""
@@ -65,14 +65,14 @@ async def verify_bearer_token(token: str) -> bool:
 
 
 class HTTPMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, requests_per_minute: int = 10):
+    def __init__(self, app: Any, requests_per_minute: int = 10):
         super().__init__(app)
         self.rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.url.path == "/.well-known/mcp-auth" or request.method == "OPTIONS":
+        if request.url.path in {"/.well-known/mcp-auth", "/health"} or request.method == "OPTIONS":
             return await call_next(request)
 
         session_id = request.headers.get("mcp-session-id")

@@ -35,8 +35,12 @@ def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: 
     async def auth_discovery(_: Any):  # pragma: no cover - trivial
         return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
 
+    async def health(_: Any):  # pragma: no cover - trivial simple status
+        return JSONResponse(content={"status": "ok"})
+
     app = mcp.streamable_http_app()
     app.routes.append(Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]))
+    app.routes.append(Route("/health", endpoint=health, methods=["GET"]))
     app.user_middleware.extend(
         [
             Middleware(
@@ -122,6 +126,9 @@ def main():
                     content={"authMethods": [{"type": "http", "scheme": "bearer"}]}
                 )
 
+            async def health(_: Any) -> JSONResponse:  # pragma: no cover - trivial
+                return JSONResponse(content={"status": "ok"})
+
             app = mcp.streamable_http_app()
 
             app.routes.append(
@@ -131,6 +138,7 @@ def main():
                     methods=["GET"],
                 )
             )
+            app.routes.append(Route("/health", endpoint=health, methods=["GET"]))
 
             app.user_middleware.extend(
                 [
