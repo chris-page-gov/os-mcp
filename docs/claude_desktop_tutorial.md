@@ -52,6 +52,11 @@ Ideal tool sequence Claude should decide (summarized):
 If Claude tries to skip step 1 you’ll see an error envelope with `WORKFLOW_CONTEXT_REQUIRED`; Claude should then recover automatically. You can nudge:
 > First call get_workflow_context, then fetch_detailed_collections for the land use site collection before any searches.
 
+JSON envelope example (what Claude sends under the hood):
+```json
+{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}
+```
+
 ## 4. Using Prompt Templates Conversationally
 You can explicitly request a template:
 > List the available prompt templates.

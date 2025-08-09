@@ -17,7 +17,7 @@ endef
 export COMMIT_TYPES
 
 
-.PHONY: update git-add git-commit git-push
+.PHONY: update git-add git-commit git-push docs health version
 
 # Git commands
 update: git-add git-commit git-push
@@ -54,3 +54,22 @@ git-commit:
 
 git-push:
 	git push
+
+# Show key documentation files
+docs:
+	@echo "Documentation index:"\
+	; echo " - README.md"\
+	; echo " - docs/mcp_integration.md"\
+	; echo " - docs/http_usage.md"\
+	; echo " - docs/claude_desktop_tutorial.md"\
+	; echo "Changelog: CHANGELOG.md"
+
+# Simple health probe (expects server on localhost:8000)
+health:
+	@curl -sf http://127.0.0.1:8000/health | grep '"status"' && echo " OK" || (echo " FAIL" && exit 1)
+
+# Bump version (usage: make version NEW=0.1.10)
+version:
+	@[ -n "$(NEW)" ] || (echo "Specify NEW=x.y.z" && exit 1)
+	sed -i "s/^version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"$(NEW)\"/" pyproject.toml
+	grep '^version =' pyproject.toml
