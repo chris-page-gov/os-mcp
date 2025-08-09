@@ -30,7 +30,7 @@
           "osNgd": {
             "type": "stdio",
             "command": "python",
-            "args": ["-m", "server", "--transport", "stdio"],
+            "args": ["-m", "src.server", "--transport", "stdio"],
             "env": {
               // Forward existing container env vars directly (no prompts)
               "OS_API_KEY": "${env:OS_API_KEY}",
