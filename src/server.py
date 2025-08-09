@@ -1,7 +1,7 @@
 import argparse
 import os
 import uvicorn
-from typing import Any
+from typing import Any, List, Dict
 from utils.logging_config import configure_logging
 
 from api_service.os_api import OSAPIClient
@@ -15,6 +15,41 @@ from starlette.routing import Route
 from starlette.responses import JSONResponse
 
 logger = configure_logging()
+
+
+def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: bool = False):
+    """Factory that builds the FastMCP streamable HTTP app (used by tests)."""
+    mcp = FastMCP(
+        "os-ngd-api",
+        host=host,
+        port=port,
+        debug=debug,
+        json_response=True,
+        stateless_http=False,
+        log_level="DEBUG" if debug else "INFO",
+    )
+    api_client = OSAPIClient()
+    service = OSDataHubService(api_client, mcp)
+
+    async def auth_discovery(_: Any):  # pragma: no cover - trivial
+        return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
+
+    app = mcp.streamable_http_app()
+    app.routes.append(Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]))
+    app.user_middleware.extend(
+        [
+            Middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["GET", "POST", "OPTIONS"],
+                allow_headers=["*"],
+                expose_headers=["*"],
+            ),
+            Middleware(HTTPMiddleware),
+        ]
+    )
+    return app, service
 
 
 def main():
