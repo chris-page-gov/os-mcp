@@ -15,6 +15,7 @@
   },
   "forwardPorts": [8000, 5173],
   "postCreateCommand": "pip install uv && uv pip install --system .[test] && (cd frontend && npm install --no-audit --no-fund || true)",
+  "postStartCommand": "uv pip install --system .[test]",
   "customizations": {
     "vscode": {
       "extensions": [
