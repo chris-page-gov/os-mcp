@@ -9,6 +9,7 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 ### Added
 - `/health` unauthenticated liveness endpoint (HTTP transport) with integration test.
 - `docs/http_usage.md` detailed cURL tutorial.
+- `docs/claude_desktop_tutorial.md` plain language Claude Desktop integration guide.
 
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
