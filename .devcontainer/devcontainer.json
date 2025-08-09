@@ -14,8 +14,8 @@
     "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
   },
   "forwardPorts": [8000, 5173],
-  "postCreateCommand": "pip install uv && uv pip install --system .[test] && (cd frontend && npm install --no-audit --no-fund || true)",
-  "postStartCommand": "uv pip install --system .[test]",
+  "postCreateCommand": "pip install --user -e .[test] && (cd frontend && npm install --no-audit --no-fund || true)",
+  "postStartCommand": "pip install --user -e .[test] >/dev/null 2>&1 || true",
   "customizations": {
     "vscode": {
       "extensions": [
