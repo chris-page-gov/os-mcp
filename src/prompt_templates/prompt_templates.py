@@ -1,4 +1,6 @@
-PROMPT_TEMPLATES = {
+from typing import Dict
+
+PROMPT_TEMPLATES: Dict[str, str] = {
     "usrn_breakdown": (
         "Break down USRN {usrn} into its component road links for routing analysis. "
         "Step 1: GET /collections/trn-ntwk-street-1/items?filter=usrn='{usrn}' to get street details. "
@@ -27,3 +29,20 @@ PROMPT_TEMPLATES = {
         "Return: Complete restriction mapping showing ACTUAL STREET NAMES with their specific restrictions, directions, exemptions, and road classifications. Present results as 'Street Name (Road Class)' rather than UUIDs."
     ),
 }
+
+# Attempt to import and merge optional regional / thematic prompt extensions.
+for _module_name, _symbol in [
+    ("warwickshire", "WARWICKSHIRE_PROMPTS"),
+    ("planning", "PLANNING_PROMPTS"),
+    ("routing", "ROUTING_PROMPTS"),
+    ("diagnostics", "DIAGNOSTICS_PROMPTS"),
+]:
+    try:  # pragma: no cover
+        _mod = __import__(f"prompt_templates.{_module_name}", fromlist=[_symbol])
+        _dict = getattr(_mod, _symbol)
+        for _k, _v in _dict.items():
+            if _k not in PROMPT_TEMPLATES:
+                PROMPT_TEMPLATES[_k] = _v
+    except Exception:
+        continue
+

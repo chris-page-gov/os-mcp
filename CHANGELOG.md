@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
+## [Unreleased]
+### Planned
+- `suggest_workflow` tool for automatic prompt recommendation.
+- Additional regional prompt modules (e.g. London, Manchester).
+- Caching / performance instrumentation documentation.
+
+## [0.1.8] - 2025-08-09
+### Added
+- Comprehensive VS Code MCP integration & testing guide (`docs/mcp_integration.md`).
+- Extended prompt library: Warwickshire, planning, routing, diagnostics modules with dynamic merging.
+- Category filtering for `get_prompt_templates` (substring match) across all transports.
+- Extensive category filtering test coverage (warwickshire/planning/routing/diagnostic/diagnostics/unknown).
+- README section for VS Code MCP setup.
+
+### Changed
+- Documentation clarified two-step workflow enforcement & diagnostic recovery patterns.
+
+### Internal / Maintenance
+- Test suite expanded to 24 passing tests including new category scenarios.
+
 ## [0.1.7] - 2025-08-09
 ### Added
 - Standardised error handling with `ErrorCode` enum and `build_error_envelope` helper (retry guidance & normalization).

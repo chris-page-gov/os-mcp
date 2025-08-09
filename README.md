@@ -16,7 +16,7 @@ This MCP server enforces a 2 step workflow plan to ensure that the user gets the
 
 Register at [OS Data Hub](https://osdatahub.os.uk/) to get your free API key and set up a project.
 
-### 2. Run with Docker and add to your Claude Desktop config (easiest)
+### 2. Run with Docker (Claude Desktop) or VS Code MCP Chat
 
 ```bash
 Clone the repository:
@@ -53,6 +53,35 @@ Add the following to your Claude Desktop config:
 ```
 
 Open Claude Desktop and you should now see all available tools, resources, and prompts.
+
+### VS Code MCP (Experimental) Setup
+1. Create `~/.config/vscode/mcp/servers.json`:
+```jsonc
+{
+  "servers": {
+    "os-ngd": {
+      "command": "python",
+      "args": ["-m", "server", "--transport", "stdio"],
+      "env": {"OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev"}
+    }
+  }
+}
+```
+2. Start VS Code, open Copilot Chat, and issue:
+```
+@os-ngd list tools
+```
+3. List prompts:
+```
+@os-ngd call get_prompt_templates {}
+```
+4. Filter prompts (e.g. planning):
+```
+@os-ngd call get_prompt_templates {"category": "planning"}
+```
+5. Execute a workflow using a prompt key (e.g. `search_cinemas_leamington`).
+
+See `docs/mcp_integration.md` for full guidance, including routing and diagnostics prompts.
 
 ## Requirements
 

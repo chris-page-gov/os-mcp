@@ -641,9 +641,10 @@ class OSDataHubService:
         Returns:
             JSON string containing prompt templates
         """
-        if category and category in PROMPT_TEMPLATES:
-            return json.dumps({category: PROMPT_TEMPLATES[category]})
-
+        if category:
+            needle = category.lower()
+            filtered = {k: v for k, v in PROMPT_TEMPLATES.items() if needle in k.lower()}
+            return json.dumps(filtered)
         return json.dumps(PROMPT_TEMPLATES)
 
     async def fetch_detailed_collections(self, collection_ids: str | List[str]) -> str:

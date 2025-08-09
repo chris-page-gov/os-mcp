@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from mcp.types import PromptMessage, TextContent
 from prompt_templates.prompt_templates import PROMPT_TEMPLATES
 from utils.logging_config import get_logger
@@ -74,3 +74,24 @@ class OSWorkflowPrompts:
                     ),
                 )
             ]
+
+
+def get_prompt_templates(category: str | None = None) -> Dict[str, str]:
+    """Return prompt templates with optional substring category filtering.
+
+    Special case: category 'warwickshire' returns ALL Warwickshire prompts even
+    if individual keys don't contain the substring.
+    """
+    from prompt_templates.prompt_templates import PROMPT_TEMPLATES  # local import to ensure merge executed
+
+    if category:
+        needle = category.lower()
+        if needle == "warwickshire":
+            try:  # pragma: no cover
+                from prompt_templates.warwickshire import WARWICKSHIRE_PROMPTS  # type: ignore
+
+                return {k: v for k, v in PROMPT_TEMPLATES.items() if k in WARWICKSHIRE_PROMPTS}
+            except Exception:
+                pass
+        return {k: v for k, v in PROMPT_TEMPLATES.items() if needle in k.lower()}
+    return PROMPT_TEMPLATES
