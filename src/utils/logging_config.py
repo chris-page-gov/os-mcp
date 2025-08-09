@@ -2,14 +2,16 @@ import logging
 import sys
 import os
 import re
+import json
+from typing import Any, Dict
 
 
 class APIKeySanitisingFilter(logging.Filter):
     """Filter to sanitise API keys from log messages"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.patterns = [
+        self.patterns: list[str] = [
             r"[?&]key=[^&\s]*",
             r"[?&]api_key=[^&\s]*",
             r"[?&]apikey=[^&\s]*",
@@ -22,7 +24,7 @@ class APIKeySanitisingFilter(logging.Filter):
             record.msg = self._sanitise_text(record.msg)
 
         if hasattr(record, "args") and record.args:
-            sanitised_args = []
+            sanitised_args: list[object] = []
             for arg in record.args:
                 if isinstance(arg, str):
                     sanitised_args.append(self._sanitise_text(arg))
@@ -45,7 +47,25 @@ class APIKeySanitisingFilter(logging.Filter):
         return sanitised
 
 
-def configure_logging(debug: bool = False) -> logging.Logger:
+class JsonRequestFormatter(logging.Formatter):
+    """JSON formatter that includes request_id if present on the record."""
+
+    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+        base: Dict[str, Any] = {
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            base["exc_info"] = self.formatException(record.exc_info)
+        # Pull request_id from extra or message interpolation (middleware sets request.state.request_id; apps can log with extra)
+        request_id = getattr(record, "request_id", None)
+        if request_id:
+            base["request_id"] = request_id
+        return json.dumps(base, ensure_ascii=False)
+
+
+def configure_logging(debug: bool = False, json_logs: bool = False) -> logging.Logger:
     """
     Configure logging for the entire application.
 
@@ -56,9 +76,12 @@ def configure_logging(debug: bool = False) -> logging.Logger:
         logging.DEBUG if (debug or os.environ.get("DEBUG") == "1") else logging.INFO
     )
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    if json_logs:
+        formatter: logging.Formatter = JsonRequestFormatter()
+    else:
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
 
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)

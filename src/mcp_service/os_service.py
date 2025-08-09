@@ -1,16 +1,18 @@
+from typing import Optional, List, Dict, Any, Union, Callable, Awaitable, cast
 import json
 import asyncio
 import functools
 import re
 
-from typing import Optional, List, Dict, Any, Union, Callable
-from api_service.protocols import APIClient
-from prompt_templates.prompt_templates import PROMPT_TEMPLATES
-from mcp_service.protocols import MCPService, FeatureService
+# (Local typing imports moved to header section)
+from api_service.protocols import APIClient  # type: ignore[import-untyped]
+from prompt_templates.prompt_templates import PROMPT_TEMPLATES  # type: ignore[import-untyped]
+from mcp_service.protocols import MCPService
 from mcp_service.guardrails import ToolGuardrails
 from workflow_generator.workflow_planner import WorkflowPlanner
 from utils.logging_config import get_logger
-from utils.error_envelope import build_error_envelope
+from utils.error_envelope import build_error_envelope, ErrorCode
+from models import LinkedIdentifier
 from mcp_service.resources import OSDocumentationResources
 from mcp_service.prompts import OSWorkflowPrompts
 from mcp_service.routing_service import OSRoutingService
@@ -18,20 +20,16 @@ from mcp_service.routing_service import OSRoutingService
 logger = get_logger(__name__)
 
 
-class OSDataHubService(FeatureService):
+class OSDataHubService:
     """Implementation of the OS NGD API service with MCP"""
 
     def __init__(
-        self, api_client: APIClient, mcp_service: MCPService, stdio_middleware=None
-    ):
-        """
-        Initialise the OS NGD service
-
-        Args:
-            api_client: API client implementation
-            mcp_service: MCP service implementation
-            stdio_middleware: Optional STDIO middleware for rate limiting
-        """
+        self,
+        api_client: APIClient,
+        mcp_service: MCPService,
+        stdio_middleware: Optional[Any] = None,
+    ) -> None:
+        """Initialise the OS NGD service"""
         self.api_client = api_client
         self.mcp = mcp_service
         self.stdio_middleware = stdio_middleware
@@ -49,46 +47,37 @@ class OSDataHubService(FeatureService):
         doc_resources.register_all()
 
     def register_tools(self) -> None:
-        """Register all MCP tools with guardrails and middleware"""
+        """Register all MCP tools with guardrails and middleware without broad ignores."""
 
-        def apply_middleware(func: Callable) -> Callable:
-            wrapped = self.guardrails.basic_guardrails(func)
-            wrapped = self._require_workflow_context(wrapped)
+        def apply_middleware(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+            base: Callable[..., Awaitable[Any]] = self.guardrails.basic_guardrails(func)
+            base = self._require_workflow_context(base)
             if self.stdio_middleware:
-                wrapped = self.stdio_middleware.require_auth_and_rate_limit(wrapped)
-            return wrapped
+                base = self.stdio_middleware.require_auth_and_rate_limit(base)
+            # FastMCP decorator expects an async callable signature; we trust guardrails preserves it.
+            return base
 
-        # Apply middleware to ALL tools
-        self.get_workflow_context = self.mcp.tool()(
-            apply_middleware(self.get_workflow_context)
-        )
-        self.hello_world = self.mcp.tool()(apply_middleware(self.hello_world))
-        self.check_api_key = self.mcp.tool()(apply_middleware(self.check_api_key))
-        self.list_collections = self.mcp.tool()(apply_middleware(self.list_collections))
-        self.get_single_collection = self.mcp.tool()(
-            apply_middleware(self.get_single_collection)
-        )
-        self.get_single_collection_queryables = self.mcp.tool()(
-            apply_middleware(self.get_single_collection_queryables)
-        )
-        self.search_features = self.mcp.tool()(apply_middleware(self.search_features))
-        self.get_feature = self.mcp.tool()(apply_middleware(self.get_feature))
-        self.get_linked_identifiers = self.mcp.tool()(
-            apply_middleware(self.get_linked_identifiers)
-        )
-        self.get_bulk_features = self.mcp.tool()(
-            apply_middleware(self.get_bulk_features)
-        )
-        self.get_bulk_linked_features = self.mcp.tool()(
-            apply_middleware(self.get_bulk_linked_features)
-        )
-        self.get_prompt_templates = self.mcp.tool()(
-            apply_middleware(self.get_prompt_templates)
-        )
-        self.fetch_detailed_collections = self.mcp.tool()(
-            apply_middleware(self.fetch_detailed_collections)
-        )
-        self.get_routing_data = self.mcp.tool()(apply_middleware(self.get_routing_data))
+        tool_names = [
+            "get_workflow_context",
+            "hello_world",
+            "check_api_key",
+            "list_collections",
+            "get_single_collection",
+            "get_single_collection_queryables",
+            "search_features",
+            "get_feature",
+            "get_linked_identifiers",
+            "get_bulk_features",
+            "get_bulk_linked_features",
+            "get_prompt_templates",
+            "fetch_detailed_collections",
+            "get_routing_data",
+        ]
+        for name in tool_names:
+            original = getattr(self, name)
+            wrapped = apply_middleware(original)
+            tool_wrapped = self.mcp.tool()(wrapped)
+            setattr(self, name, cast(Callable[..., Awaitable[Any]], tool_wrapped))
 
     def register_prompts(self) -> None:
         """Register all MCP prompts"""
@@ -110,7 +99,7 @@ class OSDataHubService(FeatureService):
             except Exception as e:
                 logger.error(f"Error during cleanup: {e}")
 
-    async def _cleanup(self):
+    async def _cleanup(self) -> None:
         """Async cleanup method"""
         try:
             if hasattr(self, "api_client") and self.api_client:
@@ -198,7 +187,7 @@ class OSDataHubService(FeatureService):
                 {"error": str(e), "instruction": "Proceed with available tools"}
             )
 
-    def _require_workflow_context(self, func: Callable) -> Callable:
+    def _require_workflow_context(self, func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         # Functions that don't need workflow context
         skip_functions = {"get_workflow_context", "hello_world", "check_api_key"}
 
@@ -222,14 +211,11 @@ class OSDataHubService(FeatureService):
 
     # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
     # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
-    def _add_retry_context(self, response_data: dict, tool_name: str) -> dict:
-        """Add retry guidance to tool responses"""
-        if "error" in response_data:
-            response_data["retry_guidance"] = {
-                "tool": tool_name,
-                "MANDATORY_INSTRUCTION 1": "Review the error message and try again with corrected parameters",
-                "MANDATORY_INSTRUCTION 2": "YOU MUST call get_workflow_context() if you need to see available options again",
-            }
+    # Legacy retry helper kept for backward compat in tests referencing guidance keys (now replaced by build_error_envelope)
+    def _add_retry_context(self, response_data: Dict[str, Any], tool_name: str) -> Dict[str, Any]:  # pragma: no cover - maintained for legacy
+        if "error" in response_data and "retry_guidance" not in response_data:
+            new_env = build_error_envelope(tool=tool_name, message=response_data.get("error", "Error"))
+            response_data.update(new_env)
         return response_data
 
     # All the tools
@@ -258,7 +244,13 @@ class OSDataHubService(FeatureService):
             data = await self.api_client.make_request("COLLECTIONS")
 
             if not data or "collections" not in data:
-                return json.dumps({"error": "No collections found"})
+                return json.dumps(
+                    build_error_envelope(
+                        tool="list_collections",
+                        code=ErrorCode.NOT_FOUND,
+                        message="No collections found",
+                    )
+                )
 
             collections = [
                 {"id": col.get("id"), "title": col.get("title")}
@@ -267,9 +259,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps({"collections": collections})
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "list_collections")
+                build_error_envelope(
+                    tool="list_collections",
+                    code=ErrorCode.UPSTREAM_ERROR,
+                    message=str(e),
+                )
             )
 
     async def get_single_collection(
@@ -292,9 +287,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "get_collection_info")
+                build_error_envelope(
+                    tool="get_single_collection",
+                    code=ErrorCode.UPSTREAM_ERROR,
+                    message=str(e),
+                )
             )
 
     async def get_single_collection_queryables(
@@ -317,9 +315,12 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except Exception as e:
-            error_response = {"error": str(e)}
             return json.dumps(
-                self._add_retry_context(error_response, "get_collection_queryables")
+                build_error_envelope(
+                    tool="get_single_collection_queryables",
+                    code=ErrorCode.UPSTREAM_ERROR,
+                    message=str(e),
+                )
             )
 
     async def search_features(
@@ -438,10 +439,17 @@ class OSDataHubService(FeatureService):
                 )
                 if collection_id not in valid_collections:
                     return json.dumps(
-                        {
-                            "error": f"Invalid collection '{collection_id}'. Valid collections: {sorted(valid_collections)[:10]}...",
-                            "suggestion": "Call get_workflow_context() to see all available collections",
-                        }
+                        build_error_envelope(
+                            tool="search_features",
+                            code=ErrorCode.INVALID_COLLECTION,
+                            message=(
+                                f"Invalid collection '{collection_id}'. Valid collections (sample): {sorted(valid_collections)[:10]}..."
+                            ),
+                            details={
+                                "suggestion": "Call get_workflow_context() to see all available collections",
+                                "provided_collection": collection_id,
+                            },
+                        )
                     )
 
             data = await self.api_client.make_request(
@@ -453,14 +461,14 @@ class OSDataHubService(FeatureService):
             return json.dumps(
                 build_error_envelope(
                     tool="search_features",
-                    code="INVALID_INPUT",
+                    code=ErrorCode.INVALID_INPUT,
                     message=f"Invalid input: {str(ve)}",
                 )
             )
         except Exception as e:
             return json.dumps(
                 build_error_envelope(
-                    tool="search_features", code="GENERAL_ERROR", message=str(e)
+                    tool="search_features", code=ErrorCode.GENERAL_ERROR, message=str(e)
                 )
             )
 
@@ -497,6 +505,7 @@ class OSDataHubService(FeatureService):
             return json.dumps(
                 build_error_envelope(
                     tool="get_feature",
+                    code=ErrorCode.UPSTREAM_ERROR,
                     message=f"Error getting feature: {str(e)}",
                 )
             )
@@ -524,18 +533,20 @@ class OSDataHubService(FeatureService):
             )
 
             if feature_type:
-                # Filter results by feature type
-                filtered_results = []
-                for item in data.get("results", []):
-                    if item.get("featureType") == feature_type:
-                        filtered_results.append(item)
-                return json.dumps({"results": filtered_results})
+                raw = data.get("results", [])
+                linked: List[LinkedIdentifier] = []
+                if isinstance(raw, list):
+                    for item in raw:
+                        if isinstance(item, dict) and isinstance(item.get("featureType"), str):
+                            linked.append(cast(LinkedIdentifier, item))
+                filtered = [li for li in linked if li.get("featureType") == feature_type]
+                return json.dumps({"results": filtered})
 
             return json.dumps(data)
         except Exception as e:
             return json.dumps(
                 build_error_envelope(
-                    tool="get_linked_identifiers", message=str(e)
+                    tool="get_linked_identifiers", code=ErrorCode.UPSTREAM_ERROR, message=str(e)
                 )
             )
 
@@ -578,7 +589,7 @@ class OSDataHubService(FeatureService):
             return json.dumps({"results": parsed_results})
         except Exception as e:
             return json.dumps(
-                build_error_envelope(tool="get_bulk_features", message=str(e))
+                build_error_envelope(tool="get_bulk_features", code=ErrorCode.UPSTREAM_ERROR, message=str(e))
             )
 
     async def get_bulk_linked_features(
@@ -612,7 +623,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             return json.dumps(
                 build_error_envelope(
-                    tool="get_bulk_linked_features", message=str(e)
+                    tool="get_bulk_linked_features", code=ErrorCode.UPSTREAM_ERROR, message=str(e)
                 )
             )
 
@@ -635,7 +646,7 @@ class OSDataHubService(FeatureService):
 
         return json.dumps(PROMPT_TEMPLATES)
 
-    async def fetch_detailed_collections(self, collection_ids: str) -> str:
+    async def fetch_detailed_collections(self, collection_ids: str | List[str]) -> str:
         """
         Fetch detailed queryables for specific collections mentioned in LLM workflow plan.
 
@@ -652,12 +663,17 @@ class OSDataHubService(FeatureService):
         try:
             if not self.workflow_planner:
                 return json.dumps(
-                    {
-                        "error": "Workflow planner not initialized. Call get_workflow_context() first."
-                    }
+                    build_error_envelope(
+                        tool="fetch_detailed_collections",
+                        code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
+                        message="Workflow planner not initialized. Call get_workflow_context() first.",
+                    )
                 )
 
-            requested_collections = [cid.strip() for cid in collection_ids.split(",")]
+            if isinstance(collection_ids, str):
+                requested_collections = [cid.strip() for cid in collection_ids.split(",")]
+            else:
+                requested_collections = [cid.strip() for cid in collection_ids]
 
             valid_collections = set(self.workflow_planner.basic_collections_info.keys())
             invalid_collections = [
@@ -666,23 +682,21 @@ class OSDataHubService(FeatureService):
 
             if invalid_collections:
                 return json.dumps(
-                    {
-                        "error": f"Invalid collection IDs: {invalid_collections}",
-                        "valid_collections": sorted(valid_collections),
-                    }
+                    build_error_envelope(
+                        tool="fetch_detailed_collections",
+                        code=ErrorCode.INVALID_COLLECTION,
+                        message=f"Invalid collection IDs: {invalid_collections}",
+                        details={"valid_collections": sorted(valid_collections)},
+                    )
                 )
 
-            cached_collections = [
-                cid
-                for cid in requested_collections
-                if cid in self.workflow_planner.detailed_collections_cache
-            ]
+            # Hint type for mypy (the workflow planner sets this as Dict[str, Dict[str, Any]])
+            detailed_cache: Dict[str, Dict[str, Any]] = getattr(
+                self.workflow_planner, "detailed_collections_cache", {}
+            )
+            cached_collections = [cid for cid in requested_collections if cid in detailed_cache]
 
-            collections_to_fetch = [
-                cid
-                for cid in requested_collections
-                if cid not in self.workflow_planner.detailed_collections_cache
-            ]
+            collections_to_fetch = [cid for cid in requested_collections if cid not in detailed_cache]
 
             if collections_to_fetch:
                 logger.info(f"Fetching detailed queryables for: {collections_to_fetch}")
@@ -693,7 +707,7 @@ class OSDataHubService(FeatureService):
                 )
 
                 for coll_id, queryables in detailed_queryables.items():
-                    self.workflow_planner.detailed_collections_cache[coll_id] = {
+                    detailed_cache[coll_id] = {
                         "id": queryables.id,
                         "title": queryables.title,
                         "description": queryables.description,
@@ -722,6 +736,7 @@ class OSDataHubService(FeatureService):
             return json.dumps(
                 build_error_envelope(
                     tool="fetch_detailed_collections",
+                    code=ErrorCode.UPSTREAM_ERROR,
                     message=str(e),
                     details={"suggestion": "Check collection IDs and try again"},
                 )
@@ -775,5 +790,5 @@ class OSDataHubService(FeatureService):
             return json.dumps(result)
         except Exception as e:
             return json.dumps(
-                build_error_envelope(tool="get_routing_data", message=str(e))
+                build_error_envelope(tool="get_routing_data", code=ErrorCode.UPSTREAM_ERROR, message=str(e))
             )

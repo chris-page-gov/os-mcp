@@ -9,6 +9,7 @@ from mcp_service.os_service import OSDataHubService
 from mcp.server.fastmcp import FastMCP
 from middleware.stdio_middleware import StdioMiddleware
 from middleware.http_middleware import HTTPMiddleware
+from middleware.request_id_middleware import RequestIDMiddleware
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
@@ -46,6 +47,7 @@ def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: 
                 allow_headers=["*"],
                 expose_headers=["*"],
             ),
+            Middleware(RequestIDMiddleware),
             Middleware(HTTPMiddleware),
         ]
     )
@@ -140,6 +142,7 @@ def main():
                         allow_headers=["*"],
                         expose_headers=["*"],
                     ),
+                    Middleware(RequestIDMiddleware),
                     Middleware(HTTPMiddleware),
                 ]
             )

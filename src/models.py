@@ -4,7 +4,7 @@ Types for the OS NGD API MCP Server
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Any, List, Dict
+from typing import Any, List, Dict, TypedDict, NotRequired
 
 
 class NGDAPIEndpoint(Enum):
@@ -116,3 +116,13 @@ class WorkflowContextCache(BaseModel):
     collections_info: Dict[str, CollectionQueryables]
     openapi_spec: OpenAPISpecification
     cached_at: float
+
+
+class LinkedIdentifier(TypedDict, total=False):
+    """Minimal structure for linked identifier items returned by the links API."""
+    identifier: str | None
+    featureType: str
+    linkedIdentifier: NotRequired[str | None]
+    relation: NotRequired[str | None]
+    # Additional keys may be present; kept flexible via total=False
+
