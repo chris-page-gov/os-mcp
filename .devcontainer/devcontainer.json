@@ -24,28 +24,16 @@
         "esbenp.prettier-vscode"
       ],
       "mcp": {
-        "inputs": [
-          {
-            "id": "os-api-key",
-            "type": "promptString",
-            "description": "Ordnance Survey Data Hub API Key",
-            "password": true
-          },
-          {
-            "id": "stdio-key",
-            "type": "promptString",
-            "description": "STDIO auth key (can reuse OS key)",
-            "password": false
-          }
-        ],
+        // Inputs removed: rely purely on environment variables already injected via containerEnv
         "servers": {
           "osNgd": {
             "type": "stdio",
             "command": "python",
             "args": ["-m", "server", "--transport", "stdio"],
             "env": {
-              "OS_API_KEY": "${input:os-api-key}",
-              "STDIO_KEY": "${input:stdio-key}"
+              // Forward existing container env vars directly (no prompts)
+              "OS_API_KEY": "${env:OS_API_KEY}",
+              "STDIO_KEY": "${env:STDIO_KEY}"
             },
             "dev": {
               "watch": "src/**/*.py"
