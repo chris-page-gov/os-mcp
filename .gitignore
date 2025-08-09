@@ -6,6 +6,29 @@ dist/
 wheels/
 *.egg-info
 
+# Node / Frontend build artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.vite/
+*.tsbuildinfo
+package-lock.json
+
+# Coverage & reports
+.coverage
+coverage/
+coverage-html/
+coverage.xml
+
+# IDE / Editor
+.idea/
+.vscode/
+
+# Misc
+*.log
+*.DS_Store
+Thumbs.db
+
 # Virtual environments
 .venv
 .env

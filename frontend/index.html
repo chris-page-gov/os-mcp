@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>OS NGD Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      html, body, #root { height: 100%; margin:0; font-family: system-ui, sans-serif; }
+      body { background: #0f1115; color: #e6e9ef; }
+      .layout { display:flex; height:100%; }
+      .col { border-right:1px solid #222; overflow:auto; }
+      .col:last-child { border-right:none; }
+      .tutorial { width:25%; min-width:240px; }
+      .chat { width:40%; min-width:320px; display:flex; flex-direction:column; }
+      .output { width:35%; min-width:300px; display:flex; flex-direction:column; }
+      .messages { flex:1; overflow:auto; padding:12px; }
+      .input-bar { display:flex; gap:8px; padding:8px; border-top:1px solid #222; }
+      textarea { flex:1; resize:vertical; min-height:48px; background:#1b1f27; color:#eee; border:1px solid #333; padding:8px; }
+      button { background:#254fbe; color:#fff; border:none; padding:8px 12px; cursor:pointer; border-radius:4px; font-family:inherit; }
+      button.secondary { background:#333; }
+      .prompt-chip { display:inline-block; background:#1e2632; padding:4px 8px; margin:4px; border-radius:999px; font-size:13px; cursor:pointer; }
+      .map-container { position:relative; flex:1; }
+      #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+      .tab-bar { display:flex; border-bottom:1px solid #222; font-size:12px; }
+      .tab { padding:6px 12px; cursor:pointer; user-select:none; }
+      .tab.active { background:#1b1f27; }
+      @media (max-width:900px) { .layout { flex-direction:column; } .tutorial,.chat,.output { width:100%; min-width:auto; } .col { border-right:none; border-bottom:1px solid #222; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
