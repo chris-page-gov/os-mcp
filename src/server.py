@@ -1,7 +1,11 @@
 import argparse
 import os
 import uvicorn
-from typing import Any
+import time
+import json
+import inspect
+from typing import Any, List, Dict
+from importlib import metadata
 from utils.logging_config import configure_logging
 
 from api_service.os_api import OSAPIClient
@@ -33,6 +37,11 @@ def main():
         "--port", type=int, default=8000, help="Port to bind to (default: 8000)"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument(
+        "--stateless-http",
+        action="store_true",
+        help="Enable stateless HTTP mode (no session requirement)",
+    )
     args = parser.parse_args()
 
     configure_logging(debug=args.debug)
@@ -42,6 +51,13 @@ def main():
     )
 
     api_client = OSAPIClient()
+
+    start_time = time.time()
+    pkg_version = "0.0.0"
+    try:
+        pkg_version = metadata.version("os-mcp")
+    except Exception:
+        pkg_version = os.environ.get("OS_MCP_VERSION", "0.0.0")
 
     match args.transport:
         case "stdio":
@@ -64,7 +80,6 @@ def main():
                 stdio_auth.authenticate("vscode-mcp")
 
             service.run()
-
         case "streamable-http":
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
 
@@ -74,11 +89,11 @@ def main():
                 port=args.port,
                 debug=args.debug,
                 json_response=True,
-                stateless_http=False,
+                stateless_http=args.stateless_http,
                 log_level="DEBUG" if args.debug else "INFO",
             )
 
-            OSDataHubService(api_client, mcp)
+            service = OSDataHubService(api_client, mcp)
 
             async def auth_discovery(_: Any) -> JSONResponse:
                 """Return authentication methods."""
@@ -94,6 +109,89 @@ def main():
                     endpoint=auth_discovery,
                     methods=["GET"],
                 )
+            )
+
+            async def well_known_metadata(_: Any) -> JSONResponse:
+                """Return MCP capability metadata (experimental)."""
+                tools_meta: List[Dict[str, Any]] = []
+                try:
+                    if hasattr(service, "get_tool_metadata"):
+                        tools_meta = service.get_tool_metadata()
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.debug(f"Tool metadata error: {e}")
+                content = {
+                    "name": "os-ngd-api",
+                    "version": pkg_version,
+                    "capabilities": {
+                        "tools": {"list": True, "call": True},
+                        "resources": True,
+                        "prompts": True,
+                    },
+                    "errorEnvelope": {
+                        "version": 1,
+                        "fields": [
+                            "status",
+                            "version",
+                            "tool",
+                            "error_code",
+                            "message",
+                            "error",
+                            "details",
+                            "retry_guidance"
+                        ],
+                        "codes": ["INVALID_INPUT", "GENERAL_ERROR"],
+                        "backwardCompatibility": {
+                            "legacyErrorField": True,
+                            "description": "Top-level 'error' preserved alongside 'message'"
+                        }
+                    },
+                    "preferredModels": {
+                        "embedding": ["text-embedding-3-large"],
+                        "reasoning": ["gpt-4.1", "claude-3.5-sonnet"],
+                        "fast": ["gpt-4o-mini"],
+                    },
+                    "toolCount": len(tools_meta),
+                }
+                return JSONResponse(content=content)
+
+            async def list_tools(_: Any) -> JSONResponse:
+                """Return a simple list of available tools and their parameters."""
+                try:
+                    tools_meta = service.get_tool_metadata() if hasattr(service, "get_tool_metadata") else []
+                    return JSONResponse(content={"tools": tools_meta})
+                except Exception as e:  # pragma: no cover
+                    return JSONResponse(
+                        status_code=500,
+                        content={
+                            "error": {"code": "internal_error", "message": str(e)}
+                        },
+                    )
+
+            async def status(_: Any) -> JSONResponse:
+                """Return lightweight service status."""
+                uptime = int(time.time() - start_time)
+                return JSONResponse(
+                    content={
+                        "status": "ok",
+                        "service": "os-ngd-api",
+                        "version": pkg_version,
+                        "uptime_seconds": uptime,
+                        "transport": "streamable-http",
+                        "stateless": args.stateless_http,
+                    }
+                )
+
+            # Additional discovery/status endpoints
+            app.routes.extend(
+                [
+                    Route(
+                        "/.well-known/mcp.json",
+                        endpoint=well_known_metadata,
+                        methods=["GET"],
+                    ),
+                    Route("/mcp/tools", endpoint=list_tools, methods=["GET"]),
+                    Route("/mcp/status", endpoint=status, methods=["GET"]),
+                ]
             )
 
             # Add custom middleware to FastMCP's app

@@ -451,6 +451,92 @@ In VS Code with GitHub Copilot Chat, you can ask natural language questions:
 - `@os-mcp-server Show me retail areas near CV1 3BZ`
 - `@os-mcp-server Find transport links in Coventry city centre`
 
+## Response Formats & Error Handling
+
+### Success Responses
+Tools return JSON (as a string over MCP) with domain-specific fields, e.g.:
+
+```json
+{"collections": [{"id": "trn-ntwk-street-1", "title": "Street Network"}]}
+```
+
+### Standardized Error Envelope (v1)
+All tools now wrap failures in a consistent envelope while preserving the legacy `error` key for backward compatibility:
+
+```json
+{
+  "status": "error",
+  "version": 1,
+  "tool": "search_features",
+  "error_code": "INVALID_INPUT",
+  "message": "Invalid input: Unmatched quotes in filter",
+  "error": "Invalid input: Unmatched quotes in filter",  
+  "details": {"raw_param": "filter value that failed"},
+  "retry_guidance": {
+    "tool": "search_features",
+    "next_steps": [
+      "Review message & adjust parameters",
+      "Call get_workflow_context() for fresh collection/queryable info if unsure"
+    ],
+    "always_available_tools": ["get_workflow_context", "hello_world", "check_api_key"]
+  }
+}
+```
+
+| Field | Purpose |
+|-------|---------|
+| `status` | Always `error` for this envelope |
+| `version` | Schema version (start at 1) |
+| `tool` | Originating tool name |
+| `error_code` | Machine category (`INVALID_INPUT`, `GENERAL_ERROR`, more coming) |
+| `message` | Human readable explanation |
+| `error` | Same as `message` (compat) |
+| `details` | Extra context (may be null) |
+| `retry_guidance` | Structured hints for automated or user-guided recovery |
+
+Minimal client handling pattern:
+```python
+def is_error(payload: dict) -> bool:
+    return payload.get("status") == "error" or ("error" in payload and "status" not in payload)
+
+def error_message(payload: dict) -> str:
+    if payload.get("status") == "error":
+        return payload.get("message", payload.get("error", "Unknown error"))
+    return ""
+```
+
+### Discovery Endpoints (HTTP mode)
+When launched with `--transport streamable-http`:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/.well-known/mcp.json` | Capability + basic tool listing |
+| `/.well-known/mcp-auth` | Auth scheme & rate limit hints |
+| `/mcp/tools` | Full tool metadata (name + description) |
+| `/mcp/status` | Uptime & lightweight health info |
+
+Sample `/mcp/tools` response:
+```json
+[
+  {"name": "get_workflow_context", "description": "Get basic workflow context - no detailed queryables yet"},
+  {"name": "search_features", "description": "Search for features in a collection with full CQL2 filter support."}
+]
+```
+
+### Tool Metadata Contract
+| Key | Type | Notes |
+|-----|------|-------|
+| `name` | string | Stable identifier used in MCP `tools/call` |
+| `description` | string | Current docstring, concise for LLM use |
+
+### Roadmap (non-breaking planned additions)
+- New `error_code` values: `RATE_LIMIT`, `AUTH_REQUIRED`, `WORKFLOW_PREREQUISITE`
+- Optional `trace_id` for correlation
+- Structured `hints` array (machine actionable tokens)
+- Pagination envelope standardisation
+
+If you need any of these earlier, open an issue with your use case.
+
 ## Troubleshooting
 
 ### API Key Issues (401 "Missing or unsupported API key provided")

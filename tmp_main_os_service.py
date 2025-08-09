@@ -194,13 +194,10 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             logger.error(f"Error getting workflow context: {e}")
             return json.dumps(
-                self._add_retry_context(
-                    {"error": str(e), "instruction": "Proceed with available tools"},
-                    "get_workflow_context",
-                )
+                {"error": str(e), "instruction": "Proceed with available tools"}
             )
 
-    def _require_workflow_context(self, func: Callable[..., Any]) -> Callable[..., Any]:
+    def _require_workflow_context(self, func: Callable) -> Callable:
         # Functions that don't need workflow context
         skip_functions = {"get_workflow_context", "hello_world", "check_api_key"}
 
@@ -224,54 +221,15 @@ class OSDataHubService(FeatureService):
 
     # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
     # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
-    def _add_retry_context(self, response_data: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
-        """Standardise error envelope & add retry guidance.
-
-        Backward compatible: keeps top-level 'error' field while adding structured fields.
-        Only transforms when an 'error' key exists and status not already set.
-
-        Envelope shape:
-        {
-          "status": "error",
-          "tool": <tool_name>,
-          "error_code": <CODE>,            # e.g. INVALID_INPUT / GENERAL_ERROR
-          "message": <human readable>,
-          "error": <same as message>,      # legacy compatibility
-          "details": { ... any extra keys from original payload ... },
-          "retry_guidance": { ... },
-          "version": 1
-        }
-        """
-        if not response_data or "error" not in response_data:
-            return response_data
-        if response_data.get("status") == "error" and "retry_guidance" in response_data:
-            return response_data
-        message = response_data.get("error", "Unknown error")
-        code = response_data.get("error_code") or (
-            "INVALID_INPUT" if "invalid" in message.lower() else "GENERAL_ERROR"
-        )
-        details = {k: v for k, v in response_data.items() if k not in {"error", "error_code"}}
-        return {
-            "status": "error",
-            "version": 1,
-            "tool": tool_name,
-            "error_code": code,
-            "message": message,
-            "error": message,
-            "details": details or None,
-            "retry_guidance": {
+    def _add_retry_context(self, response_data: dict, tool_name: str) -> dict:
+        """Add retry guidance to tool responses"""
+        if "error" in response_data:
+            response_data["retry_guidance"] = {
                 "tool": tool_name,
-                "next_steps": [
-                    "Review message & adjust parameters",
-                    "Call get_workflow_context() for fresh collection/queryable info if unsure",
-                ],
-                "always_available_tools": [
-                    "get_workflow_context",
-                    "hello_world",
-                    "check_api_key",
-                ],
-            },
-        }
+                "MANDATORY_INSTRUCTION 1": "Review the error message and try again with corrected parameters",
+                "MANDATORY_INSTRUCTION 2": "YOU MUST call get_workflow_context() if you need to see available options again",
+            }
+        return response_data
 
     # All the tools
     async def hello_world(self, name: str) -> str:
@@ -491,11 +449,15 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(data)
         except ValueError as ve:
-            error_response = {"error": f"Invalid input: {str(ve)}", "error_code": "INVALID_INPUT"}
-            return json.dumps(self._add_retry_context(error_response, "search_features"))
+            error_response = {"error": f"Invalid input: {str(ve)}"}
+            return json.dumps(
+                self._add_retry_context(error_response, "search_features")
+            )
         except Exception as e:
             error_response = {"error": str(e)}
-            return json.dumps(self._add_retry_context(error_response, "search_features"))
+            return json.dumps(
+                self._add_retry_context(error_response, "search_features")
+            )
 
     async def get_feature(
         self,
@@ -748,10 +710,7 @@ class OSDataHubService(FeatureService):
         except Exception as e:
             logger.error(f"Error fetching detailed collections: {e}")
             return json.dumps(
-                self._add_retry_context(
-                    {"error": str(e), "suggestion": "Check collection IDs and try again"},
-                    "fetch_detailed_collections",
-                )
+                {"error": str(e), "suggestion": "Check collection IDs and try again"}
             )
 
     async def get_routing_data(
@@ -801,39 +760,4 @@ class OSDataHubService(FeatureService):
 
             return json.dumps(result)
         except Exception as e:
-            return json.dumps(
-                self._add_retry_context({"error": str(e)}, "get_routing_data")
-            )
-
-    # --- Discovery helper (added on crpage) ---
-    def get_tool_metadata(self) -> List[Dict[str, Any]]:
-        """Return lightweight metadata for all registered MCP tools.
-
-        Only name + docstring summary are returned to keep responses small.
-        Safe to call in stateless mode. Order is fixed for predictability.
-        """
-        tool_names = [
-            "get_workflow_context",
-            "hello_world",
-            "check_api_key",
-            "list_collections",
-            "get_single_collection",
-            "get_single_collection_queryables",
-            "search_features",
-            "get_feature",
-            "get_linked_identifiers",
-            "get_bulk_features",
-            "get_bulk_linked_features",
-            "get_prompt_templates",
-            "fetch_detailed_collections",
-            "get_routing_data",
-        ]
-        meta: List[Dict[str, Any]] = []
-        for name in tool_names:
-            fn = getattr(self, name, None)
-            if callable(fn):
-                meta.append({
-                    "name": name,
-                    "description": (fn.__doc__ or "").strip(),
-                })
-        return meta
+            return json.dumps({"error": str(e)})
