@@ -9,8 +9,17 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
 - Caching / performance instrumentation documentation.
-### Internal / Planning
-- Added frontend MVP design document (`docs/frontend_mvp.md`).
+
+## [0.1.10] - 2025-08-09
+### Added
+- Experimental frontend scaffold (`frontend/`): React + Vite + TypeScript + Leaflet (Tutorial, Chat, Output tabs, map init).
+- Frontend developer quickstart (`frontend/README.md`).
+### Changed
+- Root `README.md` updated with experimental frontend section, clarified cloning example, and local dev commands.
+### Fixed
+- Oversized git change set by expanding `.gitignore` (node_modules, dist, coverage, IDE files, build artifacts).
+### Internal / Maintenance
+- Frontend MVP design document (`docs/frontend_mvp.md`) referenced in README.
 
 ## [0.1.9] - 2025-08-09
 ### Added
