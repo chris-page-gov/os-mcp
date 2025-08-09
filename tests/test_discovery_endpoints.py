@@ -17,7 +17,8 @@ async def test_discovery_and_schema_endpoints():
     assert r.json()["authMethods"][0]["scheme"] == "bearer"
 
     # Metadata
-    meta = client.get("/.well-known/mcp.json")
+    headers = {"Authorization": "Bearer dev-token"}
+    meta = client.get("/.well-known/mcp.json", headers=headers)
     assert meta.status_code == 200
     body = meta.json()
     assert body["name"] == "os-ngd-api"
@@ -25,17 +26,17 @@ async def test_discovery_and_schema_endpoints():
     assert body["errorEnvelope"]["schema"] == "/schemas/error-envelope.json"
 
     # Tools list
-    tools = client.get("/mcp/tools")
+    tools = client.get("/mcp/tools", headers=headers)
     assert tools.status_code == 200
     assert "tools" in tools.json()
 
     # Status
-    status = client.get("/mcp/status")
+    status = client.get("/mcp/status", headers=headers)
     assert status.status_code == 200
     assert status.json()["status"] == "ok"
 
     # Schema retrieval
-    schema_resp = client.get("/schemas/error-envelope.json")
+    schema_resp = client.get("/schemas/error-envelope.json", headers=headers)
     assert schema_resp.status_code == 200
     schema = schema_resp.json()
     assert schema["type"] == "object"
@@ -49,7 +50,8 @@ async def test_error_envelope_schema_negative():
     app, _ = create_streamable_http_app(debug=False, stateless_http=True)
     client = TestClient(app)
 
-    schema_resp = client.get("/schemas/error-envelope.json")
+    headers = {"Authorization": "Bearer dev-token"}
+    schema_resp = client.get("/schemas/error-envelope.json", headers=headers)
     assert schema_resp.status_code == 200
     schema = schema_resp.json()
 
