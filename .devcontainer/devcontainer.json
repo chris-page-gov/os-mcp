@@ -1,0 +1,21 @@
+{
+  "name": "os-mcp-dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "PYTHONPATH": "src",
+    "OS_API_KEY": "${localEnv:OS_API_KEY}",
+    "STDIO_KEY": "${localEnv:OS_API_KEY}",
+    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
+  },
+  "forwardPorts": [8000],
+  "postCreateCommand": "sudo pip install uv && sudo uv pip install --system .",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  }
+}
