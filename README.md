@@ -97,6 +97,9 @@ Response:
 {"status":"ok"}
 ```
 
+#### Favicon & static assets
+The server now serves a tiny static `/favicon.ico` (transparent PNG) without requiring authentication. This prevents noisy 401 warnings in logs from automatic browser favicon requests. The asset is intentionally minimal and contains no sensitive data; exposing it publicly is standard practice and poses no security risk. All other routes (except `/.well-known/mcp-auth` and `/health`) still require a valid bearer token when using the HTTP transport.
+
 For a full cURL tutorial of the MCP /mcp endpoint, see `docs/http_usage.md`.
 
 ## Frontend (Experimental)
