@@ -10,7 +10,7 @@
   "containerEnv": {
     "OS_API_KEY": "${localEnv:OS_API_KEY}",
     "STDIO_KEY": "${localEnv:OS_API_KEY}",
-    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}",
+    "BEARER_TOKENS": "${localEnv:BEARER_TOKENS}",
     "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}",
     "PYTHONPATH": "/workspaces/os-mcp"
   },
@@ -35,7 +35,9 @@
             "env": {
               // Forward existing container env vars directly (no prompts)
               "OS_API_KEY": "${env:OS_API_KEY}",
-              "STDIO_KEY": "${env:STDIO_KEY}"
+              "STDIO_KEY": "${env:STDIO_KEY}",
+              "PYTHONPATH": "/workspaces/os-mcp/src",
+              "BEARER_TOKENS": "${env:BEARER_TOKENS}"
             },
             "dev": {
               "watch": "src/**/*.py"
