@@ -9,6 +9,8 @@ export BEARER_TOKENS=dev-token
 ```
 Python 3.11+, curl, (optional) jq.
 
+> Deprecation: Legacy singular `BEARER_TOKEN` is temporarily accepted only when `BEARER_TOKENS` is unset. This fallback will be removed in version 0.2.0. Migrate all scripts to `BEARER_TOKENS` now.
+
 ## 2. Start Server
 ```
 python -m server --transport streamable-http --host 127.0.0.1 --port 8000

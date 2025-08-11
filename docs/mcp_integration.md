@@ -25,6 +25,7 @@ Health Check (HTTP transport): once running you can probe `GET /health` (no auth
 | OS_API_KEY | NGD DataHub access | Always |
 | STDIO_KEY | Stdio auth gate | stdio transport |
 | BEARER_TOKENS | Comma list of allowed tokens | HTTP transport |
+| (legacy) BEARER_TOKEN | Deprecated single-token fallback | Removal >=0.2.0 |
 | DEBUG=1 | Verbose logging | Optional |
 
 ## VS Code Configuration (servers.json)

@@ -1,4 +1,5 @@
 import os
+import logging
 import pytest
 from starlette.applications import Starlette
 from starlette.responses import Response
@@ -81,3 +82,16 @@ def test_browser_plugin_user_agent_blocked():
         },
     )
     assert r.status_code == 403
+
+
+@pytest.mark.unit
+def test_legacy_bearer_token_warning(caplog):  # type: ignore[no-untyped-def]
+    from middleware.http_middleware import get_valid_bearer_tokens
+    os.environ.pop("BEARER_TOKENS", None)
+    os.environ["BEARER_TOKEN"] = "legacy-only"
+    caplog.set_level(logging.WARNING)  # type: ignore[attr-defined]
+    tokens = get_valid_bearer_tokens()
+    assert tokens == ["legacy-only"]
+    assert any(
+        "legacy BEARER_TOKEN" in getattr(rec, "message", str(rec)) for rec in getattr(caplog, "records", [])  # type: ignore[attr-defined]
+    )
