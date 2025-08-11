@@ -87,6 +87,7 @@ HTTP variant (combining launch & discovery):
 | get_bulk_linked_features | On-demand batch | Batch cross-links |
 | get_prompt_templates | Anytime | Discover prompt patterns |
 | get_routing_data | Specialized | Build+extract routing network slices |
+| chat | Optional early | LLM reasoning / planning (bypasses workflow context) |
 | (HTTP only) /health | N/A | Out-of-band liveness check (not a tool call) |
 
 ### Listing Tools in VS Code Chat
@@ -95,6 +96,7 @@ In the Copilot Chat panel, type:
 @os-ngd list tools
 ```
 You should see all registered tools including `get_prompt_templates`, `fetch_detailed_collections`, and `get_routing_data`.
+If `OPENAI_API_KEY` is configured you will also see `chat`.
 
 ### Testing a Simple Tool Call
 ```
@@ -222,13 +224,13 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 ## Full Local Test Cycle
 From the repo root:
 ```
-python -m server --transport stdio  # or streamable-http
+python -m src.server --transport stdio  # or streamable-http
 ```
 In another terminal run unit tests:
 ```
-pytest -q
+pytest tests -q
 ```
-All tests (currently >20) should pass; category tests validate prompt filtering.
+All tests (currently backend 52 + frontend 20 = 72) should pass; category tests validate prompt filtering and chat tool coverage.
 
 ## Raw HTTP / cURL Usage
 For detailed examples of posting MCP JSON envelopes (tools/call) directly to the `/mcp` endpoint—including `get_workflow_context`, `fetch_detailed_collections`, `search_features`, prompts filtering, routing, and error handling—see `http_usage.md` in this directory.
@@ -263,7 +265,7 @@ Create `.vscode/tasks.json`:
 6. Two-step workflow error path observed & recovered.
 7. Diagnostic error envelope observed (`INVALID_COLLECTION`).
 8. Routing data tool exercised (if bbox & data available).
-9. All pytest tests pass locally.
+9. All backend + frontend tests pass locally (52 backend + 20 frontend).
 10. CHANGELOG updated & version bumped.
 
 ## Security & Rate Limits
@@ -296,4 +298,4 @@ Create `.vscode/tasks.json`:
 - Add caching introspection tool? (Potential future enhancement.)
 
 ---
-Last Updated: 2025-08-09
+Last Updated: 2025-08-11
