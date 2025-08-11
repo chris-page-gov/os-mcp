@@ -1,7 +1,7 @@
 import argparse
 import os
 import uvicorn
-from typing import Any, List, Dict
+from typing import Any
 from utils.logging_config import configure_logging
 
 from api_service.os_api import OSAPIClient
@@ -13,7 +13,8 @@ from middleware.request_id_middleware import RequestIDMiddleware
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
+import base64
 
 logger = configure_logging()
 
@@ -38,23 +39,35 @@ def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: 
     async def health(_: Any):  # pragma: no cover - trivial simple status
         return JSONResponse(content={"status": "ok"})
 
+    # Tiny 16x16 transparent PNG favicon
+    _FAVICON_PNG_B64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAHElEQVQ4T2NkoBAwUqifgYGB4T8GGgKjBpgGhgEAX0kCCVYq0nIAAAAASUVORK5CYII="
+    )
+
+    async def favicon(_: Any):  # pragma: no cover - trivial
+        return Response(base64.b64decode(_FAVICON_PNG_B64), media_type="image/png")
+
     app = mcp.streamable_http_app()
     app.routes.append(Route("/.well-known/mcp-auth", endpoint=auth_discovery, methods=["GET"]))
     app.routes.append(Route("/health", endpoint=health, methods=["GET"]))
-    app.user_middleware.extend(
-        [
-            Middleware(
-                CORSMiddleware,
-                allow_origins=["*"],
-                allow_credentials=True,
-                allow_methods=["GET", "POST", "OPTIONS"],
-                allow_headers=["*"],
-                expose_headers=["*"],
-            ),
-            Middleware(RequestIDMiddleware),
-            Middleware(HTTPMiddleware),
-        ]
-    )
+    app.routes.append(Route("/favicon.ico", endpoint=favicon, methods=["GET"]))
+    middlewares = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+        ),
+        Middleware(RequestIDMiddleware),
+    ]
+    # Skip auth middleware when explicit bypass flag set (used in tests)
+    if os.environ.get("OS_MCP_AUTH_BYPASS", "").lower() not in {"1", "true", "yes"}:
+        middlewares.append(Middleware(HTTPMiddleware))
+    else:
+        logger.info("Auth middleware bypassed due to OS_MCP_AUTH_BYPASS")
+    app.user_middleware.extend(middlewares)
     return app, service
 
 
@@ -129,6 +142,13 @@ def main():
             async def health(_: Any) -> JSONResponse:  # pragma: no cover - trivial
                 return JSONResponse(content={"status": "ok"})
 
+            _FAVICON_PNG_B64 = (
+                "iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAHElEQVQ4T2NkoBAwUqifgYGB4T8GGgKjBpgGhgEAX0kCCVYq0nIAAAAASUVORK5CYII="
+            )
+
+            async def favicon(_: Any) -> Response:  # pragma: no cover - trivial
+                return Response(base64.b64decode(_FAVICON_PNG_B64), media_type="image/png")
+
             app = mcp.streamable_http_app()
 
             app.routes.append(
@@ -139,6 +159,7 @@ def main():
                 )
             )
             app.routes.append(Route("/health", endpoint=health, methods=["GET"]))
+            app.routes.append(Route("/favicon.ico", endpoint=favicon, methods=["GET"]))
 
             app.user_middleware.extend(
                 [

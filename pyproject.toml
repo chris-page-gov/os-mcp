@@ -41,3 +41,10 @@ no_implicit_optional = true
 show_error_codes = true
 exclude = ["build/", "__pycache__/", "tests/integration/"]
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+

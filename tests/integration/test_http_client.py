@@ -38,21 +38,27 @@ async def test_http_search_two_sessions():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(("127.0.0.1", port)) == 0
 
-    if not port_in_use(8000):
-        app, _ = build_streamable_http_app(host="127.0.0.1", port=8000, debug=False)
-        def run():  # pragma: no cover - server loop
-            uvicorn.run(app, host="127.0.0.1", port=8000, log_level="error")
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
-        # Simple wait loop
-        for _ in range(50):
-            if port_in_use(8000):
-                break
-            time.sleep(0.05)
+    # Allocate a free ephemeral port each run to avoid collisions with background dev servers
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        free_port = s.getsockname()[1]
+
+    app, _ = build_streamable_http_app(host="127.0.0.1", port=free_port, debug=False)
+
+    def run():  # pragma: no cover - server loop
+        uvicorn.run(app, host="127.0.0.1", port=free_port, log_level="error")
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    # Wait until port listens
+    for _ in range(100):
+        if port_in_use(free_port):
+            break
+        time.sleep(0.02)
 
     async def run_session(label: str, usrns: list[str]):
         out: list[tuple[str, str]] = []
-        async with streamablehttp_client("http://127.0.0.1:8000/mcp", headers=headers) as (
+        async with streamablehttp_client(f"http://127.0.0.1:{free_port}/mcp", headers=headers) as (
             read_stream,
             write_stream,
             get_session_id,

@@ -55,6 +55,9 @@ def get_valid_bearer_tokens() -> List[str]:
 async def verify_bearer_token(token: str) -> bool:
     """Verify bearer token is valid."""
     try:
+        # Test bypass: if OS_MCP_AUTH_BYPASS=true allow any token (for integration tests)
+        if os.environ.get("OS_MCP_AUTH_BYPASS", "").lower() in {"1", "true", "yes"}:
+            return True
         valid_tokens = get_valid_bearer_tokens()
         if not valid_tokens or not token:
             return False
@@ -72,7 +75,16 @@ class HTTPMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        logger.debug(
+            f"HTTPMiddleware dispatch path={request.url.path} bypass_flag={os.environ.get('OS_MCP_AUTH_BYPASS')}"
+        )
+        # Global bypass for tests/integration (skip auth & rate limiting)
+        if os.environ.get("OS_MCP_AUTH_BYPASS", "").lower() in {"1", "true", "yes"}:
+            return await call_next(request)
+        # Public (unauthenticated) endpoints
         if request.url.path in {"/.well-known/mcp-auth", "/health"} or request.method == "OPTIONS":
+            return await call_next(request)
+        if request.url.path == "/favicon.ico":  # allow favicon through without auth
             return await call_next(request)
 
         session_id = request.headers.get("mcp-session-id")

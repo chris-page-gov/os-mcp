@@ -8,10 +8,10 @@
     }
   },
   "containerEnv": {
-    "PYTHONPATH": "src",
     "OS_API_KEY": "${localEnv:OS_API_KEY}",
     "STDIO_KEY": "${localEnv:OS_API_KEY}",
-    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}"
+    "BEARER_TOKEN": "${localEnv:BEARER_TOKEN}",
+    "PYTHONPATH": "/workspaces/os-mcp"
   },
   "forwardPorts": [8000, 5173],
   "postCreateCommand": "pip install --user -e .[test] && (cd frontend && npm install --no-audit --no-fund || true)",

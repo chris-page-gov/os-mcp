@@ -55,13 +55,13 @@ Add the following to your Claude Desktop config:
 Open Claude Desktop and you should now see all available tools, resources, and prompts.
 
 ### VS Code MCP (Experimental) Setup
-1. Create `~/.config/vscode/mcp/servers.json`:
+1. Create `~/.config/vscode/mcp/servers.json` (after running `pip install -e .[test]` so dependencies are available):
 ```jsonc
 {
   "servers": {
     "os-ngd": {
       "command": "python",
-      "args": ["-m", "server", "--transport", "stdio"],
+      "args": ["-m", "src.server", "--transport", "stdio"],
       "env": {"OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev"}
     }
   }
@@ -84,9 +84,9 @@ Open Claude Desktop and you should now see all available tools, resources, and p
 See `docs/mcp_integration.md` for full guidance, including routing and diagnostics prompts.
 
 ### HTTP Health Check
-If you run the HTTP transport:
+If you run the HTTP transport (from the repo root without installing the package):
 ```
-python -m server --transport streamable-http --host 127.0.0.1 --port 8000
+python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 You can verify the server is up (no auth required):
 ```
@@ -113,7 +113,7 @@ MVP design goals & roadmap are documented in `docs/frontend_mvp.md`.
 Run it locally (against a running HTTP MCP server):
 ```bash
 # In one terminal: start MCP HTTP server
-python -m server --transport streamable-http --host 127.0.0.1 --port 8000
+python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
 # In another terminal: start frontend dev server
 cd frontend
 npm install
