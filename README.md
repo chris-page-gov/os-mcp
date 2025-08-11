@@ -135,6 +135,10 @@ Python tests:
 ```bash
 pytest
 ```
+With coverage report:
+```bash
+pytest --cov=src --cov=tests --cov-report=term-missing
+```
 Type checking:
 ```bash
 mypy src
