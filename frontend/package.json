@@ -8,10 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
-  "format": "prettier --write .",
-  "test": "vitest run",
-  "test:ui": "vitest"
+    "lint": "eslint 'src/**/*.{ts,tsx}' --max-warnings=0",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -30,7 +31,7 @@
     "eslint-plugin-react": "^7.34.3",
     "eslint-plugin-react-hooks": "^5.1.0",
     "prettier": "^3.3.3",
-    "typescript": "^5.5.4",
+  "typescript": "^5.5.4",
   "vite": "^5.3.1",
   "@vitejs/plugin-react": "^4.0.0",
   "@testing-library/react": "^16.0.0",

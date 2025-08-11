@@ -8,6 +8,8 @@ Once wired into Claude Desktop, you can:
 - Guide Claude to follow the enforced 2‑step workflow (context → queryables → searches).
 - Pull routing slices or linked identifier data for planning workflows.
 - Inject curated prompt templates (planning, routing, diagnostics, Warwickshire region) to accelerate reasoning.
+- Use the experimental `chat` tool (requires `OPENAI_API_KEY`) for pure LLM reasoning or to draft a workflow plan before invoking data tools.
+ - See GeoJSON FeatureCollections automatically parsed into map layers in the experimental frontend (if running) with toggles/removal.
 
 ## 2. Quick Setup (Stdio via Docker – Recommended for Desktop)
 Create / edit your Claude Desktop config (macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`, Linux: `~/.config/Claude/claude_desktop_config.json`). Add an MCP server entry:
@@ -48,6 +50,7 @@ Ideal tool sequence Claude should decide (summarized):
 1. `get_workflow_context` (bootstraps list of collections + rules)
 2. `fetch_detailed_collections` (e.g. `lus-fts-site-1`)
 3. `search_features` with a filter like `oslandusetertiarygroup = 'Cinema'`
+4. (Optional) `chat` at any point for planning refinement (it does not require prior context and returns model reasoning only).
 
 If Claude tries to skip step 1 you’ll see an error envelope with `WORKFLOW_CONTEXT_REQUIRED`; Claude should then recover automatically. You can nudge:
 > First call get_workflow_context, then fetch_detailed_collections for the land use site collection before any searches.
@@ -167,5 +170,12 @@ You can prime Claude for future capabilities:
 > Assume a future suggest_workflow tool exists—explain how you would invoke it for a multi-collection enrichment.
 This encourages structured planning even before the tool is implemented.
 
+## 18. Using the Chat Tool
+If `OPENAI_API_KEY` is set in the environment, a `chat` tool is registered. It accepts a `messages` argument (list or JSON string matching OpenAI chat format). Example:
+```
+{"messages": [{"role": "user", "content": "Outline the steps to search for cinemas then retrieve routing data."}]}
+```
+Returns JSON with `output` (model text). Use it to iteratively refine a plan that you then execute with `get_workflow_context` + data tools. It skips workflow gating intentionally. No OS data is fetched inside `chat`—it is reasoning only.
+
 ---
-Last Updated: 2025-08-09
+Last Updated: 2025-08-11

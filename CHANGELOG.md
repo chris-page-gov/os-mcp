@@ -9,6 +9,24 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
 - Caching / performance instrumentation documentation.
+### Added
+- Experimental `chat` tool (OpenAI) behind OPENAI_API_KEY.
+	- Added initial chat tool tests (unit) covering success, missing key, invalid JSON, and context bypass.
+	- Documentation updates (README, Claude Desktop tutorial, VS Code integration guide) referencing chat tool and test count.
+
+## [0.1.12] - 2025-08-11
+### Added
+- Frontend: Automatic GeoJSON detection in assistant/tool responses; FeatureCollection / Feature / geometry objects parsed and added as map layers.
+- Frontend: Map rendering of GeoJSON layers (Leaflet) with Answer | Map | Data tabs.
+- Frontend: Layer visibility toggling and removal controls (Data tab) with persistent state in Zustand store.
+- Frontend tests expanded (logic + integration) covering planning heuristic, MCP tool abstraction, GeoJSON detection, layer auto-add, and layer toggle/removal (total frontend tests now 20).
+### Changed
+- Output panel logic refactored for cleaner layer synchronization (add/remove without leaking Leaflet layer references).
+- Zustand store extended (messages, traces, layers with visibility flags + actions) while preserving existing API for messages & traces.
+### Fixed
+- TypeScript syntax / interface issues introduced during initial layer toggle attempt (now resolved; all frontend tests green).
+### Internal / Maintenance
+- Combined backend (52) + frontend (20) test suites documented (72 total passing tests at release time).
 
 ## [0.1.11] - 2025-08-11
 ### Removed

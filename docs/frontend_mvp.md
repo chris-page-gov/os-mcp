@@ -1,9 +1,9 @@
 # Public NGD Exploration Frontend MVP
 
-Goal: A browser-based interface that lets any citizen explore Ordnance Survey NGD data via the existing MCP server + a GPT-5 (LLM) model, with guided tutorial prompts and interactive map output.
+Goal: A browser-based interface that lets any user explore Ordnance Survey NGD data via the existing MCP server + an LLM (current experimental `chat` tool using OpenAI; future models pluggable), with guided tutorial prompts and interactive map output.
 
 ## Core MVP Objectives
-1. Natural language chat (LLM ↔ MCP tools orchestration)
+1. Natural language chat (LLM ↔ MCP tools orchestration) (initially via backend agent loop or direct `chat` tool)
 2. Tutorial / guidance pane (click-to-insert prompts)
 3. Output pane supporting:
    - Rich text (formatted reasoning & summaries)
@@ -15,10 +15,10 @@ Goal: A browser-based interface that lets any citizen explore Ordnance Survey NG
 ## Functional Scope (MVP)
 | Feature | Included | Notes |
 |---------|----------|-------|
-| Chat with GPT-5 | Yes | Streaming tokens, tool call interception |
+| Chat with LLM (`chat` tool) | Yes | `chat` tool bypasses workflow context; future: richer streaming agent orchestration |
 | Insert tutorial prompt | Yes | Click chip/button adds template to chat input |
 | Map display | Yes | Leaflet / MapLibre + simple base layer + vector overlays |
-| Layer management | Minimal | Toggle visibility; no styling editor initially |
+| Layer management | Yes (basic) | Toggle visibility & removal; no styling editor yet |
 | Tool result parsing | Yes | Detect GeoJSON vs plain JSON; add to map |
 | Routing visualization | Basic | Draw edges/nodes if present; summarise counts |
 | Error envelope display | Yes | Non-blocking banner + human-friendly message |
@@ -56,7 +56,7 @@ Browser (React) ──► Frontend Backend (Node/Express or Python FastAPI adapt
 ## Data Flow (Single Turn with Tool Calls)
 1. User prompts: "Find cinemas in Leamington"
 2. Frontend -> Gateway: POST /chat {message}
-3. Gateway streams GPT-5; model decides needs context → emits tool call intent
+3. Gateway streams LLM tokens; model decides needs context → emits tool call intent (or direct `chat` tool used for reasoning only)
 4. Gateway executes MCP tool sequence: `get_workflow_context` → `fetch_detailed_collections` → `search_features`
 5. Aggregated results inserted into model context; final answer streamed back
 6. GeoJSON extracted and sent as side-channel event to frontend (WebSocket / SSE) → map layer added
@@ -166,8 +166,8 @@ Expose a curated safe subset (strip any internal-only keys). Gateway can call `g
 | Streaming | Server-Sent Events (simpler than WebSocket initially) |
 
 ## MVP Checklist
-- [ ] Gateway /chat SSE endpoint calls MCP tools
-- [ ] Chat UI with streaming tokens
+- [ ] Gateway `/chat` SSE endpoint calls MCP tools (or direct `chat` tool pass-through)
+- [ ] Chat UI with streaming tokens (progressively enhance; fallback to non-stream JSON)
 - [ ] Tutorial panel with clickable template chips
 - [ ] Basic three-column responsive layout + mobile tabs
 - [ ] Map panel + layer add & toggle
@@ -178,6 +178,27 @@ Expose a curated safe subset (strip any internal-only keys). Gateway can call `g
 
 If all above are in place: YES you have a functional MVP enabling exploration.
 
+## Quick Start (Step-by-Step)
+High-level operational steps (see dedicated `frontend_tutorial.md` for a fuller guide in `docs/frontend_tutorial.md`):
+1. Export required environment variables (inside devcontainer or locally): `export OS_API_KEY=...` and optionally `export OPENAI_API_KEY=...` for the `chat` tool.
+2. Run MCP HTTP server: `python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000`.
+3. Start frontend dev server:
+  - `cd frontend`
+  - `npm install`
+  - `npm run dev`
+4. Open printed localhost URL. Send a tutorial prompt (e.g. "Find cinemas in Leamington").
+5. Watch tool call sequence in network panel; when `search_features` returns GeoJSON, a map layer appears under Map tab.
+6. Use layer toggles to show/hide results; review raw data under Data tab.
+
+## Review Notes / Changes (2025-08-11)
+This document has been updated to:
+- Replace specific "GPT-5" references with generic LLM + current `chat` tool.
+- Clarify that the initial chat capability may be a thin wrapper rather than a full autonomous agent loop.
+- Add a quick start section and pointer to a detailed tutorial.
+- Emphasise that `chat` bypasses workflow context while data tools do not.
+- Mark streaming as progressive enhancement (fallback to non-stream).
+- Reflect implemented basic layer management (visibility + removal) and GeoJSON auto-add.
+
 ## Suggested Next (Post-MVP)
 - suggest_workflow tool integration (auto-plan) 
 - Geo export (download layer as GeoJSON)
@@ -186,4 +207,4 @@ If all above are in place: YES you have a functional MVP enabling exploration.
 - Advanced filtering UI builder referencing enum_queryables.
 
 ---
-Last Updated: 2025-08-09
+Last Updated: 2025-08-11

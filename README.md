@@ -10,6 +10,18 @@ Ask simple questions such as find me all cinemas in Leeds City Centre or use the
 
 This MCP server enforces a 2 step workflow plan to ensure that the user gets the best results possible.
 
+### Experimental Chat Tool
+If you set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`), an additional `chat` MCP tool becomes available. This tool:
+- Bypasses the workflow-context requirement (you can call it first).
+- Accepts `messages` (list/dict or JSON string) mirroring OpenAI Chat API format.
+- Returns a JSON object with `model`, `output`, and optional `usage` fields.
+
+Example (VS Code MCP chat):
+```
+@os-ngd call chat {"messages": [{"role": "user", "content": "Summarise how to find cinema sites using the tools."}]}
+```
+Use it for high‑level reasoning, drafting complex multi-step plans, or exploratory Q&A before executing data tools. It does NOT access OS data directly—combine with the workflow plan + data tools for real results.
+
 ## Quick Start
 
 ### 1. Get an OS API Key
@@ -52,7 +64,7 @@ Add the following to your Claude Desktop config:
 }
 ```
 
-Open Claude Desktop and you should now see all available tools, resources, and prompts.
+Open Claude Desktop and you should now see all available tools, resources, and prompts (including `chat` if `OPENAI_API_KEY` is set).
 
 ### VS Code MCP (Experimental) Setup
 1. Create `~/.config/vscode/mcp/servers.json` (after running `pip install -e .[test]` so dependencies are available):
@@ -107,6 +119,8 @@ A browser UI scaffold (React + Vite + TypeScript + Leaflet) lives in `frontend/`
 - Tutorial prompt chips
 - Chat panel (local only for now)
 - Output panel with Answer / Map / Data tabs
+- Automatic GeoJSON detection: FeatureCollections added as map layers
+- Layer visibility toggling & removal (Data tab legend)
 
 MVP design goals & roadmap are documented in `docs/frontend_mvp.md`.
 
@@ -142,7 +156,7 @@ Variables in use:
 - `STDIO_KEY` – required for stdio transport auth (simple shared secret, any non-empty value in dev).
 - `BEARER_TOKENS` – comma-separated list of allowed HTTP Bearer tokens.
 - `BEARER_TOKEN` (legacy) – deprecated; only used if `BEARER_TOKENS` unset. Will be removed in >=0.2.0.
-- `OPENAI_API_KEY` – forwarded for planned `/chat` endpoint integration (not yet active).
+- `OPENAI_API_KEY` – enables experimental `chat` MCP tool (set to activate). Optional `OPENAI_MODEL` to override default model (gpt-4o-mini).
 - `OS_MCP_AUTH_BYPASS` – test-only bypass for HTTP auth/rate limits (values: 1/true/yes).
 - `ALLOWED_ORIGINS` – optional comma list of additional allowed origins beyond localhost.
 
@@ -150,9 +164,9 @@ To change values persistently, edit `.devcontainer/devcontainer.json` then rebui
 
 ## Development
 
-Python tests:
+Python tests (explicit path for some environments):
 ```bash
-pytest
+pytest tests
 ```
 With coverage report:
 ```bash
@@ -167,6 +181,9 @@ Frontend build:
 cd frontend
 npm run build
 ```
+
+## Test Suite Status
+Active test coverage includes routing, error envelopes, authentication paths, prompt category filtering, linked identifiers, chat tool, and frontend logic (planning heuristic, MCP tool wrapper, GeoJSON detection, layer toggling/removal). Current counts: backend 52 + frontend 20 = 72 passing tests as of 2025‑08‑11.
 
 ## License
 

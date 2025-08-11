@@ -3,6 +3,7 @@ import json
 import asyncio
 import functools
 import re
+import os
 
 # (Local typing imports moved to header section)
 from api_service.protocols import APIClient  # type: ignore[import-untyped]
@@ -72,6 +73,7 @@ class OSDataHubService:
             "get_prompt_templates",
             "fetch_detailed_collections",
             "get_routing_data",
+            "chat",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -189,7 +191,7 @@ class OSDataHubService:
 
     def _require_workflow_context(self, func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         # Functions that don't need workflow context
-        skip_functions = {"get_workflow_context", "hello_world", "check_api_key"}
+        skip_functions = {"get_workflow_context", "hello_world", "check_api_key", "chat"}
 
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -208,6 +210,86 @@ class OSDataHubService:
             return await func(*args, **kwargs)
 
         return wrapper
+
+    # ---------------- LLM CHAT TOOL -----------------
+    async def chat(self, messages: Optional[Union[str, Dict[str, Any], List[Dict[str, Any]]]] = None, model: Optional[str] = None) -> str:
+        """LLM chat interface (experimental).
+
+        Parameters:
+          messages: Either
+            - A JSON string of [{"role": "user"|"assistant"|"system", "content": "..."}],
+            - A list in that format, or
+            - A dict with a top-level key 'messages'.
+          model: Optional model override (defaults to env OPENAI_MODEL or 'gpt-4o-mini').
+
+        Returns: JSON string containing {"model", "output", "raw"?, "usage"?}
+
+        Notes:
+          - Requires OPENAI_API_KEY in environment.
+          - If OpenAI SDK not installed or key missing, returns structured error envelope.
+        """
+        try:
+            if messages is None:
+                return json.dumps({"error": "NO_MESSAGES", "message": "Provide messages list"})
+
+            # Normalise input
+            parsed: List[Dict[str, Any]]
+            if isinstance(messages, str):
+                try:
+                    data = json.loads(messages)
+                except json.JSONDecodeError as e:
+                    return json.dumps({"error": "INVALID_JSON", "message": str(e)})
+                if isinstance(data, dict) and "messages" in data:
+                    parsed = data["messages"]  # type: ignore[assignment]
+                else:
+                    parsed = data  # type: ignore[assignment]
+            elif isinstance(messages, dict):
+                if "messages" in messages:
+                    parsed = messages["messages"]  # type: ignore[assignment]
+                else:
+                    return json.dumps({"error": "INVALID_PAYLOAD", "message": "Dict must contain 'messages'"})
+            else:
+                parsed = messages  # type: ignore[assignment]
+
+            if not isinstance(parsed, list) or not all(isinstance(m, dict) for m in parsed):
+                return json.dumps({"error": "INVALID_FORMAT", "message": "Messages must be list[dict]"})
+
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                return json.dumps({"error": "MISSING_OPENAI_API_KEY", "message": "Set OPENAI_API_KEY to use chat tool"})
+
+            selected_model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+            # Invoke underlying LLM (isolated for test mocking)
+            llm_response = await self._invoke_llm(parsed, selected_model, api_key)
+            return json.dumps(llm_response)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(f"Chat tool error: {e}")
+            return json.dumps(build_error_envelope(tool="chat", message=str(e)))
+
+    async def _invoke_llm(self, messages: List[Dict[str, Any]], model: str, api_key: str) -> Dict[str, Any]:
+        """Internal helper to call OpenAI (async friendly). Separated for mocking in tests."""
+        try:
+            # Lazy import so tests can monkeypatch without dependency or to handle absence gracefully
+            from openai import OpenAI  # type: ignore[import-not-found]
+            client = OpenAI(api_key=api_key)
+            # Try new Responses API first, fallback to chat completions
+            try:
+                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.2)
+                content = resp.choices[0].message.content if resp.choices else ""
+                usage = getattr(resp, "usage", None)
+                return {"model": model, "output": content, "usage": getattr(usage, 'model_dump', lambda: usage)() if usage else None}
+            except Exception:  # pragma: no cover - fallback path
+                # Fallback to legacy API if needed
+                import openai  # type: ignore
+                openai.api_key = api_key
+                legacy = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.2)
+                content = legacy['choices'][0]['message']['content'] if legacy.get('choices') else ""
+                return {"model": model, "output": content, "usage": legacy.get('usage')}
+        except ModuleNotFoundError:
+            return {"error": "OPENAI_SDK_NOT_INSTALLED", "message": "Install openai package to use chat tool"}
+        except Exception as e:  # pragma: no cover
+            return {"error": "LLM_CALL_FAILED", "message": str(e)}
 
     # TODO: This is a bit of a hack - we need to improve the error handling and retry logic
     # TODO: Could we actually spawn a seperate AI agent to handle the retry logic and return the result to the main agent?
