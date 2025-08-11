@@ -34,10 +34,8 @@ class TestMiddleware:
 
     @pytest.mark.unit
     def test_rate_limiting_concept(self):
-        """Integration-style rate limit test using real middleware."""
-        hits = []
+        hits: list[float] = []
         import os
-        os.environ["BEARER_TOKEN"] = "dev-token"
         os.environ["BEARER_TOKENS"] = "dev-token"
 
         async def endpoint(request: Request):  # pragma: no cover - simple
@@ -50,36 +48,28 @@ class TestMiddleware:
         )
         client = TestClient(app)
         headers = {"Authorization": "Bearer dev-token"}
-        # First 3 allowed
         for _ in range(3):
             r = client.get("/x", headers=headers)
             assert r.status_code == 200
-        # 4th should 429
         r4 = client.get("/x", headers=headers)
         assert r4.status_code == 429
 
     @pytest.mark.unit
     def test_token_validation_concept(self):
-        """Test bearer token concept with basic string operations."""
         valid_tokens = ["token1", "token2", "token3"]
-        
-        # Test valid token
-        test_token = "token2"
-        assert test_token in valid_tokens
-        
-        # Test invalid token
-        invalid_token = "invalid"
-        assert invalid_token not in valid_tokens
-        
-        # Test empty token
-        empty_token = ""
-        assert empty_token not in valid_tokens
+        assert "token2" in valid_tokens
+        assert "invalid" not in valid_tokens
+        assert "" not in valid_tokens
 
     @pytest.mark.unit
     def test_missing_token_rejected(self):
         async def endpoint(request: Request):  # pragma: no cover
             return Response("ok")
-        app = Starlette(routes=[Route("/y", endpoint=endpoint)], middleware=[Middleware(HTTPMiddleware, requests_per_minute=5)])
+
+        app = Starlette(
+            routes=[Route("/y", endpoint=endpoint)],
+            middleware=[Middleware(HTTPMiddleware, requests_per_minute=5)],
+        )
         client = TestClient(app)
         r = client.get("/y")
         assert r.status_code == 401

@@ -37,16 +37,21 @@ class RateLimiter:
 def get_valid_bearer_tokens() -> List[str]:
     """Get valid bearer tokens from environment variable."""
     try:
-        tokens = os.environ.get("BEARER_TOKENS", "").split(",")
-        valid_tokens = [t.strip() for t in tokens if t.strip()]
-
-        if not valid_tokens:
+        raw = os.environ.get("BEARER_TOKENS", "").strip()
+        if not raw:
+            # Backward compatibility: allow legacy singular BEARER_TOKEN for a transition period
+            legacy = os.environ.get("BEARER_TOKEN", "").strip()
+            if legacy:
+                logger.warning(
+                    "Using legacy BEARER_TOKEN env var; please rename to BEARER_TOKENS (comma separated)"
+                )
+                return [legacy]
             logger.warning(
                 "No BEARER_TOKENS configured, all authentication will be rejected"
             )
             return []
-
-        return valid_tokens
+        tokens = [t.strip() for t in raw.split(",") if t.strip()]
+        return tokens
     except Exception as e:
         logger.error(f"Error getting valid tokens: {e}")
         return []

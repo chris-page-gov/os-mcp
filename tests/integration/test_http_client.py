@@ -29,7 +29,6 @@ def extract_text(result: Any) -> str:
 
 @pytest.mark.asyncio
 async def test_http_search_two_sessions():
-    os.environ["BEARER_TOKEN"] = "dev-token"
     os.environ["BEARER_TOKENS"] = "dev-token"
     headers = {"Authorization": "Bearer dev-token"}
 
