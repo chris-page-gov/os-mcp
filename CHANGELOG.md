@@ -9,8 +9,23 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).
 - Caching / performance instrumentation documentation.
+
+## [0.1.11] - 2025-08-11
 ### Removed
 - Pruned obsolete example, doc, and exploratory test files (removed untracked local clutter; ensures clean devcontainer rebuilds).
+### Added
+- OpenAI key passthrough in devcontainer config (OPENAI_API_KEY) (not yet wired to tools).
+- Legacy `BEARER_TOKEN` fallback warning test (`test_legacy_bearer_token_warning`).
+### Changed
+- Harmonised authentication env usage on `BEARER_TOKENS` (comma‑separated). Added explicit deprecation docs for singular `BEARER_TOKEN` (removal >=0.2.0).
+- STDIO authentication failure now exits with clear message & non‑zero status when `STDIO_KEY` missing.
+### Deprecated
+- Singular `BEARER_TOKEN` environment variable (warning emitted if used alone; removal targeted for 0.2.0).
+### Fixed
+- Intermittent MCP stdio startup ambiguity by clarifying missing `STDIO_KEY` cause (now explicit exit).
+### Internal / Maintenance
+- Added additional OSAPIClient tests (caching, queryables, sanitisation) raising `os_api.py` coverage to ~61%.
+- Documentation updates (http_usage, mcp_integration) for deprecation timeline.
 
 ## [0.1.10] - 2025-08-09
 ### Added

@@ -113,8 +113,11 @@ def main():
 
             stdio_api_key = os.environ.get("STDIO_KEY")
             if not stdio_api_key or not stdio_auth.authenticate(stdio_api_key):
-                logger.error("Authentication failed")
-                return
+                # Provide clear stderr message and non-zero exit so MCP client surfaces cause
+                logger.error(
+                    "STDIO_KEY missing or empty: set STDIO_KEY env var (e.g. export STDIO_KEY=dev-key) before launching stdio transport."
+                )
+                raise SystemExit(1)
 
             service.run()
 

@@ -129,6 +129,25 @@ The scaffold currently does not yet stream live MCP calls—gateway / SSE wiring
 - Set a STDIO_KEY env var (any value currently) for stdio auth
 - (Frontend) Node 18+ & npm if you want to run the experimental UI
 
+### Environment Variable Sources (Devcontainer vs Local .env)
+This project primarily injects environment variables via the devcontainer configuration (`.devcontainer/devcontainer.json`), **not** the root `.env` file. The `.env` file is illustrative only (ignored by git) and not automatically loaded by the server.
+
+Priority / resolution order at runtime:
+1. Explicit process environment (e.g. exported in your shell, or set in VS Code Run/Debug configuration).
+2. Devcontainer `containerEnv` and MCP server `env` blocks (these forward selected host variables on rebuild).
+3. (Optional) Manual `export VAR=value` inside the container shell before launching `python -m src.server`.
+
+Variables in use:
+- `OS_API_KEY` – required OS Data Hub key.
+- `STDIO_KEY` – required for stdio transport auth (simple shared secret, any non-empty value in dev).
+- `BEARER_TOKENS` – comma-separated list of allowed HTTP Bearer tokens.
+- `BEARER_TOKEN` (legacy) – deprecated; only used if `BEARER_TOKENS` unset. Will be removed in >=0.2.0.
+- `OPENAI_API_KEY` – forwarded for planned `/chat` endpoint integration (not yet active).
+- `OS_MCP_AUTH_BYPASS` – test-only bypass for HTTP auth/rate limits (values: 1/true/yes).
+- `ALLOWED_ORIGINS` – optional comma list of additional allowed origins beyond localhost.
+
+To change values persistently, edit `.devcontainer/devcontainer.json` then rebuild the container. For one-off testing, simply `export` them in the integrated terminal prior to running the server.
+
 ## Development
 
 Python tests:
