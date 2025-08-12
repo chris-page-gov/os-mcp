@@ -124,6 +124,15 @@ def main():
         case "streamable-http":
             logger.info(f"Starting Streamable HTTP server on {args.host}:{args.port}")
 
+            # Warn early if bearer tokens not configured (unless explicit bypass)
+            if os.environ.get("OS_MCP_AUTH_BYPASS", "").lower() not in {"1", "true", "yes"}:
+                bearer_tokens_env = os.environ.get("BEARER_TOKENS") or os.environ.get("BEARER_TOKEN")
+                if not bearer_tokens_env:
+                    logger.warning(
+                        "BEARER_TOKENS not set (all /mcp HTTP requests will return 401). "
+                        "Export BEARER_TOKENS=<token> before starting the server for frontend access."
+                    )
+
             mcp = FastMCP(
                 "os-ngd-api",
                 host=args.host,

@@ -124,9 +124,10 @@ A browser UI scaffold (React + Vite + TypeScript + Leaflet) lives in `frontend/`
 
 MVP design goals & roadmap are documented in `docs/frontend_mvp.md`.
 
-Run it locally (against a running HTTP MCP server):
+Run it locally (against a running HTTP MCP server) — be sure to export a bearer token or every /mcp request will 401:
 ```bash
-# In one terminal: start MCP HTTP server
+# In one terminal: start MCP HTTP server (export token first)
+export BEARER_TOKENS=dev-token
 python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
 # In another terminal: start frontend dev server
 cd frontend
