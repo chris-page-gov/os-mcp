@@ -181,7 +181,7 @@ If all above are in place: YES you have a functional MVP enabling exploration.
 ## Quick Start (Step-by-Step)
 High-level operational steps (see dedicated `frontend_tutorial.md` for a fuller guide in `docs/frontend_tutorial.md`):
 1. Export required environment variables (inside devcontainer or locally): `export OS_API_KEY=...` and optionally `export OPENAI_API_KEY=...` for the `chat` tool.
-2. Run MCP HTTP server: `python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000`.
+2. Run MCP HTTP server: `python -m server --transport streamable-http --host 127.0.0.1 --port 8000`.
 3. Start frontend dev server:
   - `cd frontend`
   - `npm install`

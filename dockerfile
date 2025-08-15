@@ -20,4 +20,4 @@ COPY src/ ./src/
 
 EXPOSE 8000
 
-CMD ["python", "src/server.py", "--transport", "stdio"]
+CMD ["python", "-m", "server", "--transport", "stdio"]

@@ -25,7 +25,7 @@ export OPENAI_API_KEY=YOUR_OPENAI_KEY
 ## 3. Start the MCP HTTP Server
 Run the server with HTTP transport (separate terminal):
 ```bash
-python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 Health check (new terminal):
 ```bash

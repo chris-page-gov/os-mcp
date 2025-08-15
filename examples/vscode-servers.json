@@ -2,7 +2,7 @@
   "servers": {
     "os-mcp-dev": {
       "command": "python",
-      "args": ["-m", "src.server", "--transport", "stdio"],
+      "args": ["-m", "server", "--transport", "stdio"],
       "env": {
         "OS_API_KEY": "${env:OS_API_KEY}",
         "STDIO_KEY": "dev-key"

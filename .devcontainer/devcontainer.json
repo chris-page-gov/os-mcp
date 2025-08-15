@@ -24,27 +24,7 @@
         "ms-python.vscode-pylance",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode"
-      ],
-      "mcp": {
-        // Inputs removed: rely purely on environment variables already injected via containerEnv
-        "servers": {
-          "osNgd": {
-            "type": "stdio",
-            "command": "python",
-            "args": ["-m", "src.server", "--transport", "stdio"],
-            "env": {
-              // Forward existing container env vars directly (no prompts)
-              "OS_API_KEY": "${env:OS_API_KEY}",
-              "STDIO_KEY": "${env:STDIO_KEY}",
-              "PYTHONPATH": "/workspaces/os-mcp/src",
-              "BEARER_TOKENS": "${env:BEARER_TOKENS}"
-            },
-            "dev": {
-              "watch": "src/**/*.py"
-            }
-          }
-        }
-      }
+      ]
     }
   }
 }

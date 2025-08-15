@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
+## [0.1.13] - 2025-08-15
+### Changed
+- Standardized all invocation paths to `python -m server` (removed lingering `python -m src.server` references) to prevent `ModuleNotFoundError: No module named 'src'` in environments where `PYTHONPATH` is not set.
+### Removed
+- Devcontainer embedded MCP server auto-registration block and any VS Code tasks/launch duplication to avoid multiple concurrent server starts.
+### Documentation
+- Updated README and VS Code / frontend docs to reflect single authoritative entrypoint and simplified setup.
+### Internal / Maintenance
+- Updated Dockerfile and stdio integration tests to use module execution form; added typing improvements in `stdio_client_test.py`.
+
 ### Planned
 - `suggest_workflow` tool for automatic prompt recommendation.
 - Additional regional prompt modules (e.g. London, Manchester).

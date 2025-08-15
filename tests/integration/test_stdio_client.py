@@ -24,7 +24,7 @@ async def test_stdio_hello_world_rate_smoke():
     os.environ.setdefault("STDIO_KEY", "test-stdio-key")
     params = StdioServerParameters(
         command=sys.executable,
-        args=["src/server.py", "--transport", "stdio"],
+        args=["-m", "server", "--transport", "stdio"],
         env=os.environ.copy(),
     )
     async with stdio_client(params) as (read_stream, write_stream):

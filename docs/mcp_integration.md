@@ -37,7 +37,7 @@ Development (editable repo) + Production (installed wheel) example `~/.config/vs
   "servers": {
     "os-mcp-dev": {
       "command": "python",
-      "args": ["-m", "src.server", "--transport", "stdio"],
+  "args": ["-m", "server", "--transport", "stdio"],
       "env": {
         "OS_API_KEY": "${env:OS_API_KEY}",
         "STDIO_KEY": "dev-key"
@@ -234,7 +234,7 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 ## Full Local Test Cycle
 From the repo root:
 ```
-python -m src.server --transport stdio  # or streamable-http
+python -m server --transport stdio  # or streamable-http
 ```
 In another terminal run unit tests:
 ```

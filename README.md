@@ -71,7 +71,7 @@ You can register two entries so you always know whether you are using live sourc
 
 | Name | Purpose | Command | Args |
 |------|---------|---------|------|
-| `os-mcp-dev` | Live editable repo (after `pip install -e .`) | python | -m src.server --transport stdio |
+| `os-mcp-dev` | Live editable repo (after `pip install -e .`) | python | -m server --transport stdio |
 | `os-ngd` | Installed wheel (built artifact) | python | -m server --transport stdio |
 
 1. (Dev) Install in editable mode:
@@ -91,7 +91,7 @@ python -m venv ~/.local/share/os-ngd-venv
   "servers": {
     "os-mcp-dev": {
       "command": "python",
-      "args": ["-m", "src.server", "--transport", "stdio"],
+  "args": ["-m", "server", "--transport", "stdio"],
       "env": { "OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev-key" }
     },
     "os-ngd": {
@@ -122,7 +122,7 @@ See `docs/mcp_integration.md` for expanded guidance (routing, diagnostics, plann
 ### HTTP Health Check
 If you run the HTTP transport (from the repo root without installing the package):
 ```
-python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
 ```
 You can verify the server is up (no auth required):
 ```
@@ -152,7 +152,7 @@ Run it locally (against a running HTTP MCP server) — be sure to export a beare
 ```bash
 # In one terminal: start MCP HTTP server (export token first)
 export BEARER_TOKENS=dev-token
-python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
 # In another terminal: start frontend dev server
 cd frontend
 npm install
@@ -174,7 +174,7 @@ This project primarily injects environment variables via the devcontainer config
 Priority / resolution order at runtime:
 1. Explicit process environment (e.g. exported in your shell, or set in VS Code Run/Debug configuration).
 2. Devcontainer `containerEnv` and MCP server `env` blocks (these forward selected host variables on rebuild).
-3. (Optional) Manual `export VAR=value` inside the container shell before launching `python -m src.server`.
+3. (Optional) Manual `export VAR=value` inside the container shell before launching `python -m server`.
 
 Variables in use:
 - `OS_API_KEY` – required OS Data Hub key.
@@ -209,6 +209,26 @@ npm run build
 
 ## Test Suite Status
 Active test coverage includes routing, error envelopes, authentication paths, prompt category filtering, linked identifiers, chat tool, and frontend logic (planning heuristic, MCP tool wrapper, GeoJSON detection, layer toggling/removal). Current counts: backend 52 + frontend 20 = 72 passing tests as of 2025‑08‑11.
+
+### Troubleshooting: ModuleNotFoundError 'src.server'
+If you previously configured VS Code (or another MCP client) with `-m src.server` you may now see:
+```
+ModuleNotFoundError: No module named 'src'
+```
+Cause: Modern invocation relies on the installed package layout; `src` is not on `PYTHONPATH` in many runtime contexts (especially remote containers / production venvs). The project now standardizes on:
+```
+python -m server --transport stdio
+```
+or HTTP:
+```
+python -m server --transport streamable-http --host 127.0.0.1 --port 8000
+```
+Fix Steps:
+1. Open your `~/.config/vscode/mcp/servers.json` (or equivalent) and replace any `"-m", "src.server"` args with `"-m", "server"`.
+2. Remove obsolete devcontainer `customizations.vscode.mcp.servers` blocks or local tasks referencing `src.server` (these were removed in 0.1.13).
+3. Reload VS Code and run `@os-mcp-dev list tools`.
+4. (Optional) Verify Docker / deployment scripts also use `-m server`.
+Result: Single, reliable entrypoint across editable (`pip install -e .`) and wheel installs.
 
 ## License
 

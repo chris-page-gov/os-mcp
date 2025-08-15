@@ -3,13 +3,14 @@ import subprocess
 import sys
 import os
 import time
+from typing import Any, List, Tuple
 from mcp import ClientSession
 from mcp.client.stdio import stdio_client
 from mcp.client.stdio import StdioServerParameters
 from mcp.types import TextContent
 
 
-def extract_text_from_result(result) -> str:
+def extract_text_from_result(result: Any) -> str:
     """Safely extract text from MCP tool result"""
     if not result.content:
         return "No content"
@@ -32,7 +33,7 @@ async def test_stdio_rate_limiting():
     print("Starting STDIO server subprocess...")
 
     server_process = subprocess.Popen(
-        [sys.executable, "src/server.py", "--transport", "stdio", "--debug"],
+        [sys.executable, "-m", "server", "--transport", "stdio", "--debug"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -46,7 +47,7 @@ async def test_stdio_rate_limiting():
 
         server_params = StdioServerParameters(
             command=sys.executable,
-            args=["src/server.py", "--transport", "stdio", "--debug"],
+            args=["-m", "server", "--transport", "stdio", "--debug"],
             env=env,
         )
         async with stdio_client(server_params) as (read_stream, write_stream):
@@ -61,7 +62,8 @@ async def test_stdio_rate_limiting():
                 print("\nRAPID FIRE TEST (should hit rate limit)")
                 print("-" * 50)
 
-                results = []
+                results: List[Tuple[str, float, str]] = []
+                start_time: float = 0.0
                 for i in range(3):
                     try:
                         start_time = time.time()
