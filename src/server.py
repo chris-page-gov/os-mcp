@@ -21,10 +21,15 @@ import base64
 logger = configure_logging()
 
 
+def _resolve_server_name() -> str:
+    """Return the MCP server name (env override)"""
+    return os.environ.get("OS_MCP_SERVER_NAME", "os-ngd-api")
+
+
 def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: bool = False):
     """Factory that builds the FastMCP streamable HTTP app (used by tests)."""
     mcp = FastMCP(
-        "os-ngd-api",
+        _resolve_server_name(),
         host=host,
         port=port,
         debug=debug,
@@ -117,7 +122,7 @@ def main():
             logger.info("Starting with stdio transport")
 
             mcp = FastMCP(
-                "os-ngd-api",
+                _resolve_server_name(),
                 debug=args.debug,
                 log_level="DEBUG" if args.debug else "INFO",
             )
@@ -149,7 +154,7 @@ def main():
                     )
 
             mcp = FastMCP(
-                "os-ngd-api",
+                _resolve_server_name(),
                 host=args.host,
                 port=args.port,
                 debug=args.debug,

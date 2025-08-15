@@ -230,6 +230,14 @@ Fix Steps:
 4. (Optional) Verify Docker / deployment scripts also use `-m server`.
 Result: Single, reliable entrypoint across editable (`pip install -e .`) and wheel installs.
 
+### Differentiating Dev vs Prod Names
+You can optionally set a custom server display name (e.g. to show both dev + prod simultaneously) via:
+```
+export OS_MCP_SERVER_NAME=os-mcp-dev
+python -m server --transport stdio
+```
+If unset it defaults to `os-ngd-api`. Register two entries pointing at the same code but with different `env` blocks setting `OS_MCP_SERVER_NAME` to keep them distinct in the VS Code MCP Servers panel.
+
 ## License
 
 MIT License. This project does not have the endorsement of Ordnance Survey. This is a personal project and not affiliated with Ordnance Survey. This is not a commercial product. It is actively being worked on so expect breaking changes and bugs.

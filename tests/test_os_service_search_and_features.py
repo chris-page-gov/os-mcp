@@ -8,6 +8,7 @@ from mcp_service.os_service import OSDataHubService
 @pytest.mark.asyncio
 async def test_search_features_invalid_filter_too_long():
     api_client = AsyncMock()
+    # use default name explicitly (env override possible)
     mcp = FastMCP("os-ngd-api")
     service = OSDataHubService(api_client, mcp)
     # Provide workflow context shortcut

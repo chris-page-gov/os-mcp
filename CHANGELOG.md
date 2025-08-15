@@ -12,6 +12,7 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - Devcontainer embedded MCP server auto-registration block and any VS Code tasks/launch duplication to avoid multiple concurrent server starts.
 ### Documentation
 - Updated README and VS Code / frontend docs to reflect single authoritative entrypoint and simplified setup.
+ - Added support & docs for `OS_MCP_SERVER_NAME` env var to differentiate dev/prod server names in MCP clients.
 ### Internal / Maintenance
 - Updated Dockerfile and stdio integration tests to use module execution form; added typing improvements in `stdio_client_test.py`.
 
