@@ -42,6 +42,24 @@ If you prefer running locally without Docker:
 ```
 Restart Claude Desktop. The server should appear in the UI (usually shown with available tools/resources).
 
+### Optional: Parallel HTTP Server (for cURL / Frontend)
+Claude Desktop only needs the stdio container above. To also expose an HTTP MCP endpoint on your host (127.0.0.1:8000) start a second container:
+```bash
+docker run \
+  --rm \
+  -p 8000:8000 \
+  -e OS_API_KEY=YOUR_REAL_KEY \
+  -e BEARER_TOKENS=dev-token \
+  os-mcp-server \
+  python -m server --transport streamable-http --host 0.0.0.0 --port 8000
+```
+Health & auth discovery checks (host shell):
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s -H 'Authorization: Bearer dev-token' http://127.0.0.1:8000/.well-known/mcp-auth
+```
+All authenticated MCP JSON-RPC requests POST to `http://127.0.0.1:8000/mcp` with header `Authorization: Bearer dev-token`. Keep this container separate from the stdio one so Claude’s lifecycle (restart / upgrade) doesn’t disrupt HTTP clients.
+
 ## 3. First Plain Language Request
 In a new Claude chat, just type:
 > I want to identify cinema sites in Royal Leamington Spa. Plan the steps first and then execute them.

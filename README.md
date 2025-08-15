@@ -42,7 +42,7 @@ Then build the Docker image:
 docker build -t os-mcp-server .
 ```
 
-Add the following to your Claude Desktop config:
+Add the following to your Claude Desktop config (STDIO transport – simplest / default):
 
 ```json
 {
@@ -65,6 +65,27 @@ Add the following to your Claude Desktop config:
 ```
 
 Open Claude Desktop and you should now see all available tools, resources, and prompts (including `chat` if `OPENAI_API_KEY` is set).
+
+#### Optional: Run the HTTP transport in Docker (expose on 127.0.0.1)
+Claude Desktop today primarily connects over stdio. If you also want an HTTP endpoint (e.g. for the experimental frontend or scripted cURL usage) alongside Claude, run a second container exposing port 8000:
+
+```bash
+docker run \
+  --rm \
+  -p 8000:8000 \
+  -e OS_API_KEY=your_api_key_here \
+  -e BEARER_TOKENS=dev-token \
+  os-mcp-server \
+  python -m server --transport streamable-http --host 0.0.0.0 --port 8000
+```
+
+Test from the host:
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s -H 'Authorization: Bearer dev-token' http://127.0.0.1:8000/.well-known/mcp-auth
+```
+
+You can keep the stdio (Claude) container and the HTTP container separate (recommended) or run only the HTTP one if your client supports HTTP MCP directly. The stdio example above remains the canonical Claude configuration.
 
 ### VS Code MCP Setup (Development vs Production)
 You can register two entries so you always know whether you are using live source (editable) or an installed, versioned artifact:
