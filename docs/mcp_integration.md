@@ -29,29 +29,39 @@ Health Check (HTTP transport): once running you can probe `GET /health` (no auth
 | DEBUG=1 | Verbose logging | Optional |
 
 ## VS Code Configuration (servers.json)
-Create (user) MCP config (example `~/.config/vscode/mcp/servers.json`):
+Recommended to register both a development and production entry.
+
+Development (editable repo) + Production (installed wheel) example `~/.config/vscode/mcp/servers.json`:
 ```jsonc
 {
   "servers": {
-    "os-ngd": {
+    "os-mcp-dev": {
       "command": "python",
+      "args": ["-m", "src.server", "--transport", "stdio"],
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "STDIO_KEY": "dev-key"
+      }
+    },
+    "os-ngd": {
+      "command": "~/.local/share/os-ngd-venv/bin/python",
       "args": ["-m", "server", "--transport", "stdio"],
       "env": {
         "OS_API_KEY": "${env:OS_API_KEY}",
-        "STDIO_KEY": "dev-stdio-key"
+        "STDIO_KEY": "prod-key"
       }
     }
   }
 }
 ```
-HTTP variant (combining launch & discovery):
+HTTP production variant:
 ```jsonc
 {
   "servers": {
     "os-ngd-http": {
       "type": "http-streamable",
       "url": "http://127.0.0.1:8000",
-      "command": "python",
+      "command": "~/.local/share/os-ngd-venv/bin/python",
       "args": ["-m", "server", "--transport", "streamable-http", "--host", "127.0.0.1", "--port", "8000"],
       "env": {
         "OS_API_KEY": "${env:OS_API_KEY}",
@@ -91,16 +101,16 @@ HTTP variant (combining launch & discovery):
 | (HTTP only) /health | N/A | Out-of-band liveness check (not a tool call) |
 
 ### Listing Tools in VS Code Chat
-In the Copilot Chat panel, type:
+In the Copilot Chat panel, type (development entry):
 ```
-@os-ngd list tools
+@os-mcp-dev list tools
 ```
 You should see all registered tools including `get_prompt_templates`, `fetch_detailed_collections`, and `get_routing_data`.
 If `OPENAI_API_KEY` is configured you will also see `chat`.
 
 ### Testing a Simple Tool Call
 ```
-@os-ngd call hello_world {"name": "Tester"}
+@os-mcp-dev call hello_world {"name": "Tester"}
 ```
 Expect: `Hello, Tester!` response.
 
@@ -173,13 +183,13 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 ## Using Prompts Inside VS Code Chat
 1. List all prompts:
   ```
-  @os-ngd call get_prompt_templates {}
+  @os-mcp-dev call get_prompt_templates {}
   ```
 2. Filter by category (substring match):
   ```
   @os-ngd call get_prompt_templates {"category": "warwickshire"}
   @os-ngd call get_prompt_templates {"category": "planning"}
-  @os-ngd call get_prompt_templates {"category": "routing"}
+  @os-mcp-dev call get_prompt_templates {"category": "routing"}
   @os-ngd call get_prompt_templates {"category": "diagnostics"}
   ```
 3. Choose a prompt key (e.g. `search_cinemas_leamington`) and ask Copilot:
@@ -191,20 +201,20 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 ## Validating the Two‑Step Workflow Enforcement
 1. Attempt a search prematurely:
   ```
-  @os-ngd call search_features {"collection_id": "lus-fts-site-1", "filter": "oslandusetertiarygroup = 'Cinema'"}
+  @os-mcp-dev call search_features {"collection_id": "lus-fts-site-1", "filter": "oslandusetertiarygroup = 'Cinema'"}
   ```
 2. If context not initialized you'll receive `WORKFLOW_CONTEXT_REQUIRED` in the error envelope.
 3. Recover:
   ```
-  @os-ngd call get_workflow_context {}
-  @os-ngd call fetch_detailed_collections {"collection_ids": "lus-fts-site-1"}
+  @os-mcp-dev call get_workflow_context {}
+  @os-mcp-dev call fetch_detailed_collections {"collection_ids": "lus-fts-site-1"}
   ```
 4. Re-run the search; it should now succeed (subject to real API data & credentials).
 
 ## Exercising Diagnostic Prompts
 1. Trigger invalid collection error:
   ```
-  @os-ngd call search_features {"collection_id": "invalid-collection"}
+  @os-mcp-dev call search_features {"collection_id": "invalid-collection"}
   ```
   Expect `INVALID_COLLECTION` with `valid_collections` in details.
 2. Use diagnostic prompt:
@@ -213,11 +223,11 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 ## Routing Workflow Verification
 1. Get routing template list:
   ```
-  @os-ngd call get_prompt_templates {"category": "routing"}
+  @os-mcp-dev call get_prompt_templates {"category": "routing"}
   ```
 2. Use `routing_network_build_and_summarise` prompt instructions to call:
   ```
-  @os-ngd call get_routing_data {"bbox": "<minx,miny,maxx,maxy>", "limit": 100, "build_network": true}
+  @os-mcp-dev call get_routing_data {"bbox": "<minx,miny,maxx,maxy>", "limit": 100, "build_network": true}
   ```
 3. Confirm returned JSON includes counts / restriction summaries (depending on implementation state).
 

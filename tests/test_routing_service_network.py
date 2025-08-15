@@ -34,4 +34,4 @@ async def test_get_routing_data_build_failure_short_circuit():
     # Without planner, call will be blocked (workflow context required)
     out = await service.get_routing_data()
     data = json.loads(out)
-    assert data.get("blocked_tool") == "get_routing_data"
+    assert data.get("details", {}).get("blocked_tool") == "get_routing_data"

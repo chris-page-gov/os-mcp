@@ -66,34 +66,58 @@ Add the following to your Claude Desktop config:
 
 Open Claude Desktop and you should now see all available tools, resources, and prompts (including `chat` if `OPENAI_API_KEY` is set).
 
-### VS Code MCP (Experimental) Setup
-1. Create `~/.config/vscode/mcp/servers.json` (after running `pip install -e .[test]` so dependencies are available):
+### VS Code MCP Setup (Development vs Production)
+You can register two entries so you always know whether you are using live source (editable) or an installed, versioned artifact:
+
+| Name | Purpose | Command | Args |
+|------|---------|---------|------|
+| `os-mcp-dev` | Live editable repo (after `pip install -e .`) | python | -m src.server --transport stdio |
+| `os-ngd` | Installed wheel (built artifact) | python | -m server --transport stdio |
+
+1. (Dev) Install in editable mode:
+```bash
+pip install -e .[test]
+```
+2. (Optional Prod) Build & install a wheel into a separate venv:
+```bash
+python -m pip install --upgrade build
+python -m build
+python -m venv ~/.local/share/os-ngd-venv
+~/.local/share/os-ngd-venv/bin/pip install dist/os_mcp-*.whl
+```
+3. Create or edit `~/.config/vscode/mcp/servers.json`:
 ```jsonc
 {
   "servers": {
-    "os-ngd": {
+    "os-mcp-dev": {
       "command": "python",
       "args": ["-m", "src.server", "--transport", "stdio"],
-      "env": {"OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev"}
+      "env": { "OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev-key" }
+    },
+    "os-ngd": {
+      "command": "~/.local/share/os-ngd-venv/bin/python",
+      "args": ["-m", "server", "--transport", "stdio"],
+      "env": { "OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "prod-key" }
     }
   }
 }
 ```
-2. Start VS Code, open Copilot Chat, and issue:
+4. Reload VS Code, open Copilot Chat and list tools:
+```
+@os-mcp-dev list tools
+```
+Switch to production:
 ```
 @os-ngd list tools
 ```
-3. List prompts:
+5. List & filter prompts:
 ```
-@os-ngd call get_prompt_templates {}
+@os-mcp-dev call get_prompt_templates {}
+@os-mcp-dev call get_prompt_templates {"category": "planning"}
 ```
-4. Filter prompts (e.g. planning):
-```
-@os-ngd call get_prompt_templates {"category": "planning"}
-```
-5. Execute a workflow using a prompt key (e.g. `search_cinemas_leamington`).
+6. Run a workflow using a prompt key (e.g. `search_cinemas_leamington`).
 
-See `docs/mcp_integration.md` for full guidance, including routing and diagnostics prompts.
+See `docs/mcp_integration.md` for expanded guidance (routing, diagnostics, planning heuristics) and an HTTP transport variant.
 
 ### HTTP Health Check
 If you run the HTTP transport (from the repo root without installing the package):

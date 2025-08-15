@@ -62,6 +62,7 @@ class OSDataHubService:
             "get_workflow_context",
             "hello_world",
             "check_api_key",
+            "version_info",
             "list_collections",
             "get_single_collection",
             "get_single_collection_queryables",
@@ -191,22 +192,26 @@ class OSDataHubService:
 
     def _require_workflow_context(self, func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         # Functions that don't need workflow context
-        skip_functions = {"get_workflow_context", "hello_world", "check_api_key", "chat"}
+        skip_functions = {
+            "get_workflow_context",
+            "hello_world",
+            "check_api_key",
+            "chat",
+            "version_info",
+            "list_collections",
+        }
 
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            if self.workflow_planner is None:
-                if func.__name__ in skip_functions:
-                    return await func(*args, **kwargs)
-                else:
-                    return json.dumps(
-                        {
-                            "error": "WORKFLOW CONTEXT REQUIRED",
-                            "blocked_tool": func.__name__,
-                            "required_action": "You must call 'get_workflow_context' first",
-                            "message": "No tools are available until you get the workflow context. Please call get_workflow_context() now.",
-                        }
+            if self.workflow_planner is None and func.__name__ not in skip_functions:
+                return json.dumps(
+                    build_error_envelope(
+                        tool=func.__name__,
+                        code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
+                        message="Call get_workflow_context then fetch_detailed_collections before using this tool",
+                        details={"blocked_tool": func.__name__},
                     )
+                )
             return await func(*args, **kwargs)
 
         return wrapper
@@ -253,6 +258,8 @@ class OSDataHubService:
 
             if not isinstance(parsed, list) or not all(isinstance(m, dict) for m in parsed):
                 return json.dumps({"error": "INVALID_FORMAT", "message": "Messages must be list[dict]"})
+            # Hint to type checker
+            parsed = [m for m in parsed if isinstance(m, dict)]  # type: ignore[assignment]
 
             api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
@@ -272,18 +279,18 @@ class OSDataHubService:
         try:
             # Lazy import so tests can monkeypatch without dependency or to handle absence gracefully
             from openai import OpenAI  # type: ignore[import-not-found]
-            client = OpenAI(api_key=api_key)
+            client = OpenAI(api_key=api_key)  # type: ignore[call-arg]
             # Try new Responses API first, fallback to chat completions
             try:
-                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.2)
+                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.2)  # type: ignore[attr-defined]
                 content = resp.choices[0].message.content if resp.choices else ""
                 usage = getattr(resp, "usage", None)
                 return {"model": model, "output": content, "usage": getattr(usage, 'model_dump', lambda: usage)() if usage else None}
             except Exception:  # pragma: no cover - fallback path
                 # Fallback to legacy API if needed
                 import openai  # type: ignore
-                openai.api_key = api_key
-                legacy = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.2)
+                openai.api_key = api_key  # type: ignore[attr-defined]
+                legacy = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.2)  # type: ignore[attr-defined]
                 content = legacy['choices'][0]['message']['content'] if legacy.get('choices') else ""
                 return {"model": model, "output": content, "usage": legacy.get('usage')}
         except ModuleNotFoundError:
@@ -304,6 +311,34 @@ class OSDataHubService:
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
         return f"Hello, {name}! 👋"
+
+    async def version_info(self) -> str:
+        """Return package version and runtime mode (dev vs prod).
+
+        Heuristic:
+          - If running from editable source: presence of top-level 'src/' in __file__ path.
+          - If installed as wheel: absence of '/src/' component.
+        Also returns select env flags useful for diagnostics.
+        """
+        import importlib.metadata, sys, pathlib
+        try:
+            version = importlib.metadata.version("os-mcp")
+        except importlib.metadata.PackageNotFoundError:  # pragma: no cover - fallback
+            version = "0.0.0+unknown"
+        this_file = pathlib.Path(__file__).as_posix()
+        mode = "dev" if "/src/" in this_file else "prod"
+        data = {
+            "package": "os-mcp",
+            "version": version,
+            "mode": mode,
+            "python": sys.version.split()[0],
+            "env": {
+                k: os.environ.get(k)
+                for k in ["OS_API_KEY", "STDIO_KEY", "BEARER_TOKENS", "OPENAI_API_KEY"]
+                if os.environ.get(k)
+            },
+        }
+        return json.dumps(data)
 
     async def check_api_key(self) -> str:
         """Check if the OS API key is available."""

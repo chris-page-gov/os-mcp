@@ -78,4 +78,4 @@ async def test_fetch_detailed_collections_requires_planner():
     out = await service.fetch_detailed_collections("x")
     data = json.loads(out)
     # Initially blocked by workflow context guard wrapper (generic envelope)
-    assert data.get("blocked_tool") == "fetch_detailed_collections"
+    assert data.get("details", {}).get("blocked_tool") == "fetch_detailed_collections"

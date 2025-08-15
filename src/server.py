@@ -3,6 +3,8 @@ import os
 import uvicorn
 from typing import Any
 from utils.logging_config import configure_logging
+import importlib.metadata
+import pathlib
 
 from api_service.os_api import OSAPIClient
 from mcp_service.os_service import OSDataHubService
@@ -36,8 +38,15 @@ def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: 
     async def auth_discovery(_: Any):  # pragma: no cover - trivial
         return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
 
+    # Derive version/mode (reuse heuristic from version_info tool)
+    try:
+        _pkg_version = importlib.metadata.version("os-mcp")
+    except importlib.metadata.PackageNotFoundError:  # pragma: no cover - dev fallback
+        _pkg_version = "0.0.0+unknown"
+    _mode = "dev" if "/src/" in pathlib.Path(__file__).as_posix() else "prod"
+
     async def health(_: Any):  # pragma: no cover - trivial simple status
-        return JSONResponse(content={"status": "ok"})
+        return JSONResponse(content={"status": "ok", "version": _pkg_version, "mode": _mode})
 
     # Tiny 16x16 transparent PNG favicon
     _FAVICON_PNG_B64 = (
@@ -91,8 +100,14 @@ def main():
 
     configure_logging(debug=args.debug)
 
+    # Version & mode logging
+    try:
+        pkg_version = importlib.metadata.version("os-mcp")
+    except importlib.metadata.PackageNotFoundError:  # pragma: no cover
+        pkg_version = "0.0.0+unknown"
+    mode = "dev" if "/src/" in pathlib.Path(__file__).as_posix() else "prod"
     logger.info(
-        f"OS DataHub API MCP Server starting with {args.transport} transport..."
+        f"OS DataHub API MCP Server v{pkg_version} ({mode}) starting with {args.transport} transport..."
     )
 
     api_client = OSAPIClient()

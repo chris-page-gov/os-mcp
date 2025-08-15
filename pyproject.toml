@@ -29,6 +29,7 @@ markers = [
     "unit: fast unit tests",
     "integration: integration tests requiring app/network",
     "manual: manual or exploratory tests (skipped by default)",
+    "slow: slow or build-heavy tests (opt-in via OS_MCP_RUN_SLOW=1)",
 ]
 
 [tool.mypy]

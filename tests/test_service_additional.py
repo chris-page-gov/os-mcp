@@ -14,8 +14,9 @@ async def test_search_features_requires_workflow_context():
     # No workflow_planner set
     out = await service.search_features(collection_id="some-coll")
     data = json.loads(out)
-    assert data["error"] == "WORKFLOW CONTEXT REQUIRED"
-    assert data["blocked_tool"] == "search_features"
+    # Guard now returns full message and nested details
+    assert "Call get_workflow_context" in data["message"]
+    assert data.get("details", {}).get("blocked_tool") == "search_features"
 
 
 @pytest.mark.unit

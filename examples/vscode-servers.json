@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "os-mcp-dev": {
+      "command": "python",
+      "args": ["-m", "src.server", "--transport", "stdio"],
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "STDIO_KEY": "dev-key"
+      }
+    },
+    "os-ngd": {
+      "command": "python",
+      "args": ["-m", "server", "--transport", "stdio"],
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "STDIO_KEY": "prod-key"
+      }
+    }
+  }
+}

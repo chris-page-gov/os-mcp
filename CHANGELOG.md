@@ -13,6 +13,12 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - Experimental `chat` tool (OpenAI) behind OPENAI_API_KEY.
 	- Added initial chat tool tests (unit) covering success, missing key, invalid JSON, and context bypass.
 	- Documentation updates (README, Claude Desktop tutorial, VS Code integration guide) referencing chat tool and test count.
+- `version_info` MCP tool (mode dev/prod + package version + selected env vars).
+- Dual VS Code config guidance (separate `os-mcp-dev` editable & `os-ngd` wheel entries).
+- Deployment helper script `scripts/deploy_os_ngd.sh` (wheel build + servers.json patching).
+- Example servers file `examples/vscode-servers.json`.
+- Unit test `test_version_info_tool.py` validating version info shape.
+- HTTP /health now returns version & mode; startup log line includes version/mode.
 
 ## [0.1.12] - 2025-08-11
 ### Added
