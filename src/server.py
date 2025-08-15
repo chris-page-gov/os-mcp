@@ -5,6 +5,7 @@ from typing import Any
 from utils.logging_config import configure_logging
 import importlib.metadata
 import pathlib
+import sys
 
 from api_service.os_api import OSAPIClient
 from mcp_service.os_service import OSDataHubService
@@ -19,6 +20,32 @@ from starlette.responses import JSONResponse, Response
 import base64
 
 logger = configure_logging()
+
+
+def _compute_mode(file_path: str) -> str:
+    """Determine runtime mode.
+
+    Precedence:
+    1. Explicit override via OS_MCP_MODE env var ("dev" or "prod").
+    2. If module file resides inside an installed site-packages directory (prod).
+    3. Else dev.
+    This avoids fragile substring checks (previously "/src/").
+    """
+    override = os.environ.get("OS_MCP_MODE")
+    if override in {"dev", "prod"}:
+        return override
+
+    p = pathlib.Path(file_path).resolve()
+    # Heuristic: any sys.path entry containing "site-packages" or dist-packages marks prod install
+    site_like = [pathlib.Path(sp).resolve() for sp in sys.path if "site-packages" in sp or "dist-packages" in sp]
+    for root in site_like:
+        try:
+            # If server file is within site-packages tree -> prod
+            p.relative_to(root)
+            return "prod"
+        except Exception:
+            continue
+    return "dev"
 
 
 def _resolve_server_name() -> str:
@@ -43,12 +70,12 @@ def build_streamable_http_app(host: str = "127.0.0.1", port: int = 8000, debug: 
     async def auth_discovery(_: Any):  # pragma: no cover - trivial
         return JSONResponse(content={"authMethods": [{"type": "http", "scheme": "bearer"}]})
 
-    # Derive version/mode (reuse heuristic from version_info tool)
+    # Derive version & mode
     try:
         _pkg_version = importlib.metadata.version("os-mcp")
     except importlib.metadata.PackageNotFoundError:  # pragma: no cover - dev fallback
         _pkg_version = "0.0.0+unknown"
-    _mode = "dev" if "/src/" in pathlib.Path(__file__).as_posix() else "prod"
+    _mode = _compute_mode(__file__)
 
     async def health(_: Any):  # pragma: no cover - trivial simple status
         return JSONResponse(content={"status": "ok", "version": _pkg_version, "mode": _mode})
@@ -110,7 +137,7 @@ def main():
         pkg_version = importlib.metadata.version("os-mcp")
     except importlib.metadata.PackageNotFoundError:  # pragma: no cover
         pkg_version = "0.0.0+unknown"
-    mode = "dev" if "/src/" in pathlib.Path(__file__).as_posix() else "prod"
+    mode = _compute_mode(__file__)
     logger.info(
         f"OS DataHub API MCP Server v{pkg_version} ({mode}) starting with {args.transport} transport..."
     )

@@ -1,0 +1,425 @@
+vscode ➜ /workspaces/os-mcp (gpt5-review) $ python -m build
+PROD_VENV="$HOME/.local/share/os-ngd-prod"
+rm -rf "$PROD_VENV"
+python -m venv "$PROD_VENV"
+env -u PYTHONPATH "$PROD_VENV/bin/pip" install --no-cache-dir dist/os_mcp-0.1.16-py3-none-any.whl
+ln -sf "$PROD_VENV/bin/os-mcp" "$HOME/.local/bin/os-mcp-prod"
+STDIO_KEY=dev-key OS_MCP_MODE=prod os-mcp-prod --transport stdio
+* Creating isolated environment: venv+pip...
+* Installing packages in isolated environment:
+  - setuptools >= 40.8.0
+* Getting build dependencies for sdist...
+running egg_info
+writing src/os_mcp.egg-info/PKG-INFO
+writing dependency_links to src/os_mcp.egg-info/dependency_links.txt
+writing entry points to src/os_mcp.egg-info/entry_points.txt
+writing requirements to src/os_mcp.egg-info/requires.txt
+writing top-level names to src/os_mcp.egg-info/top_level.txt
+reading manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+* Building sdist...
+running sdist
+running egg_info
+writing src/os_mcp.egg-info/PKG-INFO
+writing dependency_links to src/os_mcp.egg-info/dependency_links.txt
+writing entry points to src/os_mcp.egg-info/entry_points.txt
+writing requirements to src/os_mcp.egg-info/requires.txt
+writing top-level names to src/os_mcp.egg-info/top_level.txt
+reading manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+running check
+creating os_mcp-0.1.16
+creating os_mcp-0.1.16/src
+creating os_mcp-0.1.16/src/api_service
+creating os_mcp-0.1.16/src/mcp_service
+creating os_mcp-0.1.16/src/middleware
+creating os_mcp-0.1.16/src/os_mcp.egg-info
+creating os_mcp-0.1.16/src/prompt_templates
+creating os_mcp-0.1.16/src/utils
+creating os_mcp-0.1.16/src/workflow_generator
+creating os_mcp-0.1.16/tests
+copying files to os_mcp-0.1.16...
+copying LICENSE -> os_mcp-0.1.16
+copying README.md -> os_mcp-0.1.16
+copying pyproject.toml -> os_mcp-0.1.16
+copying src/__init__.py -> os_mcp-0.1.16/src
+copying src/http_client_test.py -> os_mcp-0.1.16/src
+copying src/models.py -> os_mcp-0.1.16/src
+copying src/server.py -> os_mcp-0.1.16/src
+copying src/stdio_client_test.py -> os_mcp-0.1.16/src
+copying src/api_service/__init__.py -> os_mcp-0.1.16/src/api_service
+copying src/api_service/os_api.py -> os_mcp-0.1.16/src/api_service
+copying src/api_service/protocols.py -> os_mcp-0.1.16/src/api_service
+copying src/mcp_service/__init__.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/guardrails.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/os_service.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/prompts.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/protocols.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/resources.py -> os_mcp-0.1.16/src/mcp_service
+copying src/mcp_service/routing_service.py -> os_mcp-0.1.16/src/mcp_service
+copying src/middleware/__init__.py -> os_mcp-0.1.16/src/middleware
+copying src/middleware/http_middleware.py -> os_mcp-0.1.16/src/middleware
+copying src/middleware/request_id_middleware.py -> os_mcp-0.1.16/src/middleware
+copying src/middleware/stdio_middleware.py -> os_mcp-0.1.16/src/middleware
+copying src/os_mcp.egg-info/PKG-INFO -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/os_mcp.egg-info/SOURCES.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/os_mcp.egg-info/dependency_links.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/os_mcp.egg-info/entry_points.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/os_mcp.egg-info/requires.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/os_mcp.egg-info/top_level.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+copying src/prompt_templates/__init__.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/prompt_templates/diagnostics.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/prompt_templates/planning.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/prompt_templates/prompt_templates.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/prompt_templates/routing.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/prompt_templates/warwickshire.py -> os_mcp-0.1.16/src/prompt_templates
+copying src/utils/__init__.py -> os_mcp-0.1.16/src/utils
+copying src/utils/error_envelope.py -> os_mcp-0.1.16/src/utils
+copying src/utils/logging_config.py -> os_mcp-0.1.16/src/utils
+copying src/workflow_generator/__init__.py -> os_mcp-0.1.16/src/workflow_generator
+copying src/workflow_generator/workflow_planner.py -> os_mcp-0.1.16/src/workflow_generator
+copying tests/test_chat_tool.py -> os_mcp-0.1.16/tests
+copying tests/test_equivalence_os_api.py -> os_mcp-0.1.16/tests
+copying tests/test_error_envelope_build.py -> os_mcp-0.1.16/tests
+copying tests/test_favicon.py -> os_mcp-0.1.16/tests
+copying tests/test_health_endpoint.py -> os_mcp-0.1.16/tests
+copying tests/test_http_middleware_security.py -> os_mcp-0.1.16/tests
+copying tests/test_middleware.py -> os_mcp-0.1.16/tests
+copying tests/test_os_api_client.py -> os_mcp-0.1.16/tests
+copying tests/test_os_api_client_additional.py -> os_mcp-0.1.16/tests
+copying tests/test_os_service_search_and_features.py -> os_mcp-0.1.16/tests
+copying tests/test_production_instance.py -> os_mcp-0.1.16/tests
+copying tests/test_prompt_categories.py -> os_mcp-0.1.16/tests
+copying tests/test_request_id_logging.py -> os_mcp-0.1.16/tests
+copying tests/test_routing_service_network.py -> os_mcp-0.1.16/tests
+copying tests/test_service_additional.py -> os_mcp-0.1.16/tests
+copying tests/test_version_info_integration.py -> os_mcp-0.1.16/tests
+copying tests/test_version_info_tool.py -> os_mcp-0.1.16/tests
+copying tests/test_warwickshire_prompts.py -> os_mcp-0.1.16/tests
+copying src/os_mcp.egg-info/SOURCES.txt -> os_mcp-0.1.16/src/os_mcp.egg-info
+Writing os_mcp-0.1.16/setup.cfg
+Creating tar archive
+removing 'os_mcp-0.1.16' (and everything under it)
+* Building wheel from sdist
+* Creating isolated environment: venv+pip...
+* Installing packages in isolated environment:
+  - setuptools >= 40.8.0
+* Getting build dependencies for wheel...
+running egg_info
+writing src/os_mcp.egg-info/PKG-INFO
+writing dependency_links to src/os_mcp.egg-info/dependency_links.txt
+writing entry points to src/os_mcp.egg-info/entry_points.txt
+writing requirements to src/os_mcp.egg-info/requires.txt
+writing top-level names to src/os_mcp.egg-info/top_level.txt
+reading manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+* Building wheel...
+running bdist_wheel
+running build
+running build_py
+creating build/lib
+copying src/server.py -> build/lib
+copying src/models.py -> build/lib
+creating build/lib/mcp_service
+copying src/mcp_service/__init__.py -> build/lib/mcp_service
+copying src/mcp_service/os_service.py -> build/lib/mcp_service
+copying src/mcp_service/protocols.py -> build/lib/mcp_service
+copying src/mcp_service/guardrails.py -> build/lib/mcp_service
+copying src/mcp_service/routing_service.py -> build/lib/mcp_service
+copying src/mcp_service/resources.py -> build/lib/mcp_service
+copying src/mcp_service/prompts.py -> build/lib/mcp_service
+creating build/lib/workflow_generator
+copying src/workflow_generator/__init__.py -> build/lib/workflow_generator
+copying src/workflow_generator/workflow_planner.py -> build/lib/workflow_generator
+creating build/lib/api_service
+copying src/api_service/__init__.py -> build/lib/api_service
+copying src/api_service/os_api.py -> build/lib/api_service
+copying src/api_service/protocols.py -> build/lib/api_service
+creating build/lib/utils
+copying src/utils/__init__.py -> build/lib/utils
+copying src/utils/logging_config.py -> build/lib/utils
+copying src/utils/error_envelope.py -> build/lib/utils
+creating build/lib/prompt_templates
+copying src/prompt_templates/warwickshire.py -> build/lib/prompt_templates
+copying src/prompt_templates/__init__.py -> build/lib/prompt_templates
+copying src/prompt_templates/planning.py -> build/lib/prompt_templates
+copying src/prompt_templates/diagnostics.py -> build/lib/prompt_templates
+copying src/prompt_templates/routing.py -> build/lib/prompt_templates
+copying src/prompt_templates/prompt_templates.py -> build/lib/prompt_templates
+creating build/lib/middleware
+copying src/middleware/__init__.py -> build/lib/middleware
+copying src/middleware/request_id_middleware.py -> build/lib/middleware
+copying src/middleware/stdio_middleware.py -> build/lib/middleware
+copying src/middleware/http_middleware.py -> build/lib/middleware
+running egg_info
+writing src/os_mcp.egg-info/PKG-INFO
+writing dependency_links to src/os_mcp.egg-info/dependency_links.txt
+writing entry points to src/os_mcp.egg-info/entry_points.txt
+writing requirements to src/os_mcp.egg-info/requires.txt
+writing top-level names to src/os_mcp.egg-info/top_level.txt
+reading manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file 'src/os_mcp.egg-info/SOURCES.txt'
+installing to build/bdist.linux-aarch64/wheel
+running install
+running install_lib
+creating build/bdist.linux-aarch64/wheel
+creating build/bdist.linux-aarch64/wheel/mcp_service
+copying build/lib/mcp_service/__init__.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/os_service.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/protocols.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/guardrails.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/routing_service.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/resources.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+copying build/lib/mcp_service/prompts.py -> build/bdist.linux-aarch64/wheel/./mcp_service
+creating build/bdist.linux-aarch64/wheel/workflow_generator
+copying build/lib/workflow_generator/__init__.py -> build/bdist.linux-aarch64/wheel/./workflow_generator
+copying build/lib/workflow_generator/workflow_planner.py -> build/bdist.linux-aarch64/wheel/./workflow_generator
+copying build/lib/server.py -> build/bdist.linux-aarch64/wheel/.
+creating build/bdist.linux-aarch64/wheel/api_service
+copying build/lib/api_service/__init__.py -> build/bdist.linux-aarch64/wheel/./api_service
+copying build/lib/api_service/os_api.py -> build/bdist.linux-aarch64/wheel/./api_service
+copying build/lib/api_service/protocols.py -> build/bdist.linux-aarch64/wheel/./api_service
+creating build/bdist.linux-aarch64/wheel/utils
+copying build/lib/utils/__init__.py -> build/bdist.linux-aarch64/wheel/./utils
+copying build/lib/utils/logging_config.py -> build/bdist.linux-aarch64/wheel/./utils
+copying build/lib/utils/error_envelope.py -> build/bdist.linux-aarch64/wheel/./utils
+copying build/lib/models.py -> build/bdist.linux-aarch64/wheel/.
+creating build/bdist.linux-aarch64/wheel/prompt_templates
+copying build/lib/prompt_templates/warwickshire.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+copying build/lib/prompt_templates/__init__.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+copying build/lib/prompt_templates/planning.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+copying build/lib/prompt_templates/diagnostics.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+copying build/lib/prompt_templates/routing.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+copying build/lib/prompt_templates/prompt_templates.py -> build/bdist.linux-aarch64/wheel/./prompt_templates
+creating build/bdist.linux-aarch64/wheel/middleware
+copying build/lib/middleware/__init__.py -> build/bdist.linux-aarch64/wheel/./middleware
+copying build/lib/middleware/request_id_middleware.py -> build/bdist.linux-aarch64/wheel/./middleware
+copying build/lib/middleware/stdio_middleware.py -> build/bdist.linux-aarch64/wheel/./middleware
+copying build/lib/middleware/http_middleware.py -> build/bdist.linux-aarch64/wheel/./middleware
+running install_egg_info
+Copying src/os_mcp.egg-info to build/bdist.linux-aarch64/wheel/./os_mcp-0.1.16-py3.11.egg-info
+running install_scripts
+creating build/bdist.linux-aarch64/wheel/os_mcp-0.1.16.dist-info/WHEEL
+creating '/workspaces/os-mcp/dist/.tmp-by8lfo9k/os_mcp-0.1.16-py3-none-any.whl' and adding 'build/bdist.linux-aarch64/wheel' to it
+adding 'models.py'
+adding 'server.py'
+adding 'api_service/__init__.py'
+adding 'api_service/os_api.py'
+adding 'api_service/protocols.py'
+adding 'mcp_service/__init__.py'
+adding 'mcp_service/guardrails.py'
+adding 'mcp_service/os_service.py'
+adding 'mcp_service/prompts.py'
+adding 'mcp_service/protocols.py'
+adding 'mcp_service/resources.py'
+adding 'mcp_service/routing_service.py'
+adding 'middleware/__init__.py'
+adding 'middleware/http_middleware.py'
+adding 'middleware/request_id_middleware.py'
+adding 'middleware/stdio_middleware.py'
+adding 'os_mcp-0.1.16.dist-info/licenses/LICENSE'
+adding 'prompt_templates/__init__.py'
+adding 'prompt_templates/diagnostics.py'
+adding 'prompt_templates/planning.py'
+adding 'prompt_templates/prompt_templates.py'
+adding 'prompt_templates/routing.py'
+adding 'prompt_templates/warwickshire.py'
+adding 'utils/__init__.py'
+adding 'utils/error_envelope.py'
+adding 'utils/logging_config.py'
+adding 'workflow_generator/__init__.py'
+adding 'workflow_generator/workflow_planner.py'
+adding 'os_mcp-0.1.16.dist-info/METADATA'
+adding 'os_mcp-0.1.16.dist-info/WHEEL'
+adding 'os_mcp-0.1.16.dist-info/entry_points.txt'
+adding 'os_mcp-0.1.16.dist-info/top_level.txt'
+adding 'os_mcp-0.1.16.dist-info/RECORD'
+removing build/bdist.linux-aarch64/wheel
+Successfully built os_mcp-0.1.16.tar.gz and os_mcp-0.1.16-py3-none-any.whl
+Processing ./dist/os_mcp-0.1.16-py3-none-any.whl
+Collecting aiohttp~=3.11.18 (from os-mcp==0.1.16)
+  Downloading aiohttp-3.11.18-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (7.7 kB)
+Collecting anthropic~=0.51.0 (from os-mcp==0.1.16)
+  Downloading anthropic-0.51.0-py3-none-any.whl.metadata (25 kB)
+Collecting fastapi~=0.116.1 (from os-mcp==0.1.16)
+  Downloading fastapi-0.116.1-py3-none-any.whl.metadata (28 kB)
+Collecting mcp~=1.12.0 (from os-mcp==0.1.16)
+  Downloading mcp-1.12.4-py3-none-any.whl.metadata (68 kB)
+     ━━━━━━━━━━━ 68.2/68.2   4.6 MB/s eta 0:00:00
+                 kB                              
+Collecting starlette~=0.47.1 (from os-mcp==0.1.16)
+  Downloading starlette-0.47.2-py3-none-any.whl.metadata (6.2 kB)
+Collecting uvicorn~=0.35.0 (from os-mcp==0.1.16)
+  Downloading uvicorn-0.35.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting openai~=1.37.0 (from os-mcp==0.1.16)
+  Downloading openai-1.37.2-py3-none-any.whl.metadata (22 kB)
+Collecting aiohappyeyeballs>=2.3.0 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)
+Collecting aiosignal>=1.1.2 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting attrs>=17.3.0 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading attrs-25.3.0-py3-none-any.whl.metadata (10 kB)
+Collecting frozenlist>=1.1.1 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading frozenlist-1.7.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (18 kB)
+Collecting multidict<7.0,>=4.5 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading multidict-6.6.4-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (5.3 kB)
+Collecting propcache>=0.2.0 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading propcache-0.3.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (12 kB)
+Collecting yarl<2.0,>=1.17.0 (from aiohttp~=3.11.18->os-mcp==0.1.16)
+  Downloading yarl-1.20.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (73 kB)
+     ━━━━━━━━━━ 73.9/73.9   39.4 MB/s eta 0:00:00
+                kB                               
+Collecting anyio<5,>=3.5.0 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading anyio-4.10.0-py3-none-any.whl.metadata (4.0 kB)
+Collecting distro<2,>=1.7.0 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+Collecting httpx<1,>=0.25.0 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting jiter<1,>=0.4.0 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading jiter-0.10.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (5.2 kB)
+Collecting pydantic<3,>=1.9.0 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading pydantic-2.11.7-py3-none-any.whl.metadata (67 kB)
+     ━━━━━━━━━━ 68.0/68.0   64.4 MB/s eta 0:00:00
+                kB                               
+Collecting sniffio (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting typing-extensions<5,>=4.10 (from anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading typing_extensions-4.14.1-py3-none-any.whl.metadata (3.0 kB)
+Collecting httpx-sse>=0.4 (from mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading httpx_sse-0.4.1-py3-none-any.whl.metadata (9.4 kB)
+Collecting jsonschema>=4.20.0 (from mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading jsonschema-4.25.0-py3-none-any.whl.metadata (7.7 kB)
+Collecting pydantic-settings>=2.5.2 (from mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading pydantic_settings-2.10.1-py3-none-any.whl.metadata (3.4 kB)
+Collecting python-multipart>=0.0.9 (from mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading python_multipart-0.0.20-py3-none-any.whl.metadata (1.8 kB)
+Collecting sse-starlette>=1.6.1 (from mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading sse_starlette-3.0.2-py3-none-any.whl.metadata (11 kB)
+Collecting tqdm>4 (from openai~=1.37.0->os-mcp==0.1.16)
+  Downloading tqdm-4.67.1-py3-none-any.whl.metadata (57 kB)
+     ━━━━━━━━━━ 57.7/57.7  393.2 MB/s eta 0:00:00
+                kB                               
+Collecting click>=7.0 (from uvicorn~=0.35.0->os-mcp==0.1.16)
+  Downloading click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
+Collecting h11>=0.8 (from uvicorn~=0.35.0->os-mcp==0.1.16)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting idna>=2.8 (from anyio<5,>=3.5.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading idna-3.10-py3-none-any.whl.metadata (10 kB)
+Collecting certifi (from httpx<1,>=0.25.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading certifi-2025.8.3-py3-none-any.whl.metadata (2.4 kB)
+Collecting httpcore==1.* (from httpx<1,>=0.25.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading jsonschema_specifications-2025.4.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading referencing-0.36.2-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.7.1 (from jsonschema>=4.20.0->mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading rpds_py-0.27.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.2 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3,>=1.9.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.33.2 (from pydantic<3,>=1.9.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.8 kB)
+Collecting typing-inspection>=0.4.0 (from pydantic<3,>=1.9.0->anthropic~=0.51.0->os-mcp==0.1.16)
+  Downloading typing_inspection-0.4.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.5.2->mcp~=1.12.0->os-mcp==0.1.16)
+  Downloading python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
+Downloading aiohttp-3.11.18-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.7 MB)
+   ━━━━━━━━━━━━━ 1.7/1.7 MB 26.7 MB/s eta 0:00:00
+Downloading anthropic-0.51.0-py3-none-any.whl (263 kB)
+   ━━━━━━━━━━━━ 264.0/264.0 97.6 MB/s eta 0:00:00
+                kB                               
+Downloading fastapi-0.116.1-py3-none-any.whl (95 kB)
+   ━━━━━━━━━━━ 95.6/95.6   526.7 MB/s eta 0:00:00
+               kB                                
+Downloading mcp-1.12.4-py3-none-any.whl (160 kB)
+   ━━━━━━━━━━━ 160.1/160.1 235.8 MB/s eta 0:00:00
+               kB                                
+Downloading openai-1.37.2-py3-none-any.whl (337 kB)
+   ━━━━━━━━━━━━ 337.1/337.1 75.5 MB/s eta 0:00:00
+                kB                               
+Downloading starlette-0.47.2-py3-none-any.whl (72 kB)
+   ━━━━━━━━━━━ 73.0/73.0   549.2 MB/s eta 0:00:00
+               kB                                
+Downloading uvicorn-0.35.0-py3-none-any.whl (66 kB)
+   ━━━━━━━━━━━ 66.4/66.4   532.2 MB/s eta 0:00:00
+               kB                                
+Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+Downloading anyio-4.10.0-py3-none-any.whl (107 kB)
+   ━━━━━━━━━━━ 107.2/107.2 387.4 MB/s eta 0:00:00
+               kB                                
+Downloading attrs-25.3.0-py3-none-any.whl (63 kB)
+   ━━━━━━━━━━━ 63.8/63.8   423.0 MB/s eta 0:00:00
+               kB                                
+Downloading click-8.2.1-py3-none-any.whl (102 kB)
+   ━━━━━━━━━━━ 102.2/102.2 329.9 MB/s eta 0:00:00
+               kB                                
+Downloading distro-1.9.0-py3-none-any.whl (20 kB)
+Downloading frozenlist-1.7.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (237 kB)
+   ━━━━━━━━━━━ 237.3/237.3 536.7 MB/s eta 0:00:00
+               kB                                
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━ 73.5/73.5   395.6 MB/s eta 0:00:00
+               kB                                
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━ 78.8/78.8   378.1 MB/s eta 0:00:00
+               kB                                
+Downloading httpx_sse-0.4.1-py3-none-any.whl (8.1 kB)
+Downloading jiter-0.10.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (345 kB)
+   ━━━━━━━━━━━ 345.6/345.6 121.3 MB/s eta 0:00:00
+               kB                                
+Downloading jsonschema-4.25.0-py3-none-any.whl (89 kB)
+   ━━━━━━━━━━━ 89.2/89.2   343.9 MB/s eta 0:00:00
+               kB                                
+Downloading multidict-6.6.4-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (246 kB)
+   ━━━━━━━━━━━━ 246.7/246.7 50.0 MB/s eta 0:00:00
+                kB                               
+Downloading propcache-0.3.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (217 kB)
+   ━━━━━━━━━━━ 217.3/217.3 136.3 MB/s eta 0:00:00
+               kB                                
+Downloading pydantic-2.11.7-py3-none-any.whl (444 kB)
+   ━━━━━━━━━━━ 444.8/444.8 223.6 MB/s eta 0:00:00
+               kB                                
+Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.9 MB)
+   ━━━━━━━━━━━━━ 1.9/1.9 MB 71.1 MB/s eta 0:00:00
+Downloading pydantic_settings-2.10.1-py3-none-any.whl (45 kB)
+   ━━━━━━━━━━━ 45.2/45.2   227.9 MB/s eta 0:00:00
+               kB                                
+Downloading python_multipart-0.0.20-py3-none-any.whl (24 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading sse_starlette-3.0.2-py3-none-any.whl (11 kB)
+Downloading tqdm-4.67.1-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━ 78.5/78.5   207.5 MB/s eta 0:00:00
+               kB                                
+Downloading typing_extensions-4.14.1-py3-none-any.whl (43 kB)
+   ━━━━━━━━━━━ 43.9/43.9   210.4 MB/s eta 0:00:00
+               kB                                
+Downloading yarl-1.20.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (347 kB)
+   ━━━━━━━━━━━━ 347.0/347.0 85.5 MB/s eta 0:00:00
+                kB                               
+Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Downloading idna-3.10-py3-none-any.whl (70 kB)
+   ━━━━━━━━━━━ 70.4/70.4   251.8 MB/s eta 0:00:00
+               kB                                
+Downloading jsonschema_specifications-2025.4.1-py3-none-any.whl (18 kB)
+Downloading python_dotenv-1.1.1-py3-none-any.whl (20 kB)
+Downloading referencing-0.36.2-py3-none-any.whl (26 kB)
+Downloading rpds_py-0.27.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (381 kB)
+   ━━━━━━━━━━━━ 381.5/381.5 84.5 MB/s eta 0:00:00
+                kB                               
+Downloading typing_inspection-0.4.1-py3-none-any.whl (14 kB)
+Downloading certifi-2025.8.3-py3-none-any.whl (161 kB)
+   ━━━━━━━━━━━ 161.2/161.2 339.1 MB/s eta 0:00:00
+               kB                                
+Installing collected packages: typing-extensions, tqdm, sniffio, rpds-py, python-multipart, python-dotenv, propcache, multidict, jiter, idna, httpx-sse, h11, frozenlist, distro, click, certifi, attrs, annotated-types, aiohappyeyeballs, yarl, uvicorn, typing-inspection, referencing, pydantic-core, httpcore, anyio, aiosignal, starlette, sse-starlette, pydantic, jsonschema-specifications, httpx, aiohttp, pydantic-settings, openai, jsonschema, fastapi, anthropic, mcp, os-mcp
+Successfully installed aiohappyeyeballs-2.6.1 aiohttp-3.11.18 aiosignal-1.4.0 annotated-types-0.7.0 anthropic-0.51.0 anyio-4.10.0 attrs-25.3.0 certifi-2025.8.3 click-8.2.1 distro-1.9.0 fastapi-0.116.1 frozenlist-1.7.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 httpx-sse-0.4.1 idna-3.10 jiter-0.10.0 jsonschema-4.25.0 jsonschema-specifications-2025.4.1 mcp-1.12.4 multidict-6.6.4 openai-1.37.2 os-mcp-0.1.16 propcache-0.3.2 pydantic-2.11.7 pydantic-core-2.33.2 pydantic-settings-2.10.1 python-dotenv-1.1.1 python-multipart-0.0.20 referencing-0.36.2 rpds-py-0.27.0 sniffio-1.3.1 sse-starlette-3.0.2 starlette-0.47.2 tqdm-4.67.1 typing-extensions-4.14.1 typing-inspection-0.4.1 uvicorn-0.35.0 yarl-1.20.1
+
+[notice] A new release of pip is available: 24.0 -> 25.2
+[notice] To update, run: python -m pip install --upgrade pip
+2025-08-15 12:21:10,043 - root - INFO - OS DataHub API MCP Server v0.1.16 (prod) starting with stdio transport...
+2025-08-15 12:21:10,043 - root - INFO - Starting with stdio transport

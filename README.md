@@ -207,6 +207,66 @@ cd frontend
 npm run build
 ```
 
+### Test Coverage Mapping
+The test suite intentionally exercises every documented server capability:
+| README Feature / Section | Test File(s) / Marker |
+|--------------------------|-----------------------|
+| Two‑step workflow enforcement (`WORKFLOW_CONTEXT_REQUIRED`) | `tests/test_service_additional.py::test_search_features_requires_workflow_context` |
+| Invalid / diagnostic envelopes (`INVALID_COLLECTION`) | `tests/test_service_additional.py::test_search_features_invalid_collection_envelope` |
+| Queryables + detailed collections | `tests/test_os_service_search_and_features.py::test_fetch_detailed_collections_requires_planner` |
+| Bulk + single feature retrieval | `tests/test_os_service_search_and_features.py::test_get_bulk_features_mixed_modes`, `...::test_get_feature_upstream_error` (error path) |
+| Linked identifiers + bulk links | `tests/test_service_additional.py::test_linked_identifiers_filtering` |
+| Routing data tool | `tests/test_routing_service_network.py` |
+| Structured error envelope shape | `tests/test_error_envelope_build.py` |
+| Request ID middleware | `tests/test_request_id_logging.py` |
+| Auth (bearer / stdio) & HTTP middleware | `tests/test_http_middleware_security.py`, `tests/test_middleware.py` |
+| Health/version endpoints (prod build) | `tests/test_production_instance.py::test_production_health_and_version` |
+| Version info MCP tool | `tests/test_version_info_tool.py` |
+| Prompt templates & category filtering | `tests/test_prompt_categories.py`, `tests/test_warwickshire_prompts.py` |
+| Equivalence vs OS API (parity) | `tests/test_equivalence_os_api.py`, `tests/test_os_service_search_and_features.py` |
+| Chat tool (experimental) | `tests/test_chat_tool.py` |
+| Stdio rate limiting (smoke) | `tests/integration/test_stdio_client.py` |
+| Favicon / static asset exposure | `tests/test_favicon.py` |
+| HTTP /mcp security (bearer required) | `tests/test_http_middleware_security.py` |
+
+Slow / build heavy production instance test is gated by `OS_MCP_RUN_SLOW=1` (see `tests/test_production_instance.py`).
+
+### Running Tests Inside the Devcontainer
+The devcontainer already installs dependencies with test extras. Typical flows:
+```bash
+# All fast tests
+pytest -q
+
+# Include slow production build test
+OS_MCP_RUN_SLOW=1 pytest -q tests/test_production_instance.py::test_build_and_install_wheel
+
+# Coverage (backend focus)
+pytest --cov=src --cov=tests --cov-report=term-missing
+```
+
+### Lint / Type Strictness
+`mypy --strict` is enforced in CI (see `pyproject.toml` for strict flags). Any new public API or tool should include minimal tests plus type annotations to keep this passing.
+
+### Frontend Development (Container)
+Node 20 is available in the devcontainer. To iterate:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The frontend currently relies on a locally running HTTP MCP server (start with `BEARER_TOKENS=dev-token python -m server --transport streamable-http --host 127.0.0.1 --port 8000`). SSE streaming is planned; current tests mock core logic and GeoJSON parsing.
+
+### Adding a New Tool (Guide)
+1. Add implementation to `mcp_service/os_service.py`.
+2. Register it on the `FastMCP` instance (follow existing pattern).
+3. Create unit tests covering success + 1 error path.
+4. (If external API call) add to equivalence parity tests if applicable.
+5. Update this README & CHANGELOG (Unreleased).
+6. Optionally extend prompt templates referencing the new tool; add template test.
+
+### Environment Consistency
+Within the devcontainer the following are pre-set (see `.devcontainer/devcontainer.json`): `OS_API_KEY`, `STDIO_KEY`, `BEARER_TOKENS`, `OPENAI_API_KEY` (forwarded if present). Override any temporarily via `export VAR=...` before running tests or server. No `.env` auto‑loading is performed.
+
 ## Test Suite Status
 Active test coverage includes routing, error envelopes, authentication paths, prompt category filtering, linked identifiers, chat tool, and frontend logic (planning heuristic, MCP tool wrapper, GeoJSON detection, layer toggling/removal). Current counts: backend 52 + frontend 20 = 72 passing tests as of 2025‑08‑11.
 
@@ -237,6 +297,94 @@ export OS_MCP_SERVER_NAME=os-mcp-dev
 python -m server --transport stdio
 ```
 If unset it defaults to `os-ngd-api`. Register two entries pointing at the same code but with different `env` blocks setting `OS_MCP_SERVER_NAME` to keep them distinct in the VS Code MCP Servers panel.
+
+### Building a Production STDIO Environment Inside the Devcontainer
+Create an immutable (wheel-installed) environment alongside your editable dev install:
+```bash
+./scripts/build_prod_stdio.sh   # builds wheel + venv at ~/.local/share/os-ngd-prod
+```
+The script prints a JSON snippet for your container user MCP config (e.g. `/home/vscode/.vscode-server/data/User/mcp.json`). Example entry:
+```jsonc
+{
+  "os-ngd-prod": {
+    "command": "/home/vscode/.local/share/os-ngd-prod/bin/python",
+    "args": ["-m", "server", "--transport", "stdio"],
+    "env": {
+      "OS_API_KEY": "${env:OS_API_KEY}",
+      "STDIO_KEY": "prod-key",
+      "OS_MCP_SERVER_NAME": "os-ngd-prod"
+    }
+  }
+}
+```
+Next steps to use the production instance:
+1. Add/update the snippet in your container user MCP config (path typically `/home/vscode/.vscode-server/data/User/mcp.json`).
+2. Reload the VS Code window so it picks up the new entry: Command Palette (Ctrl/Cmd+Shift+P) → "Developer: Reload Window".
+3. Start the server in one of these ways:
+  - Command Palette → "Model Context Protocol: Start Server" → select `os-ngd-prod`
+  - MCP Servers view (if enabled) → click the ▶ start button next to `os-ngd-prod`
+  - Open a chat and reference a tool from `os-ngd-prod` (auto-starts)
+4. Verify it started: View → Output → dropdown: Model Context Protocol / os-ngd-prod (look for startup log) or list tools (`@os-ngd-prod list tools`).
+
+Troubleshooting: If it fails to start, ensure `OS_API_KEY` is available in the container environment. For a quick test you can replace `${env:OS_API_KEY}` with a literal key string in the config (remember to revert afterwards).
+
+Re-run the script after code changes (and version bump) to refresh the production venv:
+```bash
+./scripts/build_prod_stdio.sh && echo "Prod venv refreshed"
+```
+
+### Manual STDIO Smoke Test (Production Wheel)
+
+Quickly verify the production wheel install works end‑to‑end without a GUI MCP client.
+
+1. (Re)build the production venv if needed:
+  ```bash
+  ./scripts/build_prod_stdio.sh
+  ```
+2. Launch the production stdio server (foreground) in one terminal using the helper:
+  ```bash
+  ./scripts/run_prod_stdio.sh
+  ```
+  Add `--debug` for verbose logging.
+3. In a second terminal list tools via a tiny Python client:
+  ```bash
+  PROD_VENV="$HOME/.local/share/os-ngd-prod" python - <<'PY'
+import asyncio, os
+from mcp import ClientSession
+from mcp.client.stdio import stdio_client, StdioServerParameters
+
+async def main():
+   params = StdioServerParameters(
+      command=os.path.join(os.environ["PROD_VENV"], "bin", "os-mcp"),
+      args=["--transport", "stdio"],
+      env={
+        "STDIO_KEY": os.environ.get("STDIO_KEY", "dev-key"),
+        "OS_MCP_MODE": "prod",  # explicit override (optional)
+      },
+   )
+   async with stdio_client(params) as (r, w):
+      async with ClientSession(r, w) as session:
+        await session.initialize()
+        tools = await session.list_tools()
+        print("Tool count:", len(tools.tools))
+
+asyncio.run(main())
+PY
+  ```
+4. Expected: client prints `Tool count: <n>` and server logs include `Processing request of type ListToolsRequest`.
+
+If you see `command not found: os-mcp`, re-run the build script and confirm `${HOME}/.local/share/os-ngd-prod/bin/os-mcp` exists. If the server appears to "hang" after startup logs, it is waiting for JSON‑RPC input—use the Python snippet above instead of manual typing.
+
+
+### Note on `${env:...}` Placeholders in Shell Scripts
+VS Code MCP configs often use `${env:VAR_NAME}` syntax (resolved by VS Code, not the shell). When authoring Bash scripts with `set -u` (treat unset vars as errors), an unescaped `${env:OS_API_KEY}` inside a heredoc will be interpreted by Bash and trigger an `unbound variable` error because `env` is not defined as a shell variable.
+
+Safe patterns:
+1. Escape the first `$`: `\${env:OS_API_KEY}` inside the heredoc.
+2. Assign a literal once and reuse it: `PLACEHOLDER='${env:OS_API_KEY}'` then reference `$PLACEHOLDER` in emitted JSON.
+3. For comments, also escape: `# uses \${env:OS_API_KEY}`.
+
+Avoid placing raw `${env:` tokens directly in shell heredocs under `set -u` unless escaped or wrapped as above. A helper script `scripts/check_env_placeholders.sh` enforces this to prevent regressions.
 
 ## License
 

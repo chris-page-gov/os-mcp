@@ -1,6 +1,6 @@
 [project]
 name = "os-mcp"
-version = "0.1.13"
+version = "0.1.16"
 description = "A Python MCP server that provides access to Ordnance Survey's DataHub APIs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,8 +46,15 @@ exclude = ["build/", "__pycache__/", "tests/integration/"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+py-modules = ["server", "models"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = false
+
+[project.scripts]
+# Generic entrypoint (stdio or http selectable via --transport)
+os-mcp = "server:main"
+# Convenience alias for stdio transport (still accepts normal args)
+os-mcp-stdio = "server:main"
 

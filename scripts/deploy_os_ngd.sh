@@ -24,6 +24,9 @@ done
 SERVERS_JSON="$SERVERS_JSON_DEFAULT"
 VENVDIR="$HOME/.local/share/os-ngd-venv"
 
+# Placeholder token for VS Code env substitution (avoid raw \${env:...} with set -u)
+OS_API_PLACEHOLDER='${env:OS_API_KEY}'
+
 echo "[deploy] Python: $(command -v "$PYTHON_BIN")"
 "$PYTHON_BIN" -m pip install --quiet --upgrade pip build
 
@@ -50,7 +53,7 @@ fi
 
 if command -v jq >/dev/null 2>&1; then
   tmp=$(mktemp)
-  jq --arg cmd "$CMD_PATH" '.servers["os-ngd"] = {"command": $cmd, "args":["-m","server","--transport","stdio"], "env": {"OS_API_KEY":"${env:OS_API_KEY}", "STDIO_KEY":"prod-key"}}' "$SERVERS_JSON" > "$tmp"
+  jq --arg cmd "$CMD_PATH" --arg api "$OS_API_PLACEHOLDER" '.servers["os-ngd"] = {"command": $cmd, "args":["-m","server","--transport","stdio"], "env": {"OS_API_KEY":$api, "STDIO_KEY":"prod-key"}}' "$SERVERS_JSON" > "$tmp"
   mv "$tmp" "$SERVERS_JSON"
   echo "[deploy] Updated os-ngd entry in $SERVERS_JSON (jq)."
 else
@@ -60,7 +63,7 @@ else
   grep -v '"os-ngd"' "$SERVERS_JSON.bak" > "$SERVERS_JSON.tmp" || true
   mv "$SERVERS_JSON.tmp" "$SERVERS_JSON"
   # Insert just after opening servers object
-  sed -i "s|{\"servers\":{|{\"servers\":{\"os-ngd\":{\"command\":\"$CMD_PATH\",\"args\":[\"-m\",\"server\",\"--transport\",\"stdio\"],\"env\":{\"OS_API_KEY\":\"${env:OS_API_KEY}\",\"STDIO_KEY\":\"prod-key\"}},|" "$SERVERS_JSON"
+  sed -i "s|{\"servers\":{|{\"servers\":{\"os-ngd\":{\"command\":\"$CMD_PATH\",\"args\":[\"-m\",\"server\",\"--transport\",\"stdio\"],\"env\":{\"OS_API_KEY\":\"$OS_API_PLACEHOLDER\",\"STDIO_KEY\":\"prod-key\"}},|" "$SERVERS_JSON"
 fi
 
 echo "[deploy] Done. Restart VS Code or run '@os-ngd list tools' to verify."

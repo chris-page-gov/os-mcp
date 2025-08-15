@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- Helper script `scripts/run_prod_stdio.sh` to launch production (wheel) stdio server with argument parsing and safety checks.
+- README "Manual STDIO Smoke Test" section with copy/paste client snippet for listing tools.
+
+## [0.1.16] - 2025-08-15
+### Changed
+- Replaced fragile dev/prod detection (substring '/src/') with a robust helper that: (1) honors explicit OS_MCP_MODE env override; (2) treats execution from an installed site/dist-packages path as prod; else dev. Prevents production wheels from misleadingly reporting '(dev)' when global PYTHONPATH leaked earlier.
+### Added
+- OS_MCP_MODE env var override for explicit forcing of dev or prod mode (useful in tests / diagnostics).
+### Internal
+- Refactored mode logic into `_compute_mode` in `server.py` to centralize heuristic and reduce duplication.
+
+## [0.1.15] - 2025-08-15
+### Added
+- Console script entrypoints `os-mcp` and `os-mcp-stdio` (maps to `server:main`) so production environments can launch without relying on `python -m server` and being affected by a global `PYTHONPATH`.
+### Changed
+- Bumped package version to 0.1.15 to ensure VS Code detects updated wheel vs lingering 0.1.13 logs.
+### Notes
+- This is a preparatory step toward fully isolating prod wheel execution from the editable source tree (next: move modules under a package namespace to avoid `/src/` heuristic ambiguity).
+
+## [0.1.14] - 2025-08-15
+### Fixed
+- Packaging: Added `py-modules` declaration so `server.py` (and `models.py`) are included in the built wheel. Previously the production venv lacked `server` module causing `No module named server` when launching `python -m server`.
+
 ## [0.1.13] - 2025-08-15
 ### Changed
 - Standardized all invocation paths to `python -m server` (removed lingering `python -m src.server` references) to prevent `ModuleNotFoundError: No module named 'src'` in environments where `PYTHONPATH` is not set.
@@ -15,6 +39,8 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
  - Added support & docs for `OS_MCP_SERVER_NAME` env var to differentiate dev/prod server names in MCP clients.
 ### Internal / Maintenance
 - Updated Dockerfile and stdio integration tests to use module execution form; added typing improvements in `stdio_client_test.py`.
+### Added
+- Helper script `scripts/build_prod_stdio.sh` to build & install a production (wheel) stdio venv and emit MCP config snippet.
 
 ### Planned
 - `suggest_workflow` tool for automatic prompt recommendation.
