@@ -22,8 +22,35 @@ curl -s http://127.0.0.1:8000/health      # {"status":"ok"}
 curl -s http://127.0.0.1:8000/.well-known/mcp-auth | jq
 ```
 
-## 4. MCP Envelope Format
-POST to `/mcp` with JSON like:
+## 4. Session & Required Headers (Streamable HTTP)
+The streamable HTTP transport maintains a logical MCP session keyed by a `mcp-session-id` header. The FastMCP server also requires that the client explicitly signals it can handle normal JSON responses *and* potential event streams by sending an `Accept` header including both media types.
+
+Minimum headers for authenticated tool calls:
+```
+Authorization: Bearer <your-token>
+Content-Type: application/json
+Accept: application/json, text/event-stream
+mcp-session-id: <stable UUID per logical session>
+```
+If `mcp-session-id` is omitted you will receive `400 Bad Request: Missing session ID`.
+If the `Accept` header omits `text/event-stream` you will receive `406 Not Acceptable`.
+
+First call should be an `initialize` request; subsequent calls reuse the same `mcp-session-id` value.
+
+## 5. Initialize & Basic MCP Envelope Format
+POST to `/mcp` with JSON like (initial handshake):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "0",
+  "method": "initialize",
+  "params": { "protocolVersion": "2024-11-05", "capabilities": {} }
+}
+```
+
+Then you can perform tool calls.
+
+Example tool call envelope:
 ```json
 {
   "jsonrpc": "2.0",
@@ -38,57 +65,57 @@ Headers:
 ```
 Result payload text is itself JSON (double-parse if needed).
 
-## 5. Helper Function (Bash)
+## 6. Helper Function (Bash)
 ```bash
 mcp(){ curl -s -H "Authorization: Bearer dev-token" -H 'Content-Type: application/json' -d "$1" http://127.0.0.1:8000/mcp; }
 ```
 
-## 6. Workflow Context
+## 7. Workflow Context
 ```
 mcp '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}' | jq
 ```
 
-## 7. Fetch Detailed Collections
+## 8. Fetch Detailed Collections
 ```
 mcp '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"fetch_detailed_collections","arguments":{"collection_ids":"lus-fts-site-1"}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 8. Search Features (illustrative filter)
+## 9. Search Features (illustrative filter)
 ```
 mcp '{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"search_features","arguments":{"collection_id":"lus-fts-site-1","limit":2,"filter":"oslandusetertiarygroup = 'Cinema'"}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 9. Single Feature
+## 10. Single Feature
 ```
 mcp '{"jsonrpc":"2.0","id":"4","method":"tools/call","params":{"name":"get_feature","arguments":{"collection_id":"lus-fts-site-1","feature_id":"123"}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 10. Linked Identifiers
+## 11. Linked Identifiers
 ```
 mcp '{"jsonrpc":"2.0","id":"5","method":"tools/call","params":{"name":"get_linked_identifiers","arguments":{"identifier_type":"TOID","identifier":"100000000"}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 11. Bulk Features
+## 12. Bulk Features
 ```
 mcp '{"jsonrpc":"2.0","id":"6","method":"tools/call","params":{"name":"get_bulk_features","arguments":{"collection_id":"lus-fts-site-1","identifiers":["123","456"]}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 12. Prompt Templates (Category Filter)
+## 13. Prompt Templates (Category Filter)
 ```
 mcp '{"jsonrpc":"2.0","id":"7","method":"tools/call","params":{"name":"get_prompt_templates","arguments":{"category":"routing"}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 13. Routing Data
+## 14. Routing Data
 ```
 mcp '{"jsonrpc":"2.0","id":"8","method":"tools/call","params":{"name":"get_routing_data","arguments":{"bbox":"-1.60,52.27,-1.55,52.30","limit":100,"include_nodes":true,"include_edges":true}}}' | jq -r '.result.content[0].text' | jq
 ```
 
-## 14. Errors
+## 15. Errors
 - Missing auth → 401 {"detail":"Authentication required"}
 - Premature search → WORKFLOW_CONTEXT_REQUIRED envelope
 - Invalid collection → INVALID_COLLECTION with suggestions
 
-## 15. End-to-End Script
+## 16. End-to-End Script (Includes initialize)
 ```
 #!/usr/bin/env bash
 set -euo pipefail
@@ -100,14 +127,14 @@ call '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"fetch_de
 call '{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"search_features","arguments":{"collection_id":"lus-fts-site-1","limit":2,"filter":"oslandusetertiarygroup = 'Cinema'"}}}' | jq
 ```
 
-## 16. Health Endpoint & Automation
+## 17. Health Endpoint & Automation
 Use `/health` for readiness probes (CI, dev containers, editor tasks). Example Makefile target:
 ```
 health:
 	curl -sf http://127.0.0.1:8000/health | grep '"status"'
 ```
 
-## 17. Troubleshooting Quick Ref
+## 18. Troubleshooting Quick Ref
 Issue | Cause | Fix
 ----- | ----- | ----
 401 Unauthorized | Missing bearer | Set BEARER_TOKENS env & header
@@ -115,9 +142,9 @@ WORKFLOW_CONTEXT_REQUIRED | Skipped init | Call get_workflow_context first
 INVALID_COLLECTION | Wrong id | Re-check list_collections output
 Rate limited | Too many rapid calls | Back off (HTTP middleware: 10/min default)
 
-## 18. Next Steps
+## 19. Next Steps
 - Add suggest_workflow tool
 - Add /metrics or performance timing tool
 
 ---
-Last Updated: 2025-08-09
+Last Updated: 2025-08-15
