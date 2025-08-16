@@ -1,0 +1,1 @@
+{"generated_at": "now", "field_to_collections": {"usageType": ["col_exact"], "usogeType": ["col_fuzzy"]}, "enum_value_to_fields": {}, "collection_prefix_groups": {"col": ["col_exact", "col_fuzzy"]}, "high_cardinality_fields": []}

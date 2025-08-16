@@ -48,6 +48,7 @@ class CollectionSnapshot:
     total_queryables: int
     enum_count: int
     sample_features: Optional[List[Dict[str, Any]]] = None
+    field_presence: Optional[Dict[str, Dict[str, Any]]] = None  # per-field stats
 
 
 class MetadataHarvester:
@@ -56,11 +57,20 @@ class MetadataHarvester:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def harvest(self, sample_features: bool = False, sample_limit: int = 3) -> Dict[str, Any]:
+    async def harvest(
+        self,
+        sample_features: bool = False,
+        sample_limit: int = 3,
+        collect_stats: bool = False,
+        enum_value_cap: int = 10,
+    ) -> Dict[str, Any]:
         """Harvest collections + queryables (+ optional feature samples) and persist a snapshot.
 
         Returns the in-memory structure also.
         """
+        if collect_stats and not sample_features:
+            # Stats rely on sampled features
+            sample_features = True
         collections_cache = await self.client.cache_collections()
         collection_ids = [c.id for c in collections_cache.collections]
 
@@ -91,6 +101,7 @@ class MetadataHarvester:
                         enum_infos.append(qi)
 
                 sample_data = None
+                field_presence: Optional[Dict[str, Dict[str, Any]]] = None
                 if sample_features:
                     # Try to fetch a tiny sample deterministically (limit= sample_limit)
                     try:
@@ -100,6 +111,8 @@ class MetadataHarvester:
                         )
                         features = data.get("features", [])
                         trimmed: List[Dict[str, Any]] = []
+                        if collect_stats:
+                            field_presence = {}
                         for f in features:
                             props = f.get("properties", {})
                             subset = {k: props[k] for k in list(props)[:10]}
@@ -109,9 +122,38 @@ class MetadataHarvester:
                                     "properties_subset": subset,
                                 }
                             )
+                            if collect_stats and field_presence is not None:
+                                for qn in props.keys():
+                                    rec = field_presence.setdefault(
+                                        qn,
+                                        {
+                                            "present": 0,
+                                            "sample_size": 0,
+                                            "enum_values_seen": set(),
+                                        },
+                                    )
+                                    rec["sample_size"] += 1
+                                    if props[qn] is not None:
+                                        rec["present"] += 1
+                                        # capture enum value if defined as enum
+                                        if any(e.name == qn for e in enum_infos):
+                                            rec["enum_values_seen"].add(str(props[qn]))
                         sample_data = trimmed
                     except Exception as e:  # pragma: no cover - non critical
                         sample_data = [{"error": str(e)}]
+                        field_presence = None
+
+                # Finalise enum value sets into lists
+                if field_presence:
+                    for v in field_presence.values():
+                        if isinstance(v.get("enum_values_seen"), set):
+                            vals = list(v["enum_values_seen"])[:enum_value_cap]
+                            v["enum_values_seen"] = vals
+                            # add simple presence ratio
+                            if v.get("sample_size"):
+                                v["presence_ratio"] = round(
+                                    v["present"] / max(1, v["sample_size"]), 3
+                                )
 
                 snapshots.append(
                     CollectionSnapshot(
@@ -124,6 +166,7 @@ class MetadataHarvester:
                         total_queryables=q.total_queryables,
                         enum_count=q.enum_count,
                         sample_features=sample_data,
+                        field_presence=field_presence,
                     )
                 )
 

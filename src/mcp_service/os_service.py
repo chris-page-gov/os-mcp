@@ -17,12 +17,24 @@ from models import LinkedIdentifier
 from mcp_service.resources import OSDocumentationResources
 from mcp_service.prompts import OSWorkflowPrompts
 from mcp_service.routing_service import OSRoutingService
+from pathlib import Path
+
+KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
 
 logger = get_logger(__name__)
 
 
 class OSDataHubService:
     """Implementation of the OS NGD API service with MCP"""
+
+    # Attribute annotations for type checking clarity
+    api_client: APIClient
+    mcp: MCPService
+    stdio_middleware: Optional[Any]
+    workflow_planner: Optional[WorkflowPlanner]
+    guardrails: ToolGuardrails
+    routing_service: OSRoutingService
+    _knowledge_index: Optional[Dict[str, Any]]
 
     def __init__(
         self,
@@ -34,9 +46,10 @@ class OSDataHubService:
         self.api_client = api_client
         self.mcp = mcp_service
         self.stdio_middleware = stdio_middleware
-        self.workflow_planner: Optional[WorkflowPlanner] = None
+        self.workflow_planner = None
         self.guardrails = ToolGuardrails()
         self.routing_service = OSRoutingService(api_client)
+        self._knowledge_index = None  # lazy loaded knowledge index
         self.register_tools()
         self.register_resources()
         self.register_prompts()
@@ -75,6 +88,9 @@ class OSDataHubService:
             "fetch_detailed_collections",
             "get_routing_data",
             "chat",
+            "get_knowledge_index_overview",
+            "suggest_collections",
+            "suggest_fields",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -135,6 +151,7 @@ class OSDataHubService:
             context = self.workflow_planner.get_basic_context()
             return json.dumps(
                 {
+                    "status": "ok",
                     "CRITICAL_COLLECTION_LIST": sorted(
                         context["available_collections"].keys()
                     ),
@@ -190,6 +207,100 @@ class OSDataHubService:
                 {"error": str(e), "instruction": "Proceed with available tools"}
             )
 
+    # Knowledge index utilities
+    def _load_knowledge_index(self) -> Optional[Dict[str, Any]]:
+        if self._knowledge_index is not None:
+            return self._knowledge_index
+        try:
+            if KNOWLEDGE_INDEX_PATH.exists():
+                with KNOWLEDGE_INDEX_PATH.open("r", encoding="utf-8") as f:
+                    self._knowledge_index = json.load(f)
+            return self._knowledge_index
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(f"Failed loading knowledge index: {e}")
+            return None
+
+    async def get_knowledge_index_overview(self) -> str:
+        try:
+            idx = self._load_knowledge_index()
+            if not idx:
+                return json.dumps({
+                    "status": "unavailable",
+                    "message": "Knowledge index not found. Run harvester & index builder first.",
+                    "expected_path": str(KNOWLEDGE_INDEX_PATH)
+                })
+            overview = {
+                "status": "ok",
+                "field_count": len(idx.get("field_to_collections", {})),
+                "enum_literal_count": len(idx.get("enum_value_to_fields", {})),
+                "high_cardinality_fields": idx.get("high_cardinality_fields", [])[:25],
+                "collection_groups": {k: len(v) for k, v in idx.get("collection_prefix_groups", {}).items()},
+            }
+            return json.dumps(overview)
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="get_knowledge_index_overview", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
+    async def suggest_collections(self, keyword: str, limit: int = 15) -> str:
+        try:
+            idx = self._load_knowledge_index()
+            if not idx:
+                return json.dumps(build_error_envelope(tool="suggest_collections", code=ErrorCode.INVALID_INPUT, message="Knowledge index unavailable"))
+            kw = keyword.lower().strip()
+            field_map = idx.get("field_to_collections", {})
+            hits: Dict[str, float] = {}
+            for field, cols in field_map.items():
+                fl = field.lower()
+                if kw in fl:
+                    # basic score: substring bonus inversely proportional to span length
+                    span_score = 1.0 / (1 + (len(fl) - len(kw)))
+                    for c in cols:
+                        hits[c] = hits.get(c, 0.0) + span_score
+                else:
+                    # fuzzy: allow 1 edit (very small) using simple heuristic
+                    if abs(len(fl) - len(kw)) <= 1:
+                        mismatches = sum(1 for a, b in zip(fl, kw) if a != b)
+                        if mismatches <= 1 and kw[0:1] == fl[0:1]:
+                            for c in cols:
+                                hits[c] = hits.get(c, 0.0) + 0.2
+            ranked = sorted(hits.items(), key=lambda x: x[1], reverse=True)[: max(1, min(limit, 25))]
+            return json.dumps({
+                "keyword": keyword,
+                "matches": [{"collection_id": cid, "score": score} for cid, score in ranked],
+                "total_candidates": len(ranked)
+            })
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="suggest_collections", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
+    async def suggest_fields(self, token: str, limit: int = 50) -> str:
+        try:
+            idx = self._load_knowledge_index()
+            if not idx:
+                return json.dumps(build_error_envelope(tool="suggest_fields", code=ErrorCode.INVALID_INPUT, message="Knowledge index unavailable"))
+            t = token.lower().strip()
+            field_map = idx.get("field_to_collections", {})
+            # collect candidate scores
+            scored: List[tuple[str, float]] = []
+            for f in field_map:
+                fl = f.lower()
+                if t in fl:
+                    span_score = 1.0 / (1 + (len(fl) - len(t)))
+                    scored.append((f, 1.0 + span_score))  # direct substring strong
+                else:
+                    # very light fuzzy (prefix + one mismatch tolerance)
+                    if fl.startswith(t[: max(1, len(t)-1)]) and abs(len(fl) - len(t)) <= 2:
+                        mismatches = sum(1 for a, b in zip(fl, t) if a != b)
+                        if mismatches <= 2:
+                            scored.append((f, 0.3))
+            scored.sort(key=lambda x: x[1], reverse=True)
+            matches = [f for f, _ in scored[: max(1, min(limit, 100))]]
+            return json.dumps({
+                "token": token,
+                "field_matches": matches,
+                "example_collections": {m: field_map[m][:5] for m in matches[:10]}
+            })
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="suggest_fields", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
     def _require_workflow_context(self, func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         # Functions that don't need workflow context
         skip_functions = {
@@ -199,6 +310,9 @@ class OSDataHubService:
             "chat",
             "version_info",
             "list_collections",
+            "get_knowledge_index_overview",
+            "suggest_collections",
+            "suggest_fields",
         }
 
         @functools.wraps(func)
