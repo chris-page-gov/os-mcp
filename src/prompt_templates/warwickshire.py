@@ -17,9 +17,10 @@ WARWICKSHIRE_PROMPTS: Dict[str, str] = {
         "2) fetch_detailed_collections(['tn-fts-roadlink-1']); 3) Return table field|type|description."
     ),
     "search_cinemas_leamington": (
-        "Goal: List cinema sites near Royal Leamington Spa. Steps: 1) get_workflow_context(); "
-        "2) fetch_detailed_collections(['lus-fts-site-1']); 3) search_features filter oslandusetertiarygroup = 'Cinema'; "
-        "Return id, optional name, centroid coords." 
+        "Goal: Identify cinema locations in Royal Leamington Spa. Steps: 1) get_workflow_context(); "
+        "2) fetch_detailed_collections for likely name/land collections (e.g. gnm-fts-namedpoint-1, gnm-fts-namedarea-1); "
+        "3) Attempt enum-based filter if a classification field includes 'Cinema' value else fallback to name LIKE '%cinema%'; "
+        "Return feature id, name (if available), and representative coordinates." 
     ),
     "search_rail_stations_warwick": (
         "Goal: Identify railway stations in Warwick district. Steps: 1) get_workflow_context(); "
