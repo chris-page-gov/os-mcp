@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Union, Callable, Awaitable, cast, TypedDict
+from typing import Optional, List, Dict, Any, Union, Callable, Awaitable, cast, TypedDict, Set
 import json
 import asyncio
 import functools
@@ -20,6 +20,74 @@ from mcp_service.routing_service import OSRoutingService
 from pathlib import Path
 
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
+
+# ---- Constants / Quick-win refactors ----
+MAX_SUGGEST_COLLECTION_LIMIT = 25
+MAX_SUGGEST_FIELD_LIMIT = 100
+
+# Extract dangerous filter patterns to a module-level constant for clarity & reuse/testing
+DANGEROUS_FILTER_PATTERNS: List[str] = [
+    r";\s*--",
+    r";\s*/\*",
+    r"\bUNION\b",
+    r"\bSELECT\b",
+    r"\bINSERT\b",
+    r"\bUPDATE\b",
+    r"\bDELETE\b",
+    r"\bDROP\b",
+    r"\bCREATE\b",
+    r"\bALTER\b",
+    r"\bTRUNCATE\b",
+    r"\bEXEC\b",
+    r"\bEXECUTE\b",
+    r"\bSP_\b",
+    r"\bXP_\b",
+    r"<script\b",
+    r"javascript:",
+    r"vbscript:",
+    r"onload\s*=",
+    r"onerror\s*=",
+    r"onclick\s*=",
+    r"\beval\s*\(",
+    r"document\.",
+    r"window\.",
+    r"location\.",
+    r"cookie",
+    r"innerHTML",
+    r"outerHTML",
+    r"alert\s*\(",
+    r"confirm\s*\(",
+    r"prompt\s*\(",
+    r"setTimeout\s*\(",
+    r"setInterval\s*\(",
+    r"Function\s*\(",
+    r"constructor",
+    r"prototype",
+    r"__proto__",
+    r"process\.",
+    r"require\s*\(",
+    r"import\s+",
+    r"from\s+.*import",
+    r"\.\./",
+    r"file://",
+    r"ftp://",
+    r"data:",
+    r"blob:",
+    r"\\x[0-9a-fA-F]{2}",
+    r"%[0-9a-fA-F]{2}",
+    r"&#x[0-9a-fA-F]+;",
+    r"&[a-zA-Z]+;",
+    r"\$\{",
+    r"#\{",
+    r"<%",
+    r"%>",
+    r"{{",
+    r"}}",
+    r"\\\w+",
+    r"\0",
+    r"\r\n",
+    r"\n\r",
+]
 
 logger = get_logger(__name__)
 
@@ -45,6 +113,12 @@ class OSDataHubService:
         enum_value_to_fields: Dict[str, List["OSDataHubService._EnumFieldRef"]]
         collection_prefix_groups: Dict[str, List[str]]
         high_cardinality_fields: List[str]
+        collection_stats: Dict[str, Dict[str, Any]]
+        source_generated_from: str
+
+    class ChatMessage(TypedDict):
+        role: str
+        content: str
 
     def __init__(
         self,
@@ -60,6 +134,7 @@ class OSDataHubService:
         self.guardrails = ToolGuardrails()
         self.routing_service = OSRoutingService(api_client)
         self._knowledge_index = None  # lazy loaded knowledge index
+        # (Quick win) Removed lock complexity; simple lazy load is sufficient for current scale
         self.register_tools()
         self.register_resources()
         self.register_prompts()
@@ -225,10 +300,9 @@ class OSDataHubService:
             if KNOWLEDGE_INDEX_PATH.exists():
                 with KNOWLEDGE_INDEX_PATH.open("r", encoding="utf-8") as f:
                     self._knowledge_index = json.load(f)
-            return cast(Optional[OSDataHubService._KnowledgeIndex], self._knowledge_index)
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed loading knowledge index: {e}")
-            return None
+        return cast(Optional[OSDataHubService._KnowledgeIndex], self._knowledge_index)
 
     async def get_knowledge_index_overview(self) -> str:
         """Summarise the loaded knowledge index.
@@ -300,7 +374,7 @@ class OSDataHubService:
                         if mismatches <= 1 and kw[0:1] == fl[0:1]:
                             for c in cols:
                                 hits[c] = hits.get(c, 0.0) + 0.2
-            ranked = sorted(hits.items(), key=lambda x: x[1], reverse=True)[: max(1, min(limit, 25))]
+            ranked = sorted(hits.items(), key=lambda x: x[1], reverse=True)[: max(1, min(limit, MAX_SUGGEST_COLLECTION_LIMIT))]
             return json.dumps({
                 "keyword": keyword,
                 "matches": [{"collection_id": cid, "score": score} for cid, score in ranked],
@@ -347,7 +421,7 @@ class OSDataHubService:
                         if mismatches <= 2:
                             scored.append((f, 0.3))
             scored.sort(key=lambda x: x[1], reverse=True)
-            matches = [f for f, _ in scored[: max(1, min(limit, 100))]]
+            matches = [f for f, _ in scored[: max(1, min(limit, MAX_SUGGEST_FIELD_LIMIT))]]
             return json.dumps({
                 "token": token,
                 "field_matches": matches,
@@ -429,6 +503,17 @@ class OSDataHubService:
                 return json.dumps({"error": "INVALID_FORMAT", "message": "Messages must be list[dict]"})
             # Hint to type checker
             parsed = [m for m in parsed if isinstance(m, dict)]  # type: ignore[assignment]
+
+            # Validate roles & content quickly (quick-win hardening)
+            allowed_roles: Set[str] = {"user", "assistant", "system"}
+            for i, m in enumerate(parsed):
+                role = m.get("role")
+                content = m.get("content")
+                if role not in allowed_roles or not isinstance(content, str):
+                    return json.dumps({
+                        "error": "INVALID_MESSAGE",
+                        "message": f"Invalid message at index {i}: role must be one of {sorted(allowed_roles)} and content must be string"
+                    })
 
             api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
@@ -636,70 +721,7 @@ class OSDataHubService:
             if filter:
                 if len(filter) > 1000:
                     raise ValueError("Filter too long")
-                dangerous_patterns = [
-                    r";\s*--",
-                    r";\s*/\*",
-                    r"\bUNION\b",
-                    r"\bSELECT\b",
-                    r"\bINSERT\b",
-                    r"\bUPDATE\b",
-                    r"\bDELETE\b",
-                    r"\bDROP\b",
-                    r"\bCREATE\b",
-                    r"\bALTER\b",
-                    r"\bTRUNCATE\b",
-                    r"\bEXEC\b",
-                    r"\bEXECUTE\b",
-                    r"\bSP_\b",
-                    r"\bXP_\b",
-                    r"<script\b",
-                    r"javascript:",
-                    r"vbscript:",
-                    r"onload\s*=",
-                    r"onerror\s*=",
-                    r"onclick\s*=",
-                    r"\beval\s*\(",
-                    r"document\.",
-                    r"window\.",
-                    r"location\.",
-                    r"cookie",
-                    r"innerHTML",
-                    r"outerHTML",
-                    r"alert\s*\(",
-                    r"confirm\s*\(",
-                    r"prompt\s*\(",
-                    r"setTimeout\s*\(",
-                    r"setInterval\s*\(",
-                    r"Function\s*\(",
-                    r"constructor",
-                    r"prototype",
-                    r"__proto__",
-                    r"process\.",
-                    r"require\s*\(",
-                    r"import\s+",
-                    r"from\s+.*import",
-                    r"\.\./",
-                    r"file://",
-                    r"ftp://",
-                    r"data:",
-                    r"blob:",
-                    r"\\x[0-9a-fA-F]{2}",
-                    r"%[0-9a-fA-F]{2}",
-                    r"&#x[0-9a-fA-F]+;",
-                    r"&[a-zA-Z]+;",
-                    r"\$\{",
-                    r"#\{",
-                    r"<%",
-                    r"%>",
-                    r"{{",
-                    r"}}",
-                    r"\\\w+",
-                    r"\0",
-                    r"\r\n",
-                    r"\n\r",
-                ]
-
-                for pattern in dangerous_patterns:
+                for pattern in DANGEROUS_FILTER_PATTERNS:
                     if re.search(pattern, filter, re.IGNORECASE):
                         raise ValueError("Invalid filter content")
 
