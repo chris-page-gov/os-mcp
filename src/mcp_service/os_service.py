@@ -177,6 +177,8 @@ class OSDataHubService:
             "suggest_collections",
             "suggest_fields",
             "lookup_addresses",
+            "diagnose_address_fields",
+            "summarise_buildings_by_road",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -1170,7 +1172,7 @@ class OSDataHubService:
                         break
             # Fallback generic guess list if not found
             if candidate_field is None:
-                for guess in ["streetname", "roadname", "name", "addressline1", "addressline"]:
+                for guess in ["streetName", "streetname", "roadName", "roadname", "name", "addressLine1", "addressline1", "addressLine", "addressline"]:
                     candidate_field = guess
                     break
 
@@ -1193,7 +1195,7 @@ class OSDataHubService:
                         if not isinstance(f, dict):
                             continue
                         props = f.get("properties", {})
-                        for key, val in list(props.items()):
+                        for _, val in list(props.items()):
                             if isinstance(val, str) and pc_norm in val.replace(" ", "").lower():
                                 filtered.append(f)
                                 break
@@ -1205,7 +1207,213 @@ class OSDataHubService:
                 "address_collection": address_collection_id,
                 "field_used": candidate_field,
                 "raw": parsed,
-                "note": "Prototype address lookup; refine field detection & fuzzy matching as next step."
             })
         except Exception as e:
             return json.dumps(build_error_envelope(tool="lookup_addresses", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
+    async def diagnose_address_fields(self, sample_road: str, limit: int = 5) -> str:
+        """Diagnose which address/street field names are plausible for equality lookups.
+
+        Produces a structured report listing:
+          - address_collection chosen
+          - candidate_fields considered (ordered)
+          - attempts: per candidate field variant tested (original, Title, upper, suffix-abbrev if applied)
+            each attempt has: field, value_variant, feature_count, notes, optional upstream_error_code, exception
+          - summary with first_field_with_hits, total_attempts, total_with_hits
+
+        This does NOT guarantee matches; it is purely diagnostic to aid refining lookup heuristics.
+        """
+        try:
+            if not self.workflow_planner:
+                return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call get_workflow_context first."))
+
+            clean = sample_road.strip()
+            if not clean or len(clean) < 3:
+                return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.INVALID_INPUT, message="sample_road must be at least 3 characters"))
+
+            addr_cols = [cid for cid in self.workflow_planner.basic_collections_info.keys() if ("addr" in cid.lower() or "address" in cid.lower())]
+            if not addr_cols:
+                return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.NOT_FOUND, message="No address collection detected"))
+            collection_id = addr_cols[0]
+
+            idx = self._load_knowledge_index()
+            candidates: List[str] = []
+            if idx:
+                fmap: Dict[str, List[str]] = idx.get("field_to_collections", {}) or {}
+                for fname, cols in fmap.items():
+                    if collection_id in cols and any(tok in fname.lower() for tok in ["street", "road", "name"]):
+                        candidates.append(fname)
+            # add fallback guesses (keep order but avoid duplicates)
+            for guess in ["streetName", "roadName", "name", "addressLine1", "addressLine", "streetname", "roadname", "addressline1"]:
+                if guess not in candidates:
+                    candidates.append(guess)
+            if not candidates:
+                candidates = ["streetName"]
+
+            attempts: List[Dict[str, Any]] = []
+            ABBREV_MAP = {"street": ["st"], "road": ["rd"], "avenue": ["ave"], "lane": ["ln"], "drive": ["dr"]}
+
+            def gen_variants(base: str) -> List[str]:
+                variants = [base]
+                if base.lower() != base:
+                    variants.append(base.lower())
+                title = base.title()
+                if title not in variants:
+                    variants.append(title)
+                upper = base.upper()
+                if upper not in variants:
+                    variants.append(upper)
+                # suffix abbreviation: replace last word if in map
+                parts = base.split()
+                if len(parts) > 1:
+                    last = parts[-1].lower()
+                    for k, repls in ABBREV_MAP.items():
+                        if last == k:
+                            for r in repls:
+                                abbr = " ".join(parts[:-1] + [r.title() if parts[-1][0].isupper() else r])
+                                if abbr not in variants:
+                                    variants.append(abbr)
+                return variants
+
+            for field in candidates[: max(1, limit)]:
+                for variant in gen_variants(clean):
+                    attempt: Dict[str, Any] = {"field": field, "value_variant": variant}
+                    try:
+                        raw_json = await self.search_features(
+                            collection_id=collection_id,
+                            query_attr=field,
+                            query_attr_value=variant,
+                            limit=5,
+                        )
+                        parsed = json.loads(raw_json)
+                        if (
+                            isinstance(parsed, dict)
+                            and "features" in parsed
+                            and isinstance(parsed.get("features"), list)
+                        ):
+                            attempt["feature_count"] = len(parsed.get("features", []) or [])
+                        else:
+                            if isinstance(parsed, dict) and parsed.get("error_code"):
+                                attempt["upstream_error_code"] = parsed.get("error_code")
+                                attempt["notes"] = parsed.get("message")
+                            else:
+                                attempt["feature_count"] = 0
+                        attempts.append(attempt)
+                    except Exception as ex:  # pragma: no cover - defensive
+                        attempt["exception"] = str(ex)
+                        attempts.append(attempt)
+
+            first_hit = next((a for a in attempts if a.get("feature_count", 0) > 0), None)
+            total_with_hits = sum(1 for a in attempts if a.get("feature_count", 0) > 0)
+
+            return json.dumps({
+                "status": "ok",
+                "address_collection": collection_id,
+                "candidate_fields": candidates,
+                "sample_road": clean,
+                "attempts": attempts,
+                "summary": {
+                    "first_field_with_hits": first_hit.get("field") if first_hit else None,
+                    "total_attempts": len(attempts),
+                    "attempts_with_hits": total_with_hits,
+                }
+            })
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
+    async def summarise_buildings_by_road(self, road: str, postcode: Optional[str] = None) -> str:
+        """Return a lightweight summary of buildings associated with a road (and optional postcode fragment).
+
+        Flow:
+          1. Use lookup_addresses to get address features (and candidate field used)
+          2. Extract building identifier property candidates (mainBuildingId, buildingId)
+          3. Fetch building collection features matching those IDs (one batch search per id via search_features)
+          4. Aggregate basic counts by 'buildinguse' (or fallback property name variants) and return summary
+
+        Returns JSON with keys: status, road, postcode(optional), address_hits, total_buildings, aggregates{by_use{}, total_buildings}, building_ids, notes
+        """
+        try:
+            if not self.workflow_planner:
+                return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call get_workflow_context first."))
+
+            # Step 1: address lookup (reuse existing logic, parse result)
+            lookup_raw = await self.lookup_addresses(road, postcode=postcode, limit=200)
+            lookup = json.loads(lookup_raw)
+            if lookup.get("error_code"):
+                return json.dumps({"status": "error", "phase": "lookup", **lookup})
+            address_features = (lookup.get("raw", {}) or {}).get("features", []) if isinstance(lookup.get("raw"), dict) else []
+            if not isinstance(address_features, list):
+                address_features = []
+
+            # Step 2: extract building ids
+            building_id_fields = ["mainBuildingId", "buildingId", "mainbuildingid", "buildingid"]
+            building_ids: Set[str] = set()
+            for feat in address_features:
+                if not isinstance(feat, dict):
+                    continue
+                props = feat.get("properties", {})
+                if not isinstance(props, dict):
+                    continue
+                for bf in building_id_fields:
+                    val = props.get(bf)
+                    if isinstance(val, str) and val.strip():
+                        building_ids.add(val.strip())
+            if not building_ids:
+                return json.dumps({
+                    "status": "ok",
+                    "road": road,
+                    "postcode": postcode,
+                    "address_hits": len(address_features),
+                    "building_ids": [],
+                    "aggregates": {"total_buildings": 0, "by_use": {}},
+                    "notes": "No building ids found in address features"
+                })
+
+            # Step 3: identify building collection
+            bld_collections = [cid for cid in self.workflow_planner.basic_collections_info.keys() if ("bld" in cid.lower() or "build" in cid.lower())]
+            if not bld_collections:
+                return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.NOT_FOUND, message="No building collection detected"))
+            building_collection_id = bld_collections[0]
+
+            # Fetch each building record (limit 1 per id)
+            building_features: List[Dict[str, Any]] = []
+            for bid in list(building_ids)[:200]:  # cap
+                resp_raw = await self.search_features(collection_id=building_collection_id, query_attr="mainBuildingId", query_attr_value=bid, limit=1)
+                resp = json.loads(resp_raw)
+                if isinstance(resp, dict) and isinstance(resp.get("features"), list):
+                    for f in resp.get("features", []):
+                        if isinstance(f, dict):
+                            building_features.append(f)
+
+            # Step 4: aggregate by use (attempt several candidate property names)
+            use_fields = ["buildinguse", "buildingUse", "primaryUse", "use", "function"]
+            by_use: Dict[str, int] = {}
+            total = 0
+            for bf in building_features:
+                if not isinstance(bf, dict):
+                    continue
+                props = bf.get("properties", {})
+                if not isinstance(props, dict):
+                    continue
+                use_val = None
+                for uf in use_fields:
+                    val = props.get(uf)
+                    if isinstance(val, str) and val.strip():
+                        use_val = val.strip()
+                        break
+                if not use_val:
+                    use_val = "(unknown)"
+                by_use[use_val] = by_use.get(use_val, 0) + 1
+                total += 1
+
+            return json.dumps({
+                "status": "ok",
+                "road": road,
+                "postcode": postcode,
+                "address_hits": len(address_features),
+                "building_ids": sorted(list(building_ids)),
+                "aggregates": {"total_buildings": total, "by_use": by_use},
+                "building_collection": building_collection_id,
+            })
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.GENERAL_ERROR, message=str(e)))
