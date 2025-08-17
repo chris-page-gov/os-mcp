@@ -176,6 +176,7 @@ class OSDataHubService:
             "get_knowledge_index_overview",
             "suggest_collections",
             "suggest_fields",
+            "lookup_addresses",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -442,6 +443,7 @@ class OSDataHubService:
             "get_knowledge_index_overview",
             "suggest_collections",
             "suggest_fields",
+            "lookup_addresses",
         }
 
         @functools.wraps(func)
@@ -1104,3 +1106,106 @@ class OSDataHubService:
             return json.dumps(
                 build_error_envelope(tool="get_routing_data", code=ErrorCode.UPSTREAM_ERROR, message=str(e))
             )
+
+    # ---------------- Address / Road lookup (AddressBase-inspired) -----------------
+    async def lookup_addresses(self, road: str, postcode: Optional[str] = None, limit: int = 50) -> str:
+        """Lightweight address lookup by road (and optional postcode fragment).
+
+        Strategy:
+          1. Requires workflow context (planner) so we know available collections.
+          2. Heuristically identify an address collection id (contains 'addr' or 'address').
+          3. Use knowledge index (if present) to find a field in that collection containing 'street' or 'road'.
+          4. Perform a constrained equality search via existing search_features using query_attr/query_attr_value.
+
+        Returns JSON:
+          {
+            "road": <input road>,
+            "address_collection": <collection id>,
+            "field_used": <field name>,
+            "raw": <raw API response from search_features parsed>,
+            "status": "ok" | "error",
+            ...error envelope fields when failing...
+          }
+        """
+        try:
+            if not self.workflow_planner:
+                return json.dumps(build_error_envelope(
+                    tool="lookup_addresses",
+                    code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
+                    message="Call get_workflow_context first."
+                ))
+
+            clean_road = road.strip()
+            if not clean_road or len(clean_road) < 3:
+                return json.dumps(build_error_envelope(
+                    tool="lookup_addresses",
+                    code=ErrorCode.INVALID_INPUT,
+                    message="Road must be at least 3 characters"
+                ))
+            if not re.match(r"^[A-Za-z0-9 .'-]+$", clean_road):
+                return json.dumps(build_error_envelope(
+                    tool="lookup_addresses",
+                    code=ErrorCode.INVALID_INPUT,
+                    message="Road contains unsupported characters"
+                ))
+
+            # Identify address collection
+            addr_collections = [cid for cid in self.workflow_planner.basic_collections_info.keys() if ("addr" in cid.lower() or "address" in cid.lower())]
+            if not addr_collections:
+                return json.dumps(build_error_envelope(
+                    tool="lookup_addresses",
+                    code=ErrorCode.NOT_FOUND,
+                    message="No address collection detected in available collections"
+                ))
+            address_collection_id = addr_collections[0]
+
+            # Use knowledge index to find candidate field
+            idx = self._load_knowledge_index()
+            candidate_field = None
+            if idx:
+                field_map: Dict[str, List[str]] = idx.get("field_to_collections", {}) or {}
+                for field_name, cols in field_map.items():
+                    if address_collection_id in cols and any(token in field_name.lower() for token in ["street", "road"]):
+                        candidate_field = field_name
+                        break
+            # Fallback generic guess list if not found
+            if candidate_field is None:
+                for guess in ["streetname", "roadname", "name", "addressline1", "addressline"]:
+                    candidate_field = guess
+                    break
+
+            # Invoke existing search via query_attr pathway
+            raw_json = await self.search_features(
+                collection_id=address_collection_id,
+                query_attr=candidate_field,
+                query_attr_value=clean_road,
+                limit=min(limit, 100)
+            )
+            parsed = json.loads(raw_json)
+
+            # Optionally filter further by postcode fragment if provided and present in properties
+            if postcode and isinstance(parsed, dict):
+                pc_norm = postcode.replace(" ", "").lower()
+                feats = parsed.get("features")
+                if isinstance(feats, list):
+                    filtered = []
+                    for f in feats:
+                        if not isinstance(f, dict):
+                            continue
+                        props = f.get("properties", {})
+                        for key, val in list(props.items()):
+                            if isinstance(val, str) and pc_norm in val.replace(" ", "").lower():
+                                filtered.append(f)
+                                break
+                    parsed["features"] = filtered
+
+            return json.dumps({
+                "status": "ok",
+                "road": clean_road,
+                "address_collection": address_collection_id,
+                "field_used": candidate_field,
+                "raw": parsed,
+                "note": "Prototype address lookup; refine field detection & fuzzy matching as next step."
+            })
+        except Exception as e:
+            return json.dumps(build_error_envelope(tool="lookup_addresses", code=ErrorCode.GENERAL_ERROR, message=str(e)))
