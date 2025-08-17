@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Union, Callable, Awaitable, cast
+from typing import Optional, List, Dict, Any, Union, Callable, Awaitable, cast, TypedDict
 import json
 import asyncio
 import functools
@@ -35,6 +35,16 @@ class OSDataHubService:
     guardrails: ToolGuardrails
     routing_service: OSRoutingService
     _knowledge_index: Optional[Dict[str, Any]]
+    class _EnumFieldRef(TypedDict, total=False):
+        field: str
+        collection: str
+
+    class _KnowledgeIndex(TypedDict, total=False):
+        generated_at: str
+        field_to_collections: Dict[str, List[str]]
+        enum_value_to_fields: Dict[str, List["OSDataHubService._EnumFieldRef"]]
+        collection_prefix_groups: Dict[str, List[str]]
+        high_cardinality_fields: List[str]
 
     def __init__(
         self,
@@ -208,19 +218,30 @@ class OSDataHubService:
             )
 
     # Knowledge index utilities
-    def _load_knowledge_index(self) -> Optional[Dict[str, Any]]:
+    def _load_knowledge_index(self) -> Optional["OSDataHubService._KnowledgeIndex"]:
         if self._knowledge_index is not None:
-            return self._knowledge_index
+            return cast(OSDataHubService._KnowledgeIndex, self._knowledge_index)
         try:
             if KNOWLEDGE_INDEX_PATH.exists():
                 with KNOWLEDGE_INDEX_PATH.open("r", encoding="utf-8") as f:
                     self._knowledge_index = json.load(f)
-            return self._knowledge_index
+            return cast(Optional[OSDataHubService._KnowledgeIndex], self._knowledge_index)
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed loading knowledge index: {e}")
             return None
 
     async def get_knowledge_index_overview(self) -> str:
+        """Summarise the loaded knowledge index.
+
+        Returns:
+            JSON string with keys:
+              - status: "ok" if index loaded else "unavailable"
+              - field_count: number of distinct field names (when available)
+              - enum_literal_count: number of distinct enum literal values indexed
+              - high_cardinality_fields: sample list (<=25) of high-cardinality fields
+              - collection_groups: mapping of prefix/group name -> collection count
+              - message / expected_path present only when unavailable
+        """
         try:
             idx = self._load_knowledge_index()
             if not idx:
@@ -229,24 +250,41 @@ class OSDataHubService:
                     "message": "Knowledge index not found. Run harvester & index builder first.",
                     "expected_path": str(KNOWLEDGE_INDEX_PATH)
                 })
-            overview = {
+            field_map: Dict[str, List[str]] = idx.get("field_to_collections", {}) or {}
+            enum_value_map: Dict[str, List[OSDataHubService._EnumFieldRef]] = idx.get("enum_value_to_fields", {}) or {}
+            high_cards: List[str] = idx.get("high_cardinality_fields", []) or []
+            group_map: Dict[str, List[str]] = idx.get("collection_prefix_groups", {}) or {}
+            overview: Dict[str, Union[str, int, List[str], Dict[str, int]]] = {
                 "status": "ok",
-                "field_count": len(idx.get("field_to_collections", {})),
-                "enum_literal_count": len(idx.get("enum_value_to_fields", {})),
-                "high_cardinality_fields": idx.get("high_cardinality_fields", [])[:25],
-                "collection_groups": {k: len(v) for k, v in idx.get("collection_prefix_groups", {}).items()},
+                "field_count": len(field_map),
+                "enum_literal_count": len(enum_value_map),
+                "high_cardinality_fields": high_cards[:25],
+                "collection_groups": {k: len(v) for k, v in group_map.items()},
             }
             return json.dumps(overview)
         except Exception as e:
             return json.dumps(build_error_envelope(tool="get_knowledge_index_overview", code=ErrorCode.GENERAL_ERROR, message=str(e)))
 
     async def suggest_collections(self, keyword: str, limit: int = 15) -> str:
+        """Suggest collection IDs relevant to a keyword.
+
+        Args:
+            keyword: Partial or approximate field/name keyword to search across indexed fields.
+            limit: Max number of ranked collection matches to return (capped internally at 25).
+
+        Returns:
+            JSON string with:
+              - keyword (echo)
+              - matches: list[{collection_id, score}] sorted by descending score
+              - total_candidates: number of returned matches
+            If knowledge index unavailable returns standard error envelope with error_code INVALID_INPUT.
+        """
         try:
             idx = self._load_knowledge_index()
             if not idx:
                 return json.dumps(build_error_envelope(tool="suggest_collections", code=ErrorCode.INVALID_INPUT, message="Knowledge index unavailable"))
             kw = keyword.lower().strip()
-            field_map = idx.get("field_to_collections", {})
+            field_map: Dict[str, List[str]] = idx.get("field_to_collections", {}) or {}
             hits: Dict[str, float] = {}
             for field, cols in field_map.items():
                 fl = field.lower()
@@ -272,12 +310,29 @@ class OSDataHubService:
             return json.dumps(build_error_envelope(tool="suggest_collections", code=ErrorCode.GENERAL_ERROR, message=str(e)))
 
     async def suggest_fields(self, token: str, limit: int = 50) -> str:
+        """Suggest field names relevant to a token.
+
+        Args:
+            token: Partial or approximate fragment of a field name.
+            limit: Maximum number of field names to return (capped internally at 100).
+
+        Ranking:
+            Direct substring hits receive a strong base score (1.0 + span bonus). Light fuzzy matches
+            (prefix + <=2 mismatches) receive a smaller fixed score (0.3).
+
+        Returns:
+            JSON string with:
+              - token (echo)
+              - field_matches: ordered list of field names
+              - example_collections: mapping of up to first 10 fields -> up to first 5 example collections
+            If knowledge index unavailable returns error envelope (INVALID_INPUT).
+        """
         try:
             idx = self._load_knowledge_index()
             if not idx:
                 return json.dumps(build_error_envelope(tool="suggest_fields", code=ErrorCode.INVALID_INPUT, message="Knowledge index unavailable"))
             t = token.lower().strip()
-            field_map = idx.get("field_to_collections", {})
+            field_map: Dict[str, List[str]] = idx.get("field_to_collections", {}) or {}
             # collect candidate scores
             scored: List[tuple[str, float]] = []
             for f in field_map:
@@ -768,9 +823,12 @@ class OSDataHubService:
                 linked: List[LinkedIdentifier] = []
                 if isinstance(raw, list):
                     for item in raw:
-                        if isinstance(item, dict) and isinstance(item.get("featureType"), str):
+                        if not isinstance(item, dict):
+                            continue
+                        ft = item.get("featureType")
+                        if isinstance(ft, str):
                             linked.append(cast(LinkedIdentifier, item))
-                filtered = [li for li in linked if li.get("featureType") == feature_type]
+                filtered: List[LinkedIdentifier] = [li for li in linked if li.get("featureType") == feature_type]
                 return json.dumps({"results": filtered})
 
             return json.dumps(data)
