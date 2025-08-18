@@ -88,7 +88,9 @@ curl -s -H 'Authorization: Bearer dev-token' http://127.0.0.1:8000/.well-known/m
 You can keep the stdio (Claude) container and the HTTP container separate (recommended) or run only the HTTP one if your client supports HTTP MCP directly. The stdio example above remains the canonical Claude configuration.
 
 ### VS Code MCP Setup (Development vs Production)
-You can register two entries so you always know whether you are using live source (editable) or an installed, versioned artifact:
+This repository now ships with a workspace MCP configuration in `.vscode/settings.json` so you do **not** need to create a user‑level `~/.config/vscode/mcp/servers.json` for normal development. Opening the repo in VS Code automatically registers (and can auto‑start) the dev stdio server and provides an HTTP entry.
+
+You can still register two entries (dev + prod) if you want to compare an installed wheel with the live editable code. The built‑in workspace config already covers the editable/dev case.
 
 | Name | Purpose | Command | Args |
 |------|---------|---------|------|
@@ -106,37 +108,25 @@ python -m build
 python -m venv ~/.local/share/os-ngd-venv
 ~/.local/share/os-ngd-venv/bin/pip install dist/os_mcp-*.whl
 ```
-3. Create or edit `~/.config/vscode/mcp/servers.json`:
-```jsonc
-{
-  "servers": {
-    "os-mcp-dev": {
-      "command": "python",
-  "args": ["-m", "server", "--transport", "stdio"],
-      "env": { "OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "dev-key" }
-    },
-    "os-ngd": {
-      "command": "~/.local/share/os-ngd-venv/bin/python",
-      "args": ["-m", "server", "--transport", "stdio"],
-      "env": { "OS_API_KEY": "${env:OS_API_KEY}", "STDIO_KEY": "prod-key" }
-    }
-  }
-}
+3. (Optional) User‑level config: Only if you want additional named entries beyond what the workspace provides (e.g. a production wheel). Create or edit `~/.config/vscode/mcp/servers.json` (Linux) or the equivalent on your platform and add an `os-ngd` entry as shown below. Keep the dev entry only if you prefer user‑level management instead of the workspace file.
+
+4. Reload VS Code, open Copilot Chat and list tools (workspace dev entry example):
 ```
-4. Reload VS Code, open Copilot Chat and list tools:
-```
-@os-mcp-dev list tools
-```
-Switch to production:
-```
-@os-ngd list tools
+@os-mcp-stdio list tools
 ```
 5. List & filter prompts:
 ```
-@os-mcp-dev call get_prompt_templates {}
-@os-mcp-dev call get_prompt_templates {"category": "planning"}
+@os-mcp-stdio call get_prompt_templates {}
+@os-mcp-stdio call get_prompt_templates {"category": "planning"}
 ```
 6. Run a workflow using a prompt key (e.g. `search_cinemas_leamington`).
+
+#### Fast Dev Smoke Test (No VS Code UI)
+Use the helper script to launch a temporary stdio server and list tools:
+```bash
+./scripts/dev_stdio_list_tools.sh
+```
+Expected output includes `Tool count: 22` (number may grow as tools are added) followed by the tool names.
 
 See `docs/mcp_integration.md` for expanded guidance (routing, diagnostics, planning heuristics) and an HTTP transport variant.
 
