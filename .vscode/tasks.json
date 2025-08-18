@@ -4,11 +4,12 @@
     {
       "label": "Run MCP (stdio)",
       "type": "shell",
-      "command": "python -m src.server --transport stdio",
+      "command": "python -m server --transport stdio",
       "options": {
         "env": {
           "OS_API_KEY": "${env:OS_API_KEY}",
-          "STDIO_KEY": "dev-key"
+          "STDIO_KEY": "dev-key",
+          "OS_MCP_SERVER_NAME": "os-mcp-dev"
         }
       },
       "problemMatcher": [],
@@ -17,7 +18,7 @@
     {
       "label": "Run MCP (http)",
       "type": "shell",
-      "command": "python -m src.server --transport streamable-http --host 127.0.0.1 --port 8000",
+      "command": "python -m server --transport streamable-http --host 127.0.0.1 --port 8000",
       "options": {
         "env": {
           "OS_API_KEY": "${env:OS_API_KEY}",

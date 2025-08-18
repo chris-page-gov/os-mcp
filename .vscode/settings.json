@@ -1,0 +1,29 @@
+{
+  // VS Code workspace-level MCP server registrations (no user config needed)
+  // Do NOT put real secrets here; use ${env:VAR_NAME} or placeholder values.
+  "mcp.servers": {
+    "os-mcp-stdio": {
+      "command": "python",
+      "args": ["-m", "server", "--transport", "stdio"],
+      "env": {
+        "OS_API_KEY": "${env:OS_API_KEY}",
+        "STDIO_KEY": "dev-key",
+        "OS_MCP_SERVER_NAME": "os-mcp-dev"
+      },
+      "description": "Editable local MCP server (stdio) from this repo"
+    },
+    "os-mcp-http": {
+      "url": "http://127.0.0.1:8000/mcp/",
+      "headers": {
+        "Authorization": "Bearer dev-token"
+      },
+      "description": "HTTP transport (start with: python -m server --transport streamable-http --host 127.0.0.1 --port 8000)"
+    }
+  },
+  // Optional: surface common env expectations for devs (informational only)
+  "terminal.integrated.env.linux": {
+    // Leave OS_API_KEY unset here; developers export it locally
+    "STDIO_KEY": "dev-key",
+    "BEARER_TOKENS": "dev-token"
+  }
+}
