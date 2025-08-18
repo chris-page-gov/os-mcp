@@ -47,3 +47,5 @@ pyrightconfig.json
 *.log
 .pytest_cache/
 .mypy_cache/
+# Ignore npm audit reports
+**/audit.json
