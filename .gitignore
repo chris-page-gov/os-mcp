@@ -52,3 +52,6 @@ pyrightconfig.json
 .mypy_cache/
 # Ignore npm audit reports
 **/audit.json
+\n# Local corporate / custom CA certs (do not commit real certificates)
+certs/
+!certs/.gitkeep

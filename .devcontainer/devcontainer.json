@@ -9,7 +9,7 @@
   },
   "containerEnv": {
     "OS_API_KEY": "${localEnv:OS_API_KEY}",
-    "STDIO_KEY": "${localEnv:OS_API_KEY}",
+    "STDIO_KEY": "${localEnv:STDIO_KEY}",
     "BEARER_TOKENS": "${localEnv:BEARER_TOKENS}",
     "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}",
     "PYTHONPATH": "/workspaces/os-mcp"

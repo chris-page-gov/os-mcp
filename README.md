@@ -195,6 +195,8 @@ Variables in use:
 - `OPENAI_API_KEY` – enables experimental `chat` MCP tool (set to activate). Optional `OPENAI_MODEL` to override default model (gpt-4o-mini).
 - `OS_MCP_AUTH_BYPASS` – test-only bypass for HTTP auth/rate limits (values: 1/true/yes).
 - `ALLOWED_ORIGINS` – optional comma list of additional allowed origins beyond localhost.
+ - `OS_MCP_CA_BUNDLE` – path to a custom PEM bundle (corporate / intercepting proxy root cert) to trust for outbound HTTPS (aiohttp SSL context).
+ - `OS_MCP_SSL_NO_VERIFY` – development override (1/true/yes) to disable TLS certificate verification entirely (avoid in production; logs will warn when set).
 
 To change values persistently, edit `.devcontainer/devcontainer.json` then rebuild the container. For one-off testing, simply `export` them in the integrated terminal prior to running the server.
 
@@ -300,6 +302,44 @@ Fix Steps:
 3. Reload VS Code and run `@os-mcp-dev list tools`.
 4. (Optional) Verify Docker / deployment scripts also use `-m server`.
 Result: Single, reliable entrypoint across editable (`pip install -e .`) and wheel installs.
+
+### Troubleshooting: TLS / Corporate Proxy Certificates
+If you see HTTPS errors such as:
+```
+SSL: CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate
+```
+or `curl` shows `certificate has unknown CA`, your environment is likely behind a corporate / intercepting proxy that resigns TLS with an internal root certificate **not** present in the container image.
+
+There are three supported remediation paths (prefer 1):
+
+1. Install the corporate root CA into the container trust store (secure, persistent):
+  - Place the PEM (or convert DER to PEM) in `certs/corporate-root.pem` (directory is git‑ignored; never commit real certs).
+  - Run: `./scripts/setup_corp_ca.sh certs/corporate-root.pem`
+  - The script copies it to `/usr/local/share/ca-certificates/` and runs `update-ca-certificates` so future `python -m server` and `curl` calls succeed.
+2. Provide a one‑off custom bundle without modifying global trust (scoped to this server process):
+  - Export: `export OS_MCP_CA_BUNDLE=/workspace/os-mcp/certs/corporate-root.pem`
+  - Start the server; the client session builds an `ssl.SSLContext` with that bundle only.
+3. (Last resort) Temporarily disable verification for debugging ONLY:
+  - `export OS_MCP_SSL_NO_VERIFY=1`
+  - Start the server; outbound requests skip certificate validation (MITM / tampering risks). Remove as soon as the root cause is fixed.
+
+Detection / confirmation steps inside the devcontainer:
+```bash
+curl -v https://api.os.uk/places/v1/health 2>&1 | grep -i 'certificate' || true
+python - <<'PY'
+import ssl, certifi, os
+print('Default CA count:', len(open(certifi.where(),'rb').read().split(b'-----END CERTIFICATE-----')))
+print('OS_MCP_CA_BUNDLE:', os.environ.get('OS_MCP_CA_BUNDLE'))
+print('OS_MCP_SSL_NO_VERIFY:', os.environ.get('OS_MCP_SSL_NO_VERIFY'))
+PY
+```
+
+Security Notes:
+- Prefer installing / supplying the real corporate root (options 1 or 2). They retain end‑to‑end validation properties.
+- Option 3 (`OS_MCP_SSL_NO_VERIFY`) should never ship to production, CI, or shared environments. Add it only to a local shell, not to `devcontainer.json`.
+- The `certs/` directory is ignored by git (see `.gitignore`) so you can safely stage local corporate certificates without risk of accidental commit.
+
+If you rotate corporate roots, re-run the setup script with the new file and restart the container or server.
 
 ### Differentiating Dev vs Prod Names
 You can optionally set a custom server display name (e.g. to show both dev + prod simultaneously) via:
