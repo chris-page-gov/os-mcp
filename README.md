@@ -451,93 +451,101 @@ In VS Code with GitHub Copilot Chat, you can ask natural language questions:
 - `@os-mcp-server Show me retail areas near CV1 3BZ`
 - `@os-mcp-server Find transport links in Coventry city centre`
 
-## Response Formats & Error Handling
-
-### Success Responses
-Tools return JSON (as a string over MCP) with domain-specific fields, e.g.:
-
-```json
-{"collections": [{"id": "trn-ntwk-street-1", "title": "Street Network"}]}
-```
-
-### Standardized Error Envelope (v1)
-All tools now wrap failures in a consistent envelope while preserving the legacy `error` key for backward compatibility:
-
-```json
-{
-  "status": "error",
-  "version": 1,
-  "tool": "search_features",
-  "error_code": "INVALID_INPUT",
-  "message": "Invalid input: Unmatched quotes in filter",
-  "error": "Invalid input: Unmatched quotes in filter",  
-  "details": {"raw_param": "filter value that failed"},
-  "retry_guidance": {
-    "tool": "search_features",
-    "next_steps": [
-      "Review message & adjust parameters",
-      "Call get_workflow_context() for fresh collection/queryable info if unsure"
-    ],
-    "always_available_tools": ["get_workflow_context", "hello_world", "check_api_key"]
-  }
-}
-```
-
-| Field | Purpose |
-|-------|---------|
-| `status` | Always `error` for this envelope |
-| `version` | Schema version (start at 1) |
-| `tool` | Originating tool name |
-| `error_code` | Machine category (`INVALID_INPUT`, `GENERAL_ERROR`, more coming) |
-| `message` | Human readable explanation |
-| `error` | Same as `message` (compat) |
-| `details` | Extra context (may be null) |
-| `retry_guidance` | Structured hints for automated or user-guided recovery |
-
-Minimal client handling pattern:
-```python
-def is_error(payload: dict) -> bool:
-    return payload.get("status") == "error" or ("error" in payload and "status" not in payload)
-
-def error_message(payload: dict) -> str:
-    if payload.get("status") == "error":
-        return payload.get("message", payload.get("error", "Unknown error"))
-    return ""
-```
-
-### Discovery Endpoints (HTTP mode)
-When launched with `--transport streamable-http`:
-
-| Endpoint | Description |
-|----------|-------------|
-| `/.well-known/mcp.json` | Capability + basic tool listing |
-| `/.well-known/mcp-auth` | Auth scheme & rate limit hints |
-| `/mcp/tools` | Full tool metadata (name + description) |
-| `/mcp/status` | Uptime & lightweight health info |
-
-Sample `/mcp/tools` response:
-```json
-[
-  {"name": "get_workflow_context", "description": "Get basic workflow context - no detailed queryables yet"},
-  {"name": "search_features", "description": "Search for features in a collection with full CQL2 filter support."}
-]
-```
-
-### Tool Metadata Contract
-| Key | Type | Notes |
-|-----|------|-------|
-| `name` | string | Stable identifier used in MCP `tools/call` |
-| `description` | string | Current docstring, concise for LLM use |
-
-### Roadmap (non-breaking planned additions)
-- New `error_code` values: `RATE_LIMIT`, `AUTH_REQUIRED`, `WORKFLOW_PREREQUISITE`
-- Optional `trace_id` for correlation
-- Structured `hints` array (machine actionable tokens)
-- Pagination envelope standardisation
-
-If you need any of these earlier, open an issue with your use case.
-
 ## Troubleshooting
+
+## Development & Testing
+
+### Local Development Environment
+
+Create a `.env` file (already supported via `python-dotenv`) in the project root:
+
+```
+OS_API_KEY=your_real_os_api_key
+STDIO_KEY=dev-stdio-key
+# Either singular or plural is accepted by the middleware
+BEARER_TOKEN=dev-token
+# or
+# BEARER_TOKENS=dev-token,another-token
+```
+
+The server loads this automatically (see `server.py` call to `load_dotenv()`), so you usually just restart the server after editing `.env` – no container rebuild required.
+
+### Installing Dependencies (Editable Mode)
+
+Runtime (lean install – no test dependencies):
+
+```bash
+pip install -e .
+```
+
+Full test/development install (recommended when contributing):
+
+```bash
+pip install -e .[test]
+```
+
+Why keep test packages out of core `dependencies`? It keeps production / Docker images smaller and avoids pulling in `pytest` tooling where it is not needed.
+
+### Running the Test Suite
+
+```bash
+pytest -v
+```
+
+Run with coverage:
+
+```bash
+pytest -v --cov=src --cov-report=term-missing
+```
+
+### Common Test Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `async def functions are not natively supported` | `pytest-asyncio` not installed | Install with `pip install -e .[test]` |
+| 401 errors in integration tests | Missing / wrong `OS_API_KEY` or bearer token | Set `OS_API_KEY` and `BEARER_TOKEN` / `BEARER_TOKENS` in `.env` |
+| Slow workflow timing tests | Network latency / external API speed | Use smaller `limit` values or mark tests with `-k "not slow"` |
+
+### Makefile (Optional)
+
+If you want quick aliases, add something like this to a local (untracked) `Makefile.local`:
+
+```
+test:  ## Run full test suite
+  pytest -v
+
+coverage: ## Run tests with coverage
+  pytest -v --cov=src --cov-report=term-missing
+```
+
+Then:
+
+```bash
+make test
+```
+
+### Linting / Formatting (If You Enable Tools)
+
+Add (or run manually):
+
+```bash
+black src tests
+isort src tests
+flake8 src tests
+```
+
+### Recommended Git Settings (Cross‑Platform Line Endings)
+
+The repo uses a `.gitattributes` file to normalise line endings (`eol=lf`). If you cloned on Windows and saw all files as modified, run:
+
+```bash
+git add --renormalize .
+git commit -m "Normalize line endings"
+```
+
+This prevents spurious diffs between Windows, macOS, and Linux dev environments.
+
+---
 
 ### API Key Issues (401 "Missing or unsupported API key provided")
 
