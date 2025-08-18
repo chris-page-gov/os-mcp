@@ -1,5 +1,6 @@
 import os
 import aiohttp
+import ssl
 import asyncio
 import re
 import concurrent.futures
@@ -396,12 +397,32 @@ class OSAPIClient(APIClient):
 
     # Public async methods
     async def initialise(self):
-        """Initialise the aiohttp session if not already created"""
+        """Initialise the aiohttp session if not already created.
+
+        Supports optional SSL customisation for constrained/corporate networks:
+        - Set OS_MCP_CA_BUNDLE=/path/to/ca.pem to trust an additional root.
+        - Set OS_MCP_SSL_NO_VERIFY=1 to disable certificate verification (DEV ONLY!).
+        """
         if self.session is None:
+            ssl_ctx = None
+            disable_verify = os.environ.get("OS_MCP_SSL_NO_VERIFY", "").lower() in {"1", "true", "yes"}
+            ca_bundle = os.environ.get("OS_MCP_CA_BUNDLE")
+            if disable_verify:
+                ssl_ctx = False  # type: ignore[assignment]
+                logger.warning("SSL verification DISABLED via OS_MCP_SSL_NO_VERIFY (development only)")
+            else:
+                if ca_bundle and os.path.exists(ca_bundle):
+                    try:
+                        ssl_ctx = ssl.create_default_context(cafile=ca_bundle)
+                        logger.info(f"Loaded custom CA bundle: {ca_bundle}")
+                    except Exception as e:
+                        logger.error(f"Failed to load CA bundle '{ca_bundle}': {e}")
+                # else: default system trust
             self.session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
                     force_close=True,
                     limit=1,  # TODO: Strict limit to only 1 connection - may need to revisit this
+                    ssl=ssl_ctx,  # can be context, False (no verify), or None (default)
                 )
             )
 
