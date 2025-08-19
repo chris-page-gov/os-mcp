@@ -536,19 +536,17 @@ class OSDataHubService:
         """Internal helper to call OpenAI (async friendly). Separated for mocking in tests."""
         try:
             # Lazy import so tests can monkeypatch without dependency or to handle absence gracefully
-            from openai import OpenAI  # type: ignore[import-not-found]
-            client = OpenAI(api_key=api_key)  # type: ignore[call-arg]
-            # Try new Responses API first, fallback to chat completions
             try:
-                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.2)  # type: ignore[attr-defined]
+                from openai import OpenAI  # type: ignore[import-not-found]
+                client = OpenAI(api_key=api_key)
+                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.2)
                 content = resp.choices[0].message.content if resp.choices else ""
                 usage = getattr(resp, "usage", None)
                 return {"model": model, "output": content, "usage": getattr(usage, 'model_dump', lambda: usage)() if usage else None}
-            except Exception:  # pragma: no cover - fallback path
-                # Fallback to legacy API if needed
-                import openai  # type: ignore
-                openai.api_key = api_key  # type: ignore[attr-defined]
-                legacy = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.2)  # type: ignore[attr-defined]
+            except ImportError:
+                import openai  # type: ignore[import-not-found]
+                openai.api_key = api_key
+                legacy = openai.ChatCompletion.create(model=model, messages=messages, temperature=0.2)
                 content = legacy['choices'][0]['message']['content'] if legacy.get('choices') else ""
                 return {"model": model, "output": content, "usage": legacy.get('usage')}
         except ModuleNotFoundError:
