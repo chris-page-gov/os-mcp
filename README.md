@@ -121,6 +121,22 @@ python -m venv ~/.local/share/os-ngd-venv
 ```
 6. Run a workflow using a prompt key (e.g. `search_cinemas_leamington`).
 
+### Agent Skills (VS Code / Copilot)
+
+VS Code supports Agent Skills (experimental) and automatically detects skills from:
+- `.github/skills/` (recommended)
+- `.claude/skills/` (backwards compatibility)
+
+This repo includes an example skill at `.github/skills/os-ngd-workflow-planning/SKILL.md`.
+
+Authoring guidance: see `docs/agent_skills.md`.
+
+For tool-based agents (no filesystem access), this MCP server also exposes read-only tools:
+- `list_agent_skills`
+- `get_agent_skill`
+
+You can override discovery roots for those tools with `OS_MCP_SKILLS_DIRS` (comma-separated paths).
+
 #### Fast Dev Smoke Test (No VS Code UI)
 Use the helper script to launch a temporary stdio server and list tools:
 ```bash

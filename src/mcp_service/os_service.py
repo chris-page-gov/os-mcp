@@ -19,6 +19,8 @@ from mcp_service.prompts import OSWorkflowPrompts
 from mcp_service.routing_service import OSRoutingService
 from pathlib import Path
 
+from agent_skills.discovery import discover_skill_dirs, find_skill_md, read_skill_properties, validate_skill_dir
+
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
 
 # ---- Constants / Quick-win refactors ----
@@ -161,6 +163,8 @@ class OSDataHubService:
             "hello_world",
             "check_api_key",
             "version_info",
+            "list_agent_skills",
+            "get_agent_skill",
             "list_collections",
             "get_single_collection",
             "get_single_collection_queryables",
@@ -439,6 +443,8 @@ class OSDataHubService:
             "get_workflow_context",
             "hello_world",
             "check_api_key",
+            "list_agent_skills",
+            "get_agent_skill",
             "chat",
             "version_info",
             "list_collections",
@@ -595,6 +601,131 @@ class OSDataHubService:
             },
         }
         return json.dumps(data)
+
+    async def list_agent_skills(self) -> str:
+        """List agent skills available under the configured skills directories.
+
+        Discovery roots:
+          - Default: skills/
+          - Override via OS_MCP_SKILLS_DIRS (comma-separated paths)
+        """
+        try:
+            env = os.environ.get("OS_MCP_SKILLS_DIRS")
+            roots = [Path(".github/skills"), Path(".claude/skills"), Path("skills")]
+            if env:
+                roots = [Path(p.strip()) for p in env.split(",") if p.strip()]
+
+            skills: List[Dict[str, Any]] = []
+            invalid: List[Dict[str, Any]] = []
+
+            for skill_dir in discover_skill_dirs(roots):
+                errors = validate_skill_dir(skill_dir)
+                if errors:
+                    invalid.append({"dir": str(skill_dir), "errors": errors})
+                    continue
+
+                props = read_skill_properties(skill_dir)
+                skill_md = find_skill_md(skill_dir)
+                if skill_md is None:
+                    invalid.append({"dir": str(skill_dir), "errors": ["Missing required file: SKILL.md"]})
+                    continue
+
+                skills.append(
+                    {
+                        "name": props.name,
+                        "description": props.description,
+                        "location": str(skill_md.resolve()),
+                        "frontmatter": props.to_dict(),
+                    }
+                )
+
+            skills.sort(key=lambda s: str(s.get("name", "")))
+
+            return json.dumps({"status": "ok", "skills": skills, "invalid_skills": invalid})
+        except Exception as e:
+            return json.dumps(
+                build_error_envelope(
+                    tool="list_agent_skills",
+                    code=ErrorCode.GENERAL_ERROR,
+                    message=str(e),
+                )
+            )
+
+    async def get_agent_skill(self, name: str) -> str:
+        """Return the full SKILL.md content for a named skill.
+
+        Security note: this only reads from configured skill directories and only
+        for a direct child directory named exactly as the skill name.
+        """
+        try:
+            if not isinstance(name, str) or not name.strip():
+                return json.dumps(
+                    build_error_envelope(
+                        tool="get_agent_skill",
+                        code=ErrorCode.INVALID_INPUT,
+                        message="Skill name must be a non-empty string",
+                    )
+                )
+
+            env = os.environ.get("OS_MCP_SKILLS_DIRS")
+            roots = [Path(".github/skills"), Path(".claude/skills"), Path("skills")]
+            if env:
+                roots = [Path(p.strip()) for p in env.split(",") if p.strip()]
+
+            target_dir: Optional[Path] = None
+            for root in roots:
+                candidate = root / name
+                if candidate.exists() and candidate.is_dir():
+                    target_dir = candidate
+                    break
+
+            if target_dir is None:
+                return json.dumps(
+                    build_error_envelope(
+                        tool="get_agent_skill",
+                        code=ErrorCode.NOT_FOUND,
+                        message=f"Skill not found: {name}",
+                    )
+                )
+
+            errors = validate_skill_dir(target_dir)
+            if errors:
+                return json.dumps(
+                    build_error_envelope(
+                        tool="get_agent_skill",
+                        code=ErrorCode.INVALID_INPUT,
+                        message=f"Skill is invalid: {name}",
+                        details={"errors": errors, "dir": str(target_dir)},
+                    )
+                )
+
+            skill_md = find_skill_md(target_dir)
+            if skill_md is None:
+                return json.dumps(
+                    build_error_envelope(
+                        tool="get_agent_skill",
+                        code=ErrorCode.NOT_FOUND,
+                        message=f"SKILL.md not found for skill: {name}",
+                    )
+                )
+
+            content = skill_md.read_text(encoding="utf-8")
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "name": name,
+                    "location": str(skill_md.resolve()),
+                    "content": content,
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                build_error_envelope(
+                    tool="get_agent_skill",
+                    code=ErrorCode.GENERAL_ERROR,
+                    message=str(e),
+                )
+            )
 
     async def check_api_key(self) -> str:
         """Check if the OS API key is available."""
