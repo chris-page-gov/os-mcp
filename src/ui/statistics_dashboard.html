@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONS Statistics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      background: #f8f9fa;
+      color: #212529;
+    }
+
+    .dashboard {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #212529;
+      margin-bottom: 0.5rem;
+    }
+
+    .header-subtitle {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .dataset-badge {
+      display: inline-block;
+      background: #e7f3ff;
+      color: #0a58ca;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+
+    /* Stats Summary Cards */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .stat-card-label {
+      font-size: 0.75rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-card-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #212529;
+    }
+
+    .stat-card-change {
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .stat-card-change.positive { color: #198754; }
+    .stat-card-change.negative { color: #dc3545; }
+    .stat-card-change.neutral { color: #6c757d; }
+
+    /* Chart Container */
+    .chart-section {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .chart-controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .chart-btn {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: 1px solid #dee2e6;
+      border-radius: 0.25rem;
+      background: white;
+      color: #495057;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chart-btn:hover {
+      background: #f8f9fa;
+      border-color: #adb5bd;
+    }
+
+    .chart-btn.active {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: white;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Comparison Table */
+    .comparison-section {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .comparison-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .comparison-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .comparison-table tr:hover td {
+      background: #f8f9fa;
+    }
+
+    .area-name {
+      font-weight: 500;
+      color: #0a58ca;
+    }
+
+    .comparison-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .comparison-rank {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .rank-1 { background: #ffd700; color: #212529; }
+    .rank-2 { background: #c0c0c0; color: #212529; }
+    .rank-3 { background: #cd7f32; color: white; }
+    .rank-other { background: #e9ecef; color: #495057; }
+
+    /* Data Table */
+    .data-section {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .data-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+      position: sticky;
+      top: 0;
+    }
+
+    .data-table tbody {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* Export Section */
+    .export-section {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .export-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      background: white;
+      color: #495057;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      transition: all 0.15s ease;
+    }
+
+    .export-btn:hover {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: white;
+    }
+
+    .export-btn svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 200px;
+      color: #6c757d;
+    }
+
+    .spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0d6efd;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Error State */
+    .error-state {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .error-title {
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 0.25rem;
+    }
+
+    .error-message {
+      font-size: 0.875rem;
+      color: #856404;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .dashboard {
+        padding: 0.5rem;
+      }
+
+      .header h1 {
+        font-size: 1.25rem;
+      }
+
+      .stat-card-value {
+        font-size: 1.5rem;
+      }
+
+      .chart-container {
+        height: 250px;
+      }
+
+      .comparison-table {
+        font-size: 0.8125rem;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard" id="dashboard">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>Loading statistics...</span>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Dashboard State
+    // =========================================================================
+    let dashboardData = null;
+    let currentChart = null;
+    let chartType = 'line';
+
+    // Colors for charts
+    const CHART_COLORS = [
+      '#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1',
+      '#20c997', '#fd7e14', '#0dcaf0', '#d63384', '#6c757d'
+    ];
+
+    // =========================================================================
+    // Initialization
+    // =========================================================================
+    function init() {
+      // Get data from MCP context
+      const data = getMCPData();
+      if (data) {
+        dashboardData = data;
+        render();
+      } else {
+        renderEmptyState();
+      }
+    }
+
+    function getMCPData() {
+      // MCP-Apps will inject data via window.__MCP_DATA__ or similar
+      // For now, check various possible injection points
+      if (window.__MCP_DATA__) return window.__MCP_DATA__;
+      if (window.mcpData) return window.mcpData;
+
+      // Try to get from URL params (for testing)
+      const urlParams = new URLSearchParams(window.location.search);
+      const dataParam = urlParams.get('data');
+      if (dataParam) {
+        try {
+          return JSON.parse(decodeURIComponent(dataParam));
+        } catch (e) {
+          console.error('Failed to parse data param:', e);
+        }
+      }
+
+      // Demo data for development
+      return {
+        status: 'ok',
+        dataset_id: 'wellbeing-local-authority',
+        dataset_title: 'Personal well-being estimates',
+        area_code: 'E08000026',
+        observations: [
+          { value: '7.52', dimensions: { time: { label: '2022-23' } } },
+          { value: '7.48', dimensions: { time: { label: '2021-22' } } },
+          { value: '7.45', dimensions: { time: { label: '2020-21' } } },
+          { value: '7.58', dimensions: { time: { label: '2019-20' } } },
+          { value: '7.62', dimensions: { time: { label: '2018-19' } } },
+          { value: '7.55', dimensions: { time: { label: '2017-18' } } },
+        ],
+        dimensions_used: {
+          geography: 'E08000026',
+          estimate: 'average-mean',
+          measureofwellbeing: 'life-satisfaction'
+        }
+      };
+    }
+
+    // =========================================================================
+    // Rendering
+    // =========================================================================
+    function render() {
+      const dashboard = document.getElementById('dashboard');
+
+      if (dashboardData.status === 'error') {
+        dashboard.innerHTML = renderError();
+        return;
+      }
+
+      // Check if this is comparison data or single area
+      const isComparison = dashboardData.comparison && dashboardData.comparison.length > 0;
+
+      dashboard.innerHTML = `
+        ${renderHeader()}
+        ${isComparison ? renderComparisonView() : renderSingleAreaView()}
+        ${renderExportSection()}
+      `;
+
+      // Initialize chart if we have data
+      if (!isComparison && dashboardData.observations && dashboardData.observations.length > 0) {
+        initChart();
+      } else if (isComparison) {
+        initComparisonChart();
+      }
+
+      // Bind event handlers
+      bindEvents();
+    }
+
+    function renderHeader() {
+      const isComparison = dashboardData.comparison && dashboardData.comparison.length > 0;
+      const subtitle = isComparison
+        ? `Comparing ${dashboardData.area_count} areas`
+        : `Area: ${dashboardData.area_code || 'All areas'}`;
+
+      return `
+        <div class="header">
+          <h1>${dashboardData.dataset_title || dashboardData.dataset_id}</h1>
+          <p class="header-subtitle">${subtitle}</p>
+          <span class="dataset-badge">${dashboardData.dataset_id}</span>
+        </div>
+      `;
+    }
+
+    function renderSingleAreaView() {
+      const obs = dashboardData.observations || [];
+      if (obs.length === 0) {
+        return renderEmptyDataState();
+      }
+
+      // Calculate summary stats
+      const values = obs.map(o => parseFloat(o.value)).filter(v => !isNaN(v));
+      const latest = values[0];
+      const previous = values[1];
+      const change = previous ? ((latest - previous) / previous * 100).toFixed(1) : null;
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+
+      return `
+        <div class="summary-cards">
+          <div class="stat-card">
+            <div class="stat-card-label">Latest Value</div>
+            <div class="stat-card-value">${latest?.toFixed(2) || 'N/A'}</div>
+            ${change !== null ? `
+              <div class="stat-card-change ${change >= 0 ? 'positive' : 'negative'}">
+                ${change >= 0 ? '↑' : '↓'} ${Math.abs(change)}% from previous
+              </div>
+            ` : ''}
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Average</div>
+            <div class="stat-card-value">${avg.toFixed(2)}</div>
+            <div class="stat-card-change neutral">Over ${values.length} periods</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Range</div>
+            <div class="stat-card-value">${min.toFixed(2)} - ${max.toFixed(2)}</div>
+            <div class="stat-card-change neutral">Min to Max</div>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-header">
+            <h2 class="chart-title">Trend Over Time</h2>
+            <div class="chart-controls">
+              <button class="chart-btn active" data-type="line">Line</button>
+              <button class="chart-btn" data-type="bar">Bar</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="main-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="data-section">
+          <div class="chart-header">
+            <h2 class="chart-title">Data Table</h2>
+          </div>
+          ${renderDataTable(obs)}
+        </div>
+      `;
+    }
+
+    function renderComparisonView() {
+      const comparison = dashboardData.comparison || [];
+
+      // Get the latest value for each area for ranking
+      const areasWithValues = comparison.map(area => {
+        const obs = area.observations || [];
+        const latestValue = obs.length > 0 ? parseFloat(obs[0].value) : null;
+        return {
+          ...area,
+          latestValue
+        };
+      }).filter(a => a.latestValue !== null);
+
+      // Sort by value descending
+      areasWithValues.sort((a, b) => b.latestValue - a.latestValue);
+
+      return `
+        <div class="chart-section">
+          <div class="chart-header">
+            <h2 class="chart-title">Area Comparison</h2>
+            <div class="chart-controls">
+              <button class="chart-btn active" data-type="bar">Bar</button>
+              <button class="chart-btn" data-type="horizontalBar">Horizontal</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="comparison-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="comparison-section">
+          <div class="chart-header">
+            <h2 class="chart-title">Comparison Table</h2>
+          </div>
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Area</th>
+                <th>Latest Value</th>
+                <th>Observations</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${areasWithValues.map((area, idx) => `
+                <tr>
+                  <td>
+                    <span class="comparison-rank ${idx < 3 ? 'rank-' + (idx + 1) : 'rank-other'}">
+                      ${idx + 1}
+                    </span>
+                  </td>
+                  <td class="area-name">${area.area_code}</td>
+                  <td class="comparison-value">${area.latestValue?.toFixed(2) || 'N/A'}</td>
+                  <td>${area.observation_count || 0}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderDataTable(observations) {
+      if (!observations || observations.length === 0) {
+        return '<p class="empty-state">No data available</p>';
+      }
+
+      return `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time Period</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${observations.map(obs => `
+              <tr>
+                <td>${obs.dimensions?.time?.label || 'Unknown'}</td>
+                <td class="comparison-value">${parseFloat(obs.value).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderExportSection() {
+      return `
+        <div class="export-section">
+          <button class="export-btn" onclick="exportCSV()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+          <button class="export-btn" onclick="exportJSON()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export JSON
+          </button>
+          <button class="export-btn" onclick="copyToClipboard()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            Copy Data
+          </button>
+        </div>
+      `;
+    }
+
+    function renderEmptyState() {
+      document.getElementById('dashboard').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📊</div>
+          <h2 class="empty-state-title">No Data Available</h2>
+          <p>Use the statistics tools to fetch ONS data and it will be displayed here.</p>
+        </div>
+      `;
+    }
+
+    function renderEmptyDataState() {
+      return `
+        <div class="empty-state">
+          <div class="empty-state-icon">📈</div>
+          <h2 class="empty-state-title">No Observations</h2>
+          <p>No data observations found for this query.</p>
+        </div>
+      `;
+    }
+
+    function renderError() {
+      return `
+        <div class="error-state">
+          <div class="error-title">Error Loading Data</div>
+          <div class="error-message">${dashboardData.error || dashboardData.message || 'Unknown error'}</div>
+          ${dashboardData.hint ? `<div class="error-message" style="margin-top: 0.5rem;">Hint: ${dashboardData.hint}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // Chart Functions
+    // =========================================================================
+    function initChart() {
+      const canvas = document.getElementById('main-chart');
+      if (!canvas) return;
+
+      const obs = dashboardData.observations || [];
+      const labels = obs.map(o => o.dimensions?.time?.label || 'Unknown').reverse();
+      const values = obs.map(o => parseFloat(o.value)).reverse();
+
+      const ctx = canvas.getContext('2d');
+      currentChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: dashboardData.dataset_title || 'Value',
+            data: values,
+            borderColor: CHART_COLORS[0],
+            backgroundColor: chartType === 'bar' ? CHART_COLORS[0] + '80' : CHART_COLORS[0] + '20',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              grid: {
+                color: '#e9ecef'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function initComparisonChart() {
+      const canvas = document.getElementById('comparison-chart');
+      if (!canvas) return;
+
+      const comparison = dashboardData.comparison || [];
+      const labels = comparison.map(a => a.area_code);
+      const values = comparison.map(a => {
+        const obs = a.observations || [];
+        return obs.length > 0 ? parseFloat(obs[0].value) : 0;
+      });
+
+      const ctx = canvas.getContext('2d');
+      currentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Latest Value',
+            data: values,
+            backgroundColor: CHART_COLORS.slice(0, labels.length),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: chartType === 'horizontalBar' ? 'y' : 'x',
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              grid: {
+                color: '#e9ecef'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChartType(type) {
+      chartType = type;
+      if (currentChart) {
+        currentChart.destroy();
+      }
+
+      const isComparison = dashboardData.comparison && dashboardData.comparison.length > 0;
+      if (isComparison) {
+        initComparisonChart();
+      } else {
+        initChart();
+      }
+    }
+
+    // =========================================================================
+    // Export Functions
+    // =========================================================================
+    function exportCSV() {
+      const isComparison = dashboardData.comparison && dashboardData.comparison.length > 0;
+      let csv = '';
+
+      if (isComparison) {
+        csv = 'Area,Latest Value,Observations\n';
+        dashboardData.comparison.forEach(area => {
+          const obs = area.observations || [];
+          const value = obs.length > 0 ? obs[0].value : 'N/A';
+          csv += `${area.area_code},${value},${area.observation_count || 0}\n`;
+        });
+      } else {
+        csv = 'Time Period,Value\n';
+        (dashboardData.observations || []).forEach(obs => {
+          csv += `${obs.dimensions?.time?.label || 'Unknown'},${obs.value}\n`;
+        });
+      }
+
+      downloadFile(csv, `${dashboardData.dataset_id || 'statistics'}.csv`, 'text/csv');
+    }
+
+    function exportJSON() {
+      const json = JSON.stringify(dashboardData, null, 2);
+      downloadFile(json, `${dashboardData.dataset_id || 'statistics'}.json`, 'application/json');
+    }
+
+    function copyToClipboard() {
+      const json = JSON.stringify(dashboardData, null, 2);
+      navigator.clipboard.writeText(json).then(() => {
+        alert('Data copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+      });
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================================
+    // Event Handling
+    // =========================================================================
+    function bindEvents() {
+      // Chart type buttons
+      document.querySelectorAll('.chart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          updateChartType(e.target.dataset.type);
+        });
+      });
+    }
+
+    // =========================================================================
+    // Start
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

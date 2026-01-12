@@ -10,6 +10,57 @@ Ask simple questions such as find me all cinemas in Leeds City Centre or use the
 
 This MCP server enforces a 2 step workflow plan to ensure that the user gets the best results possible.
 
+## MCP-Apps Integration (In Progress)
+
+We're adding interactive UI widgets to make the server an exemplary MCP-Apps implementation. See the planning documents for full details:
+
+- **[Design Document](plans/os-mcp-apps-design.md)** - Architecture and widget specifications
+- **[Implementation Roadmap](plans/on-ons%20mcp%20implementation-roadmap.md)** - Sprint breakdown and timeline
+- **[Starter Code](plans/on-ons%20mcp%20starter-code.md)** - Reference implementations
+- **[Progress Tracker](plans/PROGRESS.md)** - Detailed task-level progress tracking
+
+### Implementation Progress
+
+| Sprint | Focus | Status | Key Deliverables |
+|--------|-------|--------|------------------|
+| 1 | MCP-Apps Foundation | ✅ Complete | Directory structure, UI resources, geography tools |
+| 2 | Selection Flow | ✅ Complete | Postcode search, ONS API integration, widget polish |
+| 3 | ONS Statistics | ✅ Complete | ONS API client, statistics tools, 42 new tests |
+| 4 | Statistics Dashboard | ✅ Complete | Chart.js widget, data visualization, export |
+| 5 | Enhanced Features | 🔲 Not Started | Feature inspector, route planner integration |
+| 6 | Polish & Release | 🔲 Not Started | Testing >80%, documentation, production deployment |
+
+### New Geography Tools (Sprint 1-2)
+
+Three new tools for UK geographic boundary selection (bypass workflow context):
+
+| Tool | Description |
+|------|-------------|
+| `select_geographic_area` | Opens interactive map widget for area selection |
+| `fetch_boundaries` | Fetches GeoJSON boundaries from ONS Geography API |
+| `search_geographic_areas` | Searches UK areas by name |
+
+Supported geographic levels: Parliamentary Constituencies, Local Authority Districts, Wards, LSOA, MSOA, Output Areas.
+
+### New Statistics Tools (Sprint 3-4)
+
+Four new tools for ONS statistics data (bypass workflow context):
+
+| Tool | Description |
+|------|-------------|
+| `list_ons_datasets` | Lists available ONS datasets with category/search filters |
+| `get_dataset_info` | Gets detailed metadata for a specific dataset |
+| `get_statistics` | Retrieves statistical observations for geographic areas |
+| `compare_areas` | Compares statistics across multiple areas |
+
+Available dataset categories: wellbeing, economy, housing, population, health, employment, census.
+
+The statistics dashboard widget (`ui://os-ons/statistics-dashboard`) provides:
+- Chart.js line and bar chart visualizations
+- Summary statistics cards
+- Area comparison tables with rankings
+- CSV, JSON, and clipboard export
+
 ### Experimental Chat Tool
 If you set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`), an additional `chat` MCP tool becomes available. This tool:
 - Bypasses the workflow-context requirement (you can call it first).

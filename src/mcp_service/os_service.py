@@ -17,6 +17,18 @@ from models import LinkedIdentifier
 from mcp_service.resources import OSDocumentationResources
 from mcp_service.prompts import OSWorkflowPrompts
 from mcp_service.routing_service import OSRoutingService
+from mcp_service.ui_resources import OSUIResources
+from tools.geography_tools import (
+    select_geographic_area as _select_geographic_area,
+    fetch_boundaries as _fetch_boundaries,
+    search_geographic_areas as _search_geographic_areas,
+)
+from tools.statistics_tools import (
+    list_ons_datasets as _list_ons_datasets,
+    get_dataset_info as _get_dataset_info,
+    get_statistics as _get_statistics,
+    compare_areas as _compare_areas,
+)
 from pathlib import Path
 
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
@@ -145,6 +157,10 @@ class OSDataHubService:
         doc_resources = OSDocumentationResources(self.mcp, self.api_client)
         doc_resources.register_all()
 
+        # Register UI resources (MCP-Apps widgets)
+        ui_resources = OSUIResources(self.mcp)
+        ui_resources.register_all()
+
     def register_tools(self) -> None:
         """Register all MCP tools with guardrails and middleware without broad ignores."""
 
@@ -179,6 +195,15 @@ class OSDataHubService:
             "lookup_addresses",
             "diagnose_address_fields",
             "summarise_buildings_by_road",
+            # MCP-Apps geography tools (ONS boundaries)
+            "select_geographic_area",
+            "fetch_boundaries",
+            "search_geographic_areas",
+            # MCP-Apps statistics tools (ONS statistics)
+            "list_ons_datasets",
+            "get_dataset_info",
+            "get_statistics",
+            "compare_areas",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -446,6 +471,15 @@ class OSDataHubService:
             "suggest_collections",
             "suggest_fields",
             "lookup_addresses",
+            # MCP-Apps geography tools (standalone ONS API access)
+            "select_geographic_area",
+            "fetch_boundaries",
+            "search_geographic_areas",
+            # MCP-Apps statistics tools (standalone ONS API access)
+            "list_ons_datasets",
+            "get_dataset_info",
+            "get_statistics",
+            "compare_areas",
         }
 
         @functools.wraps(func)
@@ -1415,3 +1449,180 @@ class OSDataHubService:
             })
         except Exception as e:
             return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.GENERAL_ERROR, message=str(e)))
+
+    # ============================================================================
+    # MCP-Apps Geography Tools (ONS Boundaries)
+    # ============================================================================
+
+    async def select_geographic_area(
+        self,
+        level: str = "local_auth",
+        initial_lat: Optional[float] = None,
+        initial_lng: Optional[float] = None,
+        initial_zoom: Optional[int] = None,
+        search_term: Optional[str] = None,
+        multi_select: bool = True,
+    ) -> str:
+        """Opens interactive map widget for selecting UK geographic areas.
+
+        This tool triggers a visual map interface where users can click on areas
+        to select them, switch between geographic levels, and search by name.
+
+        Args:
+            level: Geographic level (parl_const, local_auth, ward, lsoa, msoa, oa)
+            initial_lat: Starting latitude (default: 52.4862)
+            initial_lng: Starting longitude (default: -1.8904)
+            initial_zoom: Starting zoom level (default: 6)
+            search_term: Optional search query to pre-filter areas
+            multi_select: Allow multiple area selection (default: True)
+
+        Returns:
+            JSON with widget configuration and UI resource reference
+        """
+        return await _select_geographic_area(
+            level=level,
+            initial_lat=initial_lat,
+            initial_lng=initial_lng,
+            initial_zoom=initial_zoom,
+            search_term=search_term,
+            multi_select=multi_select,
+        )
+
+    async def fetch_boundaries(
+        self,
+        level: str,
+        codes: Optional[str] = None,
+        bbox: Optional[str] = None,
+        limit: int = 100,
+    ) -> str:
+        """Fetch boundary geometries for UK geographic areas from ONS.
+
+        Args:
+            level: Geographic level (parl_const, local_auth, ward, lsoa, msoa, oa)
+            codes: Optional comma-separated GSS codes for specific areas
+            bbox: Optional bounding box as "west,south,east,north"
+            limit: Maximum features to return (default: 100, max: 500)
+
+        Returns:
+            GeoJSON FeatureCollection with boundary geometries
+        """
+        return await _fetch_boundaries(
+            level=level,
+            codes=codes,
+            bbox=bbox,
+            limit=limit,
+        )
+
+    async def search_geographic_areas(
+        self,
+        query: str,
+        level: str = "local_auth",
+        limit: int = 10,
+    ) -> str:
+        """Search for UK geographic areas by name.
+
+        Args:
+            query: Search term (area name, minimum 2 characters)
+            level: Geographic level to search within
+            limit: Maximum results (default: 10, max: 50)
+
+        Returns:
+            JSON with matching areas including GSS codes and names
+        """
+        return await _search_geographic_areas(
+            query=query,
+            level=level,
+            limit=limit,
+        )
+
+    # ============================================================================
+    # MCP-Apps Statistics Tools (ONS Statistics API)
+    # ============================================================================
+
+    async def list_ons_datasets(
+        self,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        include_census: bool = False,
+        limit: int = 50,
+    ) -> str:
+        """List available ONS datasets.
+
+        Discover datasets from the Office for National Statistics API.
+
+        Args:
+            category: Filter by category (wellbeing, economy, housing, population, health, employment, census)
+            search: Search term to filter datasets
+            include_census: Include Census 2021 datasets (default: False)
+            limit: Maximum datasets to return (default: 50)
+
+        Returns:
+            JSON with list of datasets including id, title, description
+        """
+        return await _list_ons_datasets(
+            category=category,
+            search=search,
+            include_census=include_census,
+            limit=limit,
+        )
+
+    async def get_dataset_info(self, dataset_id: str) -> str:
+        """Get detailed information about a specific ONS dataset.
+
+        Args:
+            dataset_id: The dataset identifier (e.g., "wellbeing-local-authority")
+
+        Returns:
+            JSON with dataset metadata, dimensions, and data structure
+        """
+        return await _get_dataset_info(dataset_id=dataset_id)
+
+    async def get_statistics(
+        self,
+        dataset_id: str,
+        area_codes: Optional[str] = None,
+        time_period: Optional[str] = None,
+        limit: int = 100,
+    ) -> str:
+        """Get statistical observations from an ONS dataset.
+
+        Retrieves data values for specified geographic areas. Returns data
+        linked to the statistics dashboard widget for visualization.
+
+        Args:
+            dataset_id: The dataset identifier (e.g., "wellbeing-local-authority")
+            area_codes: Comma-separated GSS codes (e.g., "E08000026,E08000025")
+            time_period: Time filter (e.g., "2023")
+            limit: Maximum observations (default: 100)
+
+        Returns:
+            JSON with observations and UI resource reference
+        """
+        return await _get_statistics(
+            dataset_id=dataset_id,
+            area_codes=area_codes,
+            time_period=time_period,
+            limit=limit,
+        )
+
+    async def compare_areas(
+        self,
+        dataset_id: str,
+        area_codes: str,
+        time_period: Optional[str] = None,
+    ) -> str:
+        """Compare statistics across multiple geographic areas.
+
+        Args:
+            dataset_id: The dataset identifier
+            area_codes: Comma-separated GSS codes (2-10 areas)
+            time_period: Optional time filter
+
+        Returns:
+            JSON with comparison data for visualization
+        """
+        return await _compare_areas(
+            dataset_id=dataset_id,
+            area_codes=area_codes,
+            time_period=time_period,
+        )

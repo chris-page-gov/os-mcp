@@ -5,9 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+### Added - MCP-Apps Integration (Sprint 3-4)
+- **ONS Statistics API Client** (`src/clients/ons_client.py`):
+  - Full client for ONS Beta API (https://api.beta.ons.gov.uk/v1)
+  - Rate limiting (120 req/10s) with automatic throttling
+  - TTL-based caching for API responses
+  - Dataset discovery, dimension queries, and observation retrieval
+- **Statistics Tools** (4 new tools, bypass workflow context):
+  - `list_ons_datasets` - Lists available ONS datasets with category and search filters
+  - `get_dataset_info` - Gets detailed metadata for a specific dataset
+  - `get_statistics` - Retrieves statistical observations for geographic areas
+  - `compare_areas` - Compares statistics across multiple areas
+- **Statistics Dashboard Widget** (`src/ui/statistics_dashboard.html`):
+  - Chart.js integration for line and bar charts
+  - Summary statistics cards (latest value, average, range)
+  - Area comparison table with rankings
+  - Export functionality (CSV, JSON, clipboard)
+  - Responsive design for mobile devices
+- New test files:
+  - `tests/test_statistics_tools.py` with 23 unit tests
+  - `tests/test_ons_client.py` with 19 unit tests
+
+### Added - MCP-Apps Integration (Sprint 1-2)
+- **MCP-Apps UI Resources**: New `ui://` URI scheme resources for interactive widgets
+  - `ui://os-ons/geography-selector` - Interactive map for UK geographic area selection
+  - `ui://os-ons/statistics-dashboard` - Interactive dashboard for ONS statistics visualization
+  - `ui://os-ons/feature-inspector` - Placeholder for feature detail inspection
+- **Geography Tools** (3 new tools, bypass workflow context):
+  - `select_geographic_area` - Opens interactive map widget, returns `_meta.uiResourceUris`
+  - `fetch_boundaries` - Fetches GeoJSON boundaries from ONS Geography API
+  - `search_geographic_areas` - Searches UK areas by name
+- **ONS Geography API Integration**: Live integration with ONS ArcGIS REST services for boundary data
+  - Supports 6 geographic levels: Parliamentary Constituencies, Local Authority Districts, Wards, LSOA, MSOA, Output Areas
+  - Service names verified against ONS API as of January 2025
+- **Geography Selector Widget** (`src/ui/geography_selector.html`):
+  - Leaflet-based interactive map
+  - Multi-select area selection
+  - Level switching (dropdown)
+  - Search by name or postcode (postcodes.io integration)
+  - MCP-Apps postMessage communication for selection confirmation
+- New test file `tests/test_geography_tools.py` with 14 unit tests
+- Updated CLAUDE.md with MCP-Apps architecture documentation
+
 ### Added
 - Helper script `scripts/run_prod_stdio.sh` to launch production (wheel) stdio server with argument parsing and safety checks.
 - README "Manual STDIO Smoke Test" section with copy/paste client snippet for listing tools.
+
+### Changed
+- Tool count increased from 22 to 29 (7 new MCP-Apps tools: 3 geography + 4 statistics)
+- Resource count increased from 6 to 9 (3 new UI resources)
+- Test count increased from 83 to 141 (58 new tests: 14 geography + 23 statistics + 19 ONS client)
+
+### Internal
+- New directory structure: `src/ui/`, `src/tools/`, `src/clients/`
+- `src/mcp_service/ui_resources.py` - UI resource registration module
+- `src/tools/geography_tools.py` - Modular geography tool implementations
+- `src/tools/statistics_tools.py` - ONS statistics tool implementations
+- `src/clients/ons_client.py` - ONS Statistics API client with rate limiting and caching
 
 ## [0.1.16] - 2025-08-15
 ### Changed

@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geography Selector</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f8f9fa;
+    }
+
+    #header {
+      background: white;
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #212529;
+      margin-bottom: 0.75rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 600px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    select, input {
+      padding: 0.5rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      background: white;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    #map {
+      flex: 1;
+      min-height: 300px;
+    }
+
+    #footer {
+      background: white;
+      padding: 1rem;
+      border-top: 1px solid #dee2e6;
+      flex-shrink: 0;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .selection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .selection-header h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .clear-btn {
+      font-size: 0.75rem;
+      color: #6c757d;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .clear-btn:hover {
+      color: #dc3545;
+    }
+
+    #selected-list {
+      margin-bottom: 1rem;
+    }
+
+    .empty-state {
+      color: #6c757d;
+      font-size: 0.875rem;
+      font-style: italic;
+    }
+
+    .selected-area {
+      background: #e7f3ff;
+      border: 1px solid #b6d4fe;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .selected-area-info {
+      flex: 1;
+    }
+
+    .selected-area-name {
+      font-weight: 600;
+      color: #0a58ca;
+      font-size: 0.875rem;
+    }
+
+    .selected-area-code {
+      color: #6c757d;
+      font-size: 0.75rem;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 1.25rem;
+      padding: 0 0.25rem;
+      line-height: 1;
+    }
+
+    .remove-btn:hover {
+      color: #b02a37;
+    }
+
+    .btn {
+      padding: 0.625rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: #0d6efd;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #0b5ed7;
+    }
+
+    .btn-primary:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0d6efd;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .status-bar {
+      font-size: 0.75rem;
+      color: #6c757d;
+      text-align: center;
+      padding: 0.25rem;
+      background: #f8f9fa;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Select Geographic Area</h1>
+    <div class="controls">
+      <div class="control-group">
+        <label for="level-select">Geographic Level</label>
+        <select id="level-select">
+          <option value="parl_const">Parliamentary Constituencies</option>
+          <option value="local_auth" selected>Local Authority Districts</option>
+          <option value="ward">Wards</option>
+          <option value="lsoa">Lower Super Output Areas</option>
+          <option value="msoa">Middle Super Output Areas</option>
+          <option value="oa">Output Areas</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="search-input">Search by Name or Postcode</label>
+        <input
+          type="text"
+          id="search-input"
+          placeholder="e.g. Birmingham or CV1 2WT..."
+        />
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="status-bar" id="status-bar">Click on the map to select areas</div>
+
+  <div id="footer">
+    <div class="selection-header">
+      <h3>Selected Areas (<span id="selection-count">0</span>)</h3>
+      <button class="clear-btn" id="clear-btn">Clear all</button>
+    </div>
+    <div id="selected-list">
+      <p class="empty-state">No areas selected. Click on the map to select.</p>
+    </div>
+    <button id="confirm-btn" class="btn btn-primary" disabled>
+      Confirm Selection
+    </button>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // =========================================================================
+    // Configuration
+    // =========================================================================
+    const ONS_API_BASE = 'https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services';
+
+    // Service names verified against ONS ArcGIS REST services as of January 2025
+    const GEOGRAPHIC_LEVELS = {
+      parl_const: {
+        name: 'Parliamentary Constituencies',
+        service: 'Westminster_Parliamentary_Constituencies_July_2024_Boundaries_UK_BFC',
+        codeField: 'PCON24CD',
+        nameField: 'PCON24NM'
+      },
+      local_auth: {
+        name: 'Local Authority Districts',
+        service: 'Local_Authority_Districts_December_2024_Boundaries_UK_BFC',
+        codeField: 'LAD24CD',
+        nameField: 'LAD24NM'
+      },
+      ward: {
+        name: 'Wards',
+        service: 'Wards_December_2024_Boundaries_UK_BFC',
+        codeField: 'WD24CD',
+        nameField: 'WD24NM'
+      },
+      lsoa: {
+        name: 'Lower Super Output Areas',
+        service: 'Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BFC_V10',
+        codeField: 'LSOA21CD',
+        nameField: 'LSOA21NM'
+      },
+      msoa: {
+        name: 'Middle Super Output Areas',
+        service: 'Middle_layer_Super_Output_Areas_December_2021_Boundaries_EW_BFC_V7',
+        codeField: 'MSOA21CD',
+        nameField: 'MSOA21NM'
+      },
+      oa: {
+        name: 'Output Areas',
+        service: 'Output_Areas_2021_EW_BFC_V8',
+        codeField: 'OA21CD',
+        nameField: 'LSOA21NM'  // OA has no name field, use parent LSOA name
+      }
+    };
+
+    // =========================================================================
+    // State
+    // =========================================================================
+    let map;
+    let currentLevel = 'local_auth';
+    let selectedAreas = [];
+    let boundaryLayer = null;
+    let searchTimeout = null;
+
+    // =========================================================================
+    // Initialize
+    // =========================================================================
+    function init() {
+      // Initialize Leaflet map centered on UK
+      map = L.map('map').setView([54.5, -2.5], 6);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+
+      // Event listeners
+      document.getElementById('level-select').addEventListener('change', onLevelChange);
+      document.getElementById('search-input').addEventListener('input', onSearchInput);
+      document.getElementById('clear-btn').addEventListener('click', clearSelection);
+      document.getElementById('confirm-btn').addEventListener('click', confirmSelection);
+
+      // Load initial boundaries on map move
+      map.on('moveend', loadBoundariesForView);
+
+      // Initial load
+      loadBoundariesForView();
+
+      setStatus('Ready. Click on areas to select them.');
+    }
+
+    // =========================================================================
+    // Boundary Loading
+    // =========================================================================
+    async function loadBoundariesForView() {
+      const bounds = map.getBounds();
+      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+
+      await loadBoundaries(currentLevel, bbox);
+    }
+
+    async function loadBoundaries(level, bbox) {
+      const config = GEOGRAPHIC_LEVELS[level];
+      if (!config) return;
+
+      showLoading(true);
+      setStatus(`Loading ${config.name}...`);
+
+      try {
+        const url = `${ONS_API_BASE}/${config.service}/FeatureServer/0/query`;
+        const params = new URLSearchParams({
+          where: '1=1',
+          outFields: `${config.codeField},${config.nameField}`,
+          geometry: bbox,
+          geometryType: 'esriGeometryEnvelope',
+          spatialRel: 'esriSpatialRelIntersects',
+          inSR: '4326',
+          f: 'geojson',
+          returnGeometry: 'true',
+          resultRecordCount: '200'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+
+        // Clear existing layer
+        if (boundaryLayer) {
+          map.removeLayer(boundaryLayer);
+        }
+
+        // Add new GeoJSON layer
+        boundaryLayer = L.geoJSON(data, {
+          style: feature => getFeatureStyle(feature, false),
+          onEachFeature: (feature, layer) => {
+            const code = feature.properties[config.codeField];
+            const name = feature.properties[config.nameField];
+
+            // Popup
+            layer.bindPopup(`<strong>${name}</strong><br/><small>${code}</small>`);
+
+            // Click handler
+            layer.on('click', () => toggleSelection(feature, layer, config));
+
+            // Hover effects
+            layer.on('mouseover', () => {
+              if (!isSelected(code)) {
+                layer.setStyle({ fillOpacity: 0.4 });
+              }
+            });
+            layer.on('mouseout', () => {
+              if (!isSelected(code)) {
+                layer.setStyle({ fillOpacity: 0.2 });
+              }
+            });
+
+            // Update style if already selected
+            if (isSelected(code)) {
+              layer.setStyle(getFeatureStyle(feature, true));
+            }
+          }
+        }).addTo(map);
+
+        const count = data.features ? data.features.length : 0;
+        setStatus(`Loaded ${count} ${config.name}. Click to select.`);
+
+      } catch (error) {
+        console.error('Error loading boundaries:', error);
+        setStatus(`Error loading boundaries: ${error.message}`);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function getFeatureStyle(feature, isSelected) {
+      if (isSelected) {
+        return {
+          fillColor: '#28a745',
+          fillOpacity: 0.5,
+          color: '#1e7e34',
+          weight: 3
+        };
+      }
+      return {
+        fillColor: '#3388ff',
+        fillOpacity: 0.2,
+        color: '#3388ff',
+        weight: 2
+      };
+    }
+
+    // =========================================================================
+    // Selection Management
+    // =========================================================================
+    function toggleSelection(feature, layer, config) {
+      const code = feature.properties[config.codeField];
+      const name = feature.properties[config.nameField];
+
+      const existingIndex = selectedAreas.findIndex(a => a.code === code);
+
+      if (existingIndex >= 0) {
+        // Deselect
+        selectedAreas.splice(existingIndex, 1);
+        layer.setStyle(getFeatureStyle(feature, false));
+      } else {
+        // Select
+        selectedAreas.push({
+          code: code,
+          name: name,
+          level: currentLevel,
+          levelName: config.name,
+          geometry: feature.geometry
+        });
+        layer.setStyle(getFeatureStyle(feature, true));
+      }
+
+      updateSelectionUI();
+    }
+
+    function isSelected(code) {
+      return selectedAreas.some(a => a.code === code);
+    }
+
+    function removeSelection(code) {
+      const index = selectedAreas.findIndex(a => a.code === code);
+      if (index >= 0) {
+        selectedAreas.splice(index, 1);
+        updateSelectionUI();
+        // Refresh map to update styles
+        if (boundaryLayer) {
+          boundaryLayer.eachLayer(layer => {
+            const config = GEOGRAPHIC_LEVELS[currentLevel];
+            const layerCode = layer.feature.properties[config.codeField];
+            if (layerCode === code) {
+              layer.setStyle(getFeatureStyle(layer.feature, false));
+            }
+          });
+        }
+      }
+    }
+
+    function clearSelection() {
+      selectedAreas = [];
+      updateSelectionUI();
+      // Refresh all layer styles
+      if (boundaryLayer) {
+        boundaryLayer.eachLayer(layer => {
+          layer.setStyle(getFeatureStyle(layer.feature, false));
+        });
+      }
+    }
+
+    function updateSelectionUI() {
+      const countEl = document.getElementById('selection-count');
+      const listEl = document.getElementById('selected-list');
+      const confirmBtn = document.getElementById('confirm-btn');
+
+      countEl.textContent = selectedAreas.length;
+
+      if (selectedAreas.length === 0) {
+        listEl.innerHTML = '<p class="empty-state">No areas selected. Click on the map to select.</p>';
+        confirmBtn.disabled = true;
+      } else {
+        listEl.innerHTML = selectedAreas.map(area => `
+          <div class="selected-area">
+            <div class="selected-area-info">
+              <div class="selected-area-name">${escapeHtml(area.name)}</div>
+              <div class="selected-area-code">${escapeHtml(area.code)} (${escapeHtml(area.levelName)})</div>
+            </div>
+            <button class="remove-btn" onclick="removeSelection('${escapeHtml(area.code)}')" title="Remove">&times;</button>
+          </div>
+        `).join('');
+        confirmBtn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+    function onLevelChange(e) {
+      currentLevel = e.target.value;
+      // Keep selection but reload boundaries
+      loadBoundariesForView();
+      setStatus(`Switched to ${GEOGRAPHIC_LEVELS[currentLevel].name}`);
+    }
+
+    function onSearchInput(e) {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+
+      if (query.length >= 2) {
+        searchTimeout = setTimeout(() => handleSearch(query), 300);
+      }
+    }
+
+    // Check if input looks like a UK postcode
+    function isPostcode(query) {
+      // UK postcode pattern (loose match)
+      const postcodePattern = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}$/i;
+      return postcodePattern.test(query.replace(/\s+/g, ' ').trim());
+    }
+
+    // Route search to postcode or name search
+    async function handleSearch(query) {
+      if (isPostcode(query)) {
+        await searchByPostcode(query);
+      } else {
+        await searchByName(query);
+      }
+    }
+
+    // Search by postcode using postcodes.io API
+    async function searchByPostcode(postcode) {
+      setStatus(`Looking up postcode "${postcode}"...`);
+
+      try {
+        const cleanPostcode = postcode.replace(/\s+/g, '').toUpperCase();
+        const response = await fetch(`https://api.postcodes.io/postcodes/${cleanPostcode}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setStatus(`Postcode "${postcode}" not found`);
+            return;
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === 200 && data.result) {
+          const { latitude, longitude, admin_district, parliamentary_constituency } = data.result;
+
+          // Zoom to postcode location
+          map.setView([latitude, longitude], 14);
+
+          // Add a temporary marker
+          const marker = L.marker([latitude, longitude])
+            .addTo(map)
+            .bindPopup(`
+              <strong>${postcode.toUpperCase()}</strong><br/>
+              <small>District: ${admin_district || 'N/A'}</small><br/>
+              <small>Constituency: ${parliamentary_constituency || 'N/A'}</small>
+            `)
+            .openPopup();
+
+          // Remove marker after 10 seconds
+          setTimeout(() => map.removeLayer(marker), 10000);
+
+          setStatus(`Found postcode in ${admin_district || 'unknown area'}. Click boundaries to select.`);
+        } else {
+          setStatus(`Postcode "${postcode}" not found`);
+        }
+
+      } catch (error) {
+        console.error('Postcode search error:', error);
+        setStatus(`Postcode search error: ${error.message}`);
+      }
+    }
+
+    // Search by area name
+    async function searchByName(query) {
+      const config = GEOGRAPHIC_LEVELS[currentLevel];
+      setStatus(`Searching for "${query}"...`);
+
+      try {
+        const url = `${ONS_API_BASE}/${config.service}/FeatureServer/0/query`;
+        const params = new URLSearchParams({
+          where: `UPPER(${config.nameField}) LIKE UPPER('%${query.replace(/'/g, "''")}%')`,
+          outFields: `${config.codeField},${config.nameField}`,
+          f: 'geojson',
+          returnGeometry: 'true',
+          resultRecordCount: '10'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          // Zoom to first result
+          const firstFeature = data.features[0];
+          const bounds = L.geoJSON(firstFeature).getBounds();
+          map.fitBounds(bounds, { padding: [50, 50] });
+
+          setStatus(`Found ${data.features.length} results for "${query}"`);
+        } else {
+          setStatus(`No results found for "${query}"`);
+        }
+
+      } catch (error) {
+        console.error('Search error:', error);
+        setStatus(`Search error: ${error.message}`);
+      }
+    }
+
+    // =========================================================================
+    // Confirm Selection (MCP-Apps communication)
+    // =========================================================================
+    function confirmSelection() {
+      if (selectedAreas.length === 0) return;
+
+      const result = {
+        status: 'selected',
+        areas: selectedAreas.map(a => ({
+          code: a.code,
+          name: a.name,
+          level: a.level,
+          levelName: a.levelName,
+          geometry: a.geometry
+        })),
+        count: selectedAreas.length,
+        level: currentLevel
+      };
+
+      // For MCP-Apps integration, send via postMessage
+      // The parent host will receive this and pass to the LLM
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'mcp-app-result',
+          result: result
+        }, '*');
+      }
+
+      // Also log for debugging
+      console.log('Selection confirmed:', result);
+
+      setStatus(`Selection confirmed: ${selectedAreas.length} area(s)`);
+
+      // Visual feedback
+      document.getElementById('confirm-btn').textContent = 'Selection Sent!';
+      setTimeout(() => {
+        document.getElementById('confirm-btn').textContent = 'Confirm Selection';
+      }, 2000);
+    }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
+    function showLoading(show) {
+      document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+    }
+
+    function setStatus(message) {
+      document.getElementById('status-bar').textContent = message;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // =========================================================================
+    // MCP-Apps SDK Integration (placeholder)
+    // =========================================================================
+    // Listen for configuration from host
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'mcp-app-config') {
+        const config = event.data.config;
+        if (config) {
+          // Apply initial configuration
+          if (config.level && GEOGRAPHIC_LEVELS[config.level]) {
+            currentLevel = config.level;
+            document.getElementById('level-select').value = config.level;
+          }
+          if (config.initial_view) {
+            const { lat, lng, zoom } = config.initial_view;
+            if (lat && lng) {
+              map.setView([lat, lng], zoom || 6);
+            }
+          }
+          if (config.search_term) {
+            document.getElementById('search-input').value = config.search_term;
+            searchAreas(config.search_term);
+          }
+        }
+      }
+    });
+
+    // Notify host that widget is ready
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'mcp-app-ready' }, '*');
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
