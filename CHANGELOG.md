@@ -6,6 +6,35 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added - MCP-Apps Integration (Sprint 5)
+- **Feature Inspector Widget** (`src/ui/feature_inspector.html`):
+  - Properties table with filtering and type-aware formatting
+  - Leaflet map visualization of feature geometry
+  - Linked identifiers display with tabbed navigation (TOID, UPRN, USRN)
+  - Click-to-navigate between linked features
+  - Export functionality (JSON, CSV, clipboard)
+- **Feature Inspector Tools** (2 new tools, bypass workflow context):
+  - `inspect_feature` - Opens feature inspector widget with UI resource reference
+  - `get_feature_with_linked` - Prepares feature data with linked identifiers
+- **Route Planner Widget** (`src/ui/route_planner.html`):
+  - Map-based start/end point selection with draggable markers
+  - Waypoint support for multi-stop routes
+  - Turn-by-turn directions display
+  - Road network visualization
+  - Route summary (distance, estimated time, segments)
+- **Route Planner Tools** (2 new tools, bypass workflow context):
+  - `plan_route` - Opens route planner widget with optional preset points
+  - `get_route_network` - Gets road network data for a bounding box
+- **Cross-Widget Communication** (`src/tools/widget_communication.py`):
+  - Shared context for selection state across widgets
+  - `get_shared_context` - Gets current shared selections
+  - `update_shared_context` - Adds/removes/clears selections
+  - `share_selection` - Shares selection from one widget to another
+- New test files:
+  - `tests/test_feature_inspector_tools.py` with 25 unit tests
+  - `tests/test_route_planner_tools.py` with 24 unit tests
+  - `tests/test_widget_communication.py` with 21 unit tests
+
 ### Added - MCP-Apps Integration (Sprint 3-4)
 - **ONS Statistics API Client** (`src/clients/ons_client.py`):
   - Full client for ONS Beta API (https://api.beta.ons.gov.uk/v1)
@@ -53,15 +82,18 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - README "Manual STDIO Smoke Test" section with copy/paste client snippet for listing tools.
 
 ### Changed
-- Tool count increased from 22 to 29 (7 new MCP-Apps tools: 3 geography + 4 statistics)
-- Resource count increased from 6 to 9 (3 new UI resources)
-- Test count increased from 83 to 141 (58 new tests: 14 geography + 23 statistics + 19 ONS client)
+- Tool count increased from 22 to 36 (14 new MCP-Apps tools: 3 geography + 4 statistics + 2 feature inspector + 2 route planner + 3 widget communication)
+- Resource count increased from 6 to 10 (4 new UI resources: geography-selector, statistics-dashboard, feature-inspector, route-planner)
+- Test count increased from 83 to ~210 (new tests: 14 geography + 23 statistics + 19 ONS client + 25 feature inspector + 24 route planner + 21 widget communication)
 
 ### Internal
 - New directory structure: `src/ui/`, `src/tools/`, `src/clients/`
 - `src/mcp_service/ui_resources.py` - UI resource registration module
 - `src/tools/geography_tools.py` - Modular geography tool implementations
 - `src/tools/statistics_tools.py` - ONS statistics tool implementations
+- `src/tools/feature_inspector_tools.py` - Feature inspection tools with linked identifiers
+- `src/tools/route_planner_tools.py` - Route planning tools with direction formatting
+- `src/tools/widget_communication.py` - Cross-widget communication and shared context
 - `src/clients/ons_client.py` - ONS Statistics API client with rate limiting and caching
 
 ## [0.1.16] - 2025-08-15

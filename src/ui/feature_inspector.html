@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature Inspector</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      background: #f8f9fa;
+      color: #212529;
+    }
+
+    .inspector {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #212529;
+      margin-bottom: 0.25rem;
+    }
+
+    .header-subtitle {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .feature-badges {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-collection {
+      background: #e7f3ff;
+      color: #0a58ca;
+    }
+
+    .badge-type {
+      background: #d1e7dd;
+      color: #146c43;
+    }
+
+    .badge-id {
+      background: #f8d7da;
+      color: #842029;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      background: white;
+      color: #495057;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: #f8f9fa;
+      border-color: #adb5bd;
+    }
+
+    .btn-primary {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0b5ed7;
+      border-color: #0a58ca;
+    }
+
+    /* Layout */
+    .content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      .content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .card-count {
+      font-size: 0.75rem;
+      color: #6c757d;
+      background: #e9ecef;
+      padding: 0.25rem 0.5rem;
+      border-radius: 1rem;
+    }
+
+    .card-body {
+      padding: 1.25rem;
+    }
+
+    /* Properties Table */
+    .properties-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .properties-table tr {
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .properties-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .properties-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem 0.5rem 0;
+      color: #6c757d;
+      font-weight: 500;
+      width: 40%;
+      vertical-align: top;
+    }
+
+    .properties-table td {
+      padding: 0.5rem 0;
+      color: #212529;
+      word-break: break-word;
+    }
+
+    .property-value {
+      font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+      font-size: 0.8125rem;
+    }
+
+    .property-value.number {
+      color: #0d6efd;
+    }
+
+    .property-value.boolean {
+      color: #198754;
+    }
+
+    .property-value.null {
+      color: #6c757d;
+      font-style: italic;
+    }
+
+    /* Filter/Search */
+    .filter-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* Linked Identifiers */
+    .linked-list {
+      list-style: none;
+    }
+
+    .linked-item {
+      padding: 0.75rem 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .linked-item:hover {
+      background: #f8f9fa;
+      border-color: #0d6efd;
+    }
+
+    .linked-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .linked-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .linked-item-type {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #0d6efd;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .linked-item-arrow {
+      color: #6c757d;
+      font-size: 1rem;
+    }
+
+    .linked-item-id {
+      font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+      font-size: 0.8125rem;
+      color: #495057;
+    }
+
+    .linked-item-collection {
+      font-size: 0.75rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+
+    /* Map */
+    .map-container {
+      height: 300px;
+      border-radius: 0.375rem;
+      overflow: hidden;
+      border: 1px solid #dee2e6;
+    }
+
+    #feature-map {
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Geometry Info */
+    .geometry-info {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .geometry-type {
+      display: inline-block;
+      background: #fff3cd;
+      color: #664d03;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #dee2e6;
+      margin: 0 -1.25rem;
+      padding: 0 1.25rem;
+    }
+
+    .tab {
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6c757d;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: all 0.15s ease;
+    }
+
+    .tab:hover {
+      color: #0d6efd;
+    }
+
+    .tab.active {
+      color: #0d6efd;
+      border-bottom-color: #0d6efd;
+    }
+
+    .tab-content {
+      display: none;
+      padding-top: 1rem;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+      font-size: 0.875rem;
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e9ecef;
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Copy button */
+    .copy-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      background: #e9ecef;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      color: #495057;
+    }
+
+    .copy-btn:hover {
+      background: #dee2e6;
+    }
+
+    .copy-btn.copied {
+      background: #d1e7dd;
+      color: #146c43;
+    }
+
+    /* Full width card */
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Raw JSON */
+    .json-view {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      padding: 1rem;
+      max-height: 400px;
+      overflow: auto;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Scroll */
+    .scrollable {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      .header-top {
+        flex-direction: column;
+      }
+
+      .export-buttons {
+        width: 100%;
+      }
+
+      .btn {
+        flex: 1;
+        text-align: center;
+      }
+
+      .properties-table th {
+        width: 35%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="inspector">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <h1 id="feature-title">Feature Inspector</h1>
+          <p class="header-subtitle" id="feature-subtitle">Loading feature details...</p>
+          <div class="feature-badges" id="feature-badges">
+            <!-- Badges will be inserted here -->
+          </div>
+        </div>
+        <div class="export-buttons">
+          <button class="btn" id="copy-json-btn">Copy JSON</button>
+          <button class="btn" id="export-csv-btn">Export CSV</button>
+          <button class="btn btn-primary" id="fetch-linked-btn">Fetch Linked</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      <!-- Properties Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Properties</h2>
+          <span class="card-count" id="properties-count">0</span>
+        </div>
+        <div class="card-body">
+          <input type="text" class="filter-input" id="property-filter" placeholder="Filter properties...">
+          <div class="scrollable">
+            <table class="properties-table" id="properties-table">
+              <tbody id="properties-body">
+                <!-- Properties will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linked Identifiers Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Linked Identifiers</h2>
+          <span class="card-count" id="linked-count">0</span>
+        </div>
+        <div class="card-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="all">All</button>
+            <button class="tab" data-tab="toid">TOID</button>
+            <button class="tab" data-tab="uprn">UPRN</button>
+            <button class="tab" data-tab="usrn">USRN</button>
+          </div>
+          <div class="scrollable">
+            <ul class="linked-list" id="linked-list">
+              <!-- Linked identifiers will be inserted here -->
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Geometry Card (Full Width) -->
+      <div class="card full-width">
+        <div class="card-header">
+          <h2 class="card-title">Geometry</h2>
+          <span class="geometry-type" id="geometry-type">Unknown</span>
+        </div>
+        <div class="card-body">
+          <div class="map-container">
+            <div id="feature-map"></div>
+          </div>
+          <div class="geometry-info" id="geometry-info">
+            <!-- Geometry details will be inserted here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Raw JSON Card (Full Width) -->
+      <div class="card full-width">
+        <div class="card-header">
+          <h2 class="card-title">Raw Feature Data</h2>
+          <button class="copy-btn" id="copy-raw-btn">Copy</button>
+        </div>
+        <div class="card-body">
+          <pre class="json-view" id="json-view">Loading...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // State
+    let featureData = null;
+    let linkedIdentifiers = [];
+    let map = null;
+    let featureLayer = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      initMap();
+      initTabs();
+      initFilters();
+      initExport();
+
+      // Load data from window.__MCP_DATA__ or postMessage
+      if (window.__MCP_DATA__) {
+        loadFeature(window.__MCP_DATA__);
+      }
+
+      // Listen for messages from host
+      window.addEventListener('message', handleMessage);
+    });
+
+    function handleMessage(event) {
+      const data = event.data;
+      if (data && data.type === 'feature_data') {
+        loadFeature(data.payload);
+      } else if (data && data.type === 'linked_identifiers') {
+        loadLinkedIdentifiers(data.payload);
+      }
+    }
+
+    function initMap() {
+      map = L.map('feature-map').setView([52.4862, -1.8904], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap'
+      }).addTo(map);
+    }
+
+    function initTabs() {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          filterLinkedByType(tab.dataset.tab);
+        });
+      });
+    }
+
+    function initFilters() {
+      const filter = document.getElementById('property-filter');
+      filter.addEventListener('input', () => {
+        filterProperties(filter.value.toLowerCase());
+      });
+    }
+
+    function initExport() {
+      document.getElementById('copy-json-btn').addEventListener('click', copyJSON);
+      document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+      document.getElementById('copy-raw-btn').addEventListener('click', copyRaw);
+      document.getElementById('fetch-linked-btn').addEventListener('click', fetchLinkedIdentifiers);
+    }
+
+    function loadFeature(data) {
+      featureData = data;
+
+      // Update header
+      const title = data.properties?.name || data.properties?.osname || data.id || 'Feature';
+      document.getElementById('feature-title').textContent = title;
+      document.getElementById('feature-subtitle').textContent =
+        `Feature ID: ${data.id || 'Unknown'}`;
+
+      // Update badges
+      const badgesEl = document.getElementById('feature-badges');
+      badgesEl.innerHTML = '';
+
+      if (data.collection) {
+        badgesEl.innerHTML += `<span class="badge badge-collection">${data.collection}</span>`;
+      }
+      if (data.properties?.featuretype) {
+        badgesEl.innerHTML += `<span class="badge badge-type">${data.properties.featuretype}</span>`;
+      }
+      if (data.id) {
+        badgesEl.innerHTML += `<span class="badge badge-id">${data.id}</span>`;
+      }
+
+      // Load properties
+      loadProperties(data.properties || {});
+
+      // Load geometry
+      loadGeometry(data.geometry);
+
+      // Update raw JSON
+      document.getElementById('json-view').textContent = JSON.stringify(data, null, 2);
+
+      // Load linked identifiers if present
+      if (data.linkedIdentifiers) {
+        loadLinkedIdentifiers(data.linkedIdentifiers);
+      }
+    }
+
+    function loadProperties(properties) {
+      const tbody = document.getElementById('properties-body');
+      tbody.innerHTML = '';
+
+      const entries = Object.entries(properties);
+      document.getElementById('properties-count').textContent = entries.length;
+
+      entries.sort((a, b) => a[0].localeCompare(b[0]));
+
+      entries.forEach(([key, value]) => {
+        const tr = document.createElement('tr');
+        tr.dataset.key = key.toLowerCase();
+
+        const th = document.createElement('th');
+        th.textContent = key;
+
+        const td = document.createElement('td');
+        const span = document.createElement('span');
+        span.className = 'property-value';
+
+        if (value === null || value === undefined) {
+          span.classList.add('null');
+          span.textContent = 'null';
+        } else if (typeof value === 'boolean') {
+          span.classList.add('boolean');
+          span.textContent = value.toString();
+        } else if (typeof value === 'number') {
+          span.classList.add('number');
+          span.textContent = value.toString();
+        } else if (typeof value === 'object') {
+          span.textContent = JSON.stringify(value);
+        } else {
+          span.textContent = value;
+        }
+
+        td.appendChild(span);
+        tr.appendChild(th);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterProperties(term) {
+      const rows = document.querySelectorAll('#properties-body tr');
+      rows.forEach(row => {
+        const key = row.dataset.key;
+        const value = row.querySelector('td').textContent.toLowerCase();
+        const matches = key.includes(term) || value.includes(term);
+        row.style.display = matches ? '' : 'none';
+      });
+    }
+
+    function loadLinkedIdentifiers(identifiers) {
+      linkedIdentifiers = identifiers || [];
+      document.getElementById('linked-count').textContent = linkedIdentifiers.length;
+      renderLinkedIdentifiers(linkedIdentifiers);
+    }
+
+    function renderLinkedIdentifiers(identifiers) {
+      const list = document.getElementById('linked-list');
+      list.innerHTML = '';
+
+      if (identifiers.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔗</div>
+            <p class="empty-state-text">No linked identifiers found.<br>Click "Fetch Linked" to retrieve them.</p>
+          </div>
+        `;
+        return;
+      }
+
+      identifiers.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'linked-item';
+        li.dataset.type = (item.identifierType || item.type || 'unknown').toLowerCase();
+
+        li.innerHTML = `
+          <div class="linked-item-header">
+            <span class="linked-item-type">${item.identifierType || item.type || 'Unknown'}</span>
+            <span class="linked-item-arrow">→</span>
+          </div>
+          <div class="linked-item-id">${item.identifier || item.value || 'N/A'}</div>
+          ${item.featureType ? `<div class="linked-item-collection">${item.featureType}</div>` : ''}
+        `;
+
+        li.addEventListener('click', () => navigateToLinked(item));
+        list.appendChild(li);
+      });
+    }
+
+    function filterLinkedByType(type) {
+      const items = document.querySelectorAll('.linked-item');
+      items.forEach(item => {
+        if (type === 'all' || item.dataset.type === type) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    function loadGeometry(geometry) {
+      if (!geometry) {
+        document.getElementById('geometry-type').textContent = 'No Geometry';
+        document.getElementById('geometry-info').textContent = 'This feature has no geometry data.';
+        return;
+      }
+
+      document.getElementById('geometry-type').textContent = geometry.type;
+
+      // Clear existing layer
+      if (featureLayer) {
+        map.removeLayer(featureLayer);
+      }
+
+      try {
+        // Create GeoJSON layer
+        const geojson = {
+          type: 'Feature',
+          geometry: geometry,
+          properties: featureData?.properties || {}
+        };
+
+        featureLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#0d6efd',
+            weight: 3,
+            fillColor: '#0d6efd',
+            fillOpacity: 0.2
+          },
+          pointToLayer: (feature, latlng) => {
+            return L.circleMarker(latlng, {
+              radius: 8,
+              fillColor: '#0d6efd',
+              color: '#fff',
+              weight: 2,
+              fillOpacity: 0.8
+            });
+          }
+        }).addTo(map);
+
+        // Fit to bounds
+        const bounds = featureLayer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        // Update geometry info
+        const coords = geometry.coordinates;
+        let info = `Type: ${geometry.type}`;
+
+        if (geometry.type === 'Point') {
+          info += ` | Coordinates: [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`;
+        } else if (geometry.type === 'Polygon') {
+          info += ` | Rings: ${coords.length} | Points: ${coords[0]?.length || 0}`;
+        } else if (geometry.type === 'MultiPolygon') {
+          info += ` | Polygons: ${coords.length}`;
+        } else if (geometry.type === 'LineString') {
+          info += ` | Points: ${coords.length}`;
+        }
+
+        document.getElementById('geometry-info').textContent = info;
+
+      } catch (e) {
+        console.error('Error rendering geometry:', e);
+        document.getElementById('geometry-info').textContent = 'Error rendering geometry: ' + e.message;
+      }
+    }
+
+    function navigateToLinked(item) {
+      // Send message to host to navigate to linked feature
+      const message = {
+        type: 'navigate_to_linked',
+        payload: {
+          identifierType: item.identifierType || item.type,
+          identifier: item.identifier || item.value,
+          featureType: item.featureType
+        }
+      };
+
+      // If MCP-Apps SDK is available, use it
+      if (window.mcpApp) {
+        window.mcpApp.callTool('get_linked_identifiers', message.payload);
+      } else {
+        // Fallback to postMessage
+        window.parent.postMessage(message, '*');
+      }
+
+      console.log('Navigate to linked:', message.payload);
+    }
+
+    function fetchLinkedIdentifiers() {
+      const btn = document.getElementById('fetch-linked-btn');
+      btn.disabled = true;
+      btn.textContent = 'Fetching...';
+
+      // Get identifier from feature
+      const id = featureData?.id;
+      const toid = featureData?.properties?.toid;
+      const uprn = featureData?.properties?.uprn;
+
+      let identifierType = 'TOID';
+      let identifier = toid || id;
+
+      if (uprn) {
+        identifierType = 'UPRN';
+        identifier = uprn;
+      }
+
+      const message = {
+        type: 'fetch_linked_identifiers',
+        payload: {
+          identifierType: identifierType,
+          identifier: identifier
+        }
+      };
+
+      // Send request
+      if (window.mcpApp) {
+        window.mcpApp.callTool('get_linked_identifiers', message.payload)
+          .then(result => {
+            loadLinkedIdentifiers(result.results || []);
+          })
+          .catch(err => {
+            console.error('Error fetching linked:', err);
+          })
+          .finally(() => {
+            btn.disabled = false;
+            btn.textContent = 'Fetch Linked';
+          });
+      } else {
+        window.parent.postMessage(message, '*');
+        // Reset button after timeout
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = 'Fetch Linked';
+        }, 3000);
+      }
+    }
+
+    function copyJSON() {
+      const btn = document.getElementById('copy-json-btn');
+      const json = JSON.stringify(featureData, null, 2);
+
+      navigator.clipboard.writeText(json).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy JSON', 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+    function copyRaw() {
+      const btn = document.getElementById('copy-raw-btn');
+      const json = document.getElementById('json-view').textContent;
+
+      navigator.clipboard.writeText(json).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+      });
+    }
+
+    function exportCSV() {
+      if (!featureData || !featureData.properties) {
+        return;
+      }
+
+      const properties = featureData.properties;
+      const headers = Object.keys(properties);
+      const values = Object.values(properties).map(v => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'object') return JSON.stringify(v);
+        return String(v).includes(',') ? `"${v}"` : v;
+      });
+
+      const csv = headers.join(',') + '\n' + values.join(',');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `feature_${featureData.id || 'export'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Demo data for testing without MCP host
+    if (!window.__MCP_DATA__ && window.location.search.includes('demo')) {
+      window.__MCP_DATA__ = {
+        id: 'DEMO-123456',
+        collection: 'bld-fts-building-1',
+        properties: {
+          name: 'Example Building',
+          featuretype: 'Building',
+          toid: 'osgb1000000123456',
+          uprn: '12345678901',
+          description: 'A sample building feature for demonstration',
+          buildinguse: 'Residential',
+          height: 12.5,
+          absoluteheight: 145.2,
+          geometry_area: 250.75,
+          versiondate: '2024-01-15T00:00:00Z',
+          changetypelabel: 'New',
+          oslandusetierone: 'Residential',
+          isobscured: false
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-1.9, 52.48],
+            [-1.89, 52.48],
+            [-1.89, 52.49],
+            [-1.9, 52.49],
+            [-1.9, 52.48]
+          ]]
+        },
+        linkedIdentifiers: [
+          { identifierType: 'TOID', identifier: 'osgb1000000123456', featureType: 'Building' },
+          { identifierType: 'UPRN', identifier: '12345678901', featureType: 'Address' },
+          { identifierType: 'USRN', identifier: '12345678', featureType: 'Street' }
+        ]
+      };
+      loadFeature(window.__MCP_DATA__);
+    }
+  </script>
+</body>
+</html>

@@ -28,6 +28,7 @@ class OSUIResources:
         self._register_geography_selector()
         self._register_statistics_dashboard()
         self._register_feature_inspector()
+        self._register_route_planner()
         logger.info("UI resources registration complete")
 
     def _load_widget_html(self, filename: str) -> Optional[str]:
@@ -122,6 +123,30 @@ class OSUIResources:
             return content
 
         logger.info("Registered: ui://os-ons/feature-inspector")
+
+    def _register_route_planner(self) -> None:
+        """Register the route planner widget"""
+
+        @self.mcp.resource(
+            "ui://os-ons/route-planner",
+            name="Route Planner",
+            description=(
+                "Interactive route planning widget with map-based origin/destination "
+                "selection, waypoint support, turn-by-turn directions, and route "
+                "visualization using OS road network data."
+            ),
+            mime_type="text/html",
+        )
+        async def route_planner() -> str:
+            content = self._load_widget_html("route_planner.html")
+            if content is None:
+                return self._placeholder_widget(
+                    "Route Planner",
+                    "Widget file not found. Create src/ui/route_planner.html",
+                )
+            return content
+
+        logger.info("Registered: ui://os-ons/route-planner")
 
     def _placeholder_widget(self, title: str, message: str) -> str:
         """Generate a placeholder HTML widget when the actual file is missing"""

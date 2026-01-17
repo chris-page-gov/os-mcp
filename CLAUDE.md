@@ -78,13 +78,18 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 - `src/mcp_service/ui_resources.py` - Registers MCP-Apps UI resources (`ui://` URI scheme)
 - `src/ui/` - HTML widget files for interactive UI components
 - `src/tools/geography_tools.py` - Geography selection tools that integrate with ONS boundaries API
+- `src/tools/statistics_tools.py` - ONS Statistics API tools
+- `src/tools/feature_inspector_tools.py` - Feature inspection tools with linked identifiers
+- `src/tools/route_planner_tools.py` - Route planning tools
+- `src/tools/widget_communication.py` - Cross-widget communication tools
 
 #### Available UI Resources
 | URI | Description |
 |-----|-------------|
 | `ui://os-ons/geography-selector` | Interactive map for selecting UK geographic areas |
-| `ui://os-ons/statistics-dashboard` | (Placeholder) Statistics visualization dashboard |
-| `ui://os-ons/feature-inspector` | (Placeholder) Feature detail inspector |
+| `ui://os-ons/statistics-dashboard` | Dashboard for ONS statistics visualization |
+| `ui://os-ons/feature-inspector` | Feature detail view with properties, map, and linked IDs |
+| `ui://os-ons/route-planner` | Route planning with waypoints and turn-by-turn directions |
 
 #### Geography Tools (bypass workflow context)
 | Tool | Description |
@@ -92,6 +97,33 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 | `select_geographic_area` | Opens interactive map widget, returns `_meta.uiResourceUris` |
 | `fetch_boundaries` | Fetches GeoJSON boundaries from ONS Geography API |
 | `search_geographic_areas` | Searches areas by name using ONS API |
+
+#### Statistics Tools (bypass workflow context)
+| Tool | Description |
+|------|-------------|
+| `list_ons_datasets` | Lists available ONS datasets with category filtering |
+| `get_dataset_info` | Gets detailed metadata for a specific dataset |
+| `get_statistics` | Retrieves observations for geographic areas |
+| `compare_areas` | Compares statistics across multiple areas |
+
+#### Feature Inspector Tools (bypass workflow context)
+| Tool | Description |
+|------|-------------|
+| `inspect_feature` | Opens feature inspector widget with UI resource reference |
+| `get_feature_with_linked` | Prepares feature data with linked identifiers |
+
+#### Route Planner Tools (bypass workflow context)
+| Tool | Description |
+|------|-------------|
+| `plan_route` | Opens route planner widget with start/end configuration |
+| `get_route_network` | Gets road network data for a bounding box |
+
+#### Cross-Widget Communication Tools (bypass workflow context)
+| Tool | Description |
+|------|-------------|
+| `get_shared_context` | Gets current cross-widget shared state |
+| `update_shared_context` | Adds/removes/clears selections in shared context |
+| `share_selection` | Shares selection from one widget to another |
 
 #### Supported Geographic Levels
 - `parl_const` - Parliamentary Constituencies (650)

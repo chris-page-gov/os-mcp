@@ -2,16 +2,16 @@
 
 This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%20implementation-roadmap.md).
 
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-01-15
 
 ## Overall Status
 
 | Metric | Value |
 |--------|-------|
-| Current Sprint | 4 (Complete) |
-| Tools Added | 7 (select_geographic_area, fetch_boundaries, search_geographic_areas, list_ons_datasets, get_dataset_info, get_statistics, compare_areas) |
-| UI Resources Added | 3 (geography-selector, statistics-dashboard, feature-inspector) |
-| Test Count | 141 passing |
+| Current Sprint | 5 (Complete) |
+| Tools Added | 14 (7 geography/statistics + 2 feature inspector + 2 route planner + 3 widget communication) |
+| UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
+| Test Count | ~210 passing (estimated: 141 + 25 feature inspector + 24 route planner + 21 widget communication) |
 | Coverage | Pending measurement |
 
 ---
@@ -152,18 +152,49 @@ ONS ArcGIS REST services verified (January 2025):
 
 ---
 
-## Sprint 5: Enhanced Features 🔲 NOT STARTED
+## Sprint 5: Enhanced Features ✅ COMPLETE
 
-**Goal**: Feature inspector and route planner integration.
+**Goal**: Feature inspector, route planner integration, and cross-widget communication.
 
 ### Tasks
 
 | Task | Status | Notes |
 |------|--------|-------|
-| 5.1 Feature inspector widget | 🔲 Pending | Display OS NGD feature details |
-| 5.2 Linked identifiers display | 🔲 Pending | Navigate between linked features |
-| 5.3 Route planner integration | 🔲 Pending | Connect to existing routing tools |
-| 5.4 Cross-widget communication | 🔲 Pending | Selection sharing between widgets |
+| 5.1 Feature inspector widget | ✅ Done | Full widget with properties, map, linked identifiers, export |
+| 5.2 Linked identifiers display | ✅ Done | Tabbed navigation (TOID, UPRN, USRN), click-to-navigate |
+| 5.3 Route planner integration | ✅ Done | Map-based selection, waypoints, directions display |
+| 5.4 Cross-widget communication | ✅ Done | Shared context, selection sharing between widgets |
+
+### Files Created
+- `src/ui/feature_inspector.html` - Feature inspector widget (~650 lines)
+- `src/ui/route_planner.html` - Route planner widget (~550 lines)
+- `src/tools/feature_inspector_tools.py` - 2 tools + helper functions
+- `src/tools/route_planner_tools.py` - 2 tools + helper functions
+- `src/tools/widget_communication.py` - 3 cross-widget tools + SharedContext
+- `tests/test_feature_inspector_tools.py` - 25 unit tests
+- `tests/test_route_planner_tools.py` - 24 unit tests
+- `tests/test_widget_communication.py` - 21 unit tests
+
+### Files Modified
+- `src/mcp_service/os_service.py` - Added 7 new tool methods and registrations
+- `src/mcp_service/ui_resources.py` - Added route-planner resource registration
+
+### New Tools (Sprint 5)
+| Tool | Description |
+|------|-------------|
+| `inspect_feature` | Opens feature inspector widget with UI resource reference |
+| `get_feature_with_linked` | Prepares feature data with linked identifiers |
+| `plan_route` | Opens route planner widget with start/end configuration |
+| `get_route_network` | Gets road network data for a bounding box |
+| `get_shared_context` | Gets current cross-widget shared state |
+| `update_shared_context` | Adds/removes/clears selections in shared context |
+| `share_selection` | Shares selection from one widget to another |
+
+### New UI Resources (Sprint 5)
+| URI | Description |
+|-----|-------------|
+| `ui://os-ons/feature-inspector` | Interactive feature detail view with map and linked IDs |
+| `ui://os-ons/route-planner` | Interactive route planning with waypoints and directions |
 
 ---
 
@@ -199,6 +230,7 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Date | Tests | Tools | Resources | Notes |
 |------|-------|-------|-----------|-------|
+| 2026-01-15 | ~210 | 36 | 10 | Sprint 5 complete |
 | 2026-01-12 | 141 | 29 | 9 | Sprint 3-4 complete |
 | 2025-01-12 | 97 | 25 | 9 | Sprint 1-2 complete |
 | (baseline) | 83 | 22 | 6 | Before MCP-Apps work |

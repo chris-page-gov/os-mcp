@@ -29,6 +29,20 @@ from tools.statistics_tools import (
     get_statistics as _get_statistics,
     compare_areas as _compare_areas,
 )
+from tools.feature_inspector_tools import (
+    inspect_feature as _inspect_feature,
+    get_feature_with_linked as _get_feature_with_linked,
+    format_linked_identifiers,
+)
+from tools.route_planner_tools import (
+    plan_route as _plan_route,
+    get_route_network as _get_route_network,
+)
+from tools.widget_communication import (
+    get_shared_context as _get_shared_context,
+    update_shared_context as _update_shared_context,
+    share_selection as _share_selection,
+)
 from pathlib import Path
 
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
@@ -204,6 +218,16 @@ class OSDataHubService:
             "get_dataset_info",
             "get_statistics",
             "compare_areas",
+            # MCP-Apps feature inspector tools
+            "inspect_feature",
+            "get_feature_with_linked",
+            # MCP-Apps route planner tools
+            "plan_route",
+            "get_route_network",
+            # MCP-Apps cross-widget communication tools
+            "get_shared_context",
+            "update_shared_context",
+            "share_selection",
         ]
         for name in tool_names:
             original = getattr(self, name)
@@ -480,6 +504,16 @@ class OSDataHubService:
             "get_dataset_info",
             "get_statistics",
             "compare_areas",
+            # MCP-Apps feature inspector tools
+            "inspect_feature",
+            "get_feature_with_linked",
+            # MCP-Apps route planner tools
+            "plan_route",
+            "get_route_network",
+            # MCP-Apps cross-widget communication tools
+            "get_shared_context",
+            "update_shared_context",
+            "share_selection",
         }
 
         @functools.wraps(func)
@@ -1625,4 +1659,192 @@ class OSDataHubService:
             dataset_id=dataset_id,
             area_codes=area_codes,
             time_period=time_period,
+        )
+
+    # ============================================================================
+    # MCP-Apps Feature Inspector Tools
+    # ============================================================================
+
+    async def inspect_feature(
+        self,
+        feature_id: str,
+        collection_id: str,
+        include_linked: bool = True,
+        include_geometry: bool = True,
+    ) -> str:
+        """Opens interactive feature inspector widget for OS NGD feature.
+
+        This tool triggers a visual interface where users can:
+        - View all feature properties in a formatted table
+        - Navigate linked identifiers (TOID, UPRN, USRN)
+        - Visualize feature geometry on a map
+        - Export data as JSON or CSV
+
+        Args:
+            feature_id: The feature ID (e.g., TOID)
+            collection_id: The OS NGD collection ID (e.g., "bld-fts-building-1")
+            include_linked: Fetch linked identifiers (default: True)
+            include_geometry: Include geometry in response (default: True)
+
+        Returns:
+            JSON with widget configuration and UI resource reference
+        """
+        return await _inspect_feature(
+            feature_id=feature_id,
+            collection_id=collection_id,
+            include_linked=include_linked,
+            include_geometry=include_geometry,
+        )
+
+    async def get_feature_with_linked(
+        self,
+        feature_id: str,
+        collection_id: str,
+        identifier_type: str = "TOID",
+        include_geometry: bool = True,
+    ) -> str:
+        """Get feature details with linked identifiers for the feature inspector.
+
+        This is a data preparation tool that fetches feature data along with
+        its linked identifiers in a format ready for the feature inspector widget.
+
+        Args:
+            feature_id: The feature ID
+            collection_id: The OS NGD collection ID
+            identifier_type: Type of identifier (TOID, UPRN, USRN - default: TOID)
+            include_geometry: Include geometry in response (default: True)
+
+        Returns:
+            JSON with feature data, properties, and linked identifiers
+        """
+        return await _get_feature_with_linked(
+            feature_id=feature_id,
+            collection_id=collection_id,
+            identifier_type=identifier_type,
+            include_geometry=include_geometry,
+        )
+
+    # ============================================================================
+    # MCP-Apps Route Planner Tools
+    # ============================================================================
+
+    async def plan_route(
+        self,
+        start_lat: Optional[float] = None,
+        start_lng: Optional[float] = None,
+        end_lat: Optional[float] = None,
+        end_lng: Optional[float] = None,
+        bbox: Optional[str] = None,
+        show_network: bool = True,
+    ) -> str:
+        """Opens interactive route planner widget.
+
+        This tool triggers a visual interface where users can:
+        - Click on the map to set start/end points
+        - Add waypoints for multi-stop routes
+        - View the road network
+        - Get turn-by-turn directions
+
+        Args:
+            start_lat: Optional starting latitude
+            start_lng: Optional starting longitude
+            end_lat: Optional ending latitude
+            end_lng: Optional ending longitude
+            bbox: Optional bounding box to focus on ("west,south,east,north")
+            show_network: Whether to display the road network (default: True)
+
+        Returns:
+            JSON with widget configuration and UI resource reference
+        """
+        return await _plan_route(
+            start_lat=start_lat,
+            start_lng=start_lng,
+            end_lat=end_lat,
+            end_lng=end_lng,
+            bbox=bbox,
+            show_network=show_network,
+        )
+
+    async def get_route_network(
+        self,
+        bbox: str,
+        include_restrictions: bool = True,
+        limit: int = 500,
+    ) -> str:
+        """Get road network data for route planning.
+
+        Fetches road links and nodes within a bounding box for use
+        in the route planner widget or custom routing implementations.
+
+        Args:
+            bbox: Bounding box as "west,south,east,north" in WGS84
+            include_restrictions: Include traffic restrictions (default: True)
+            limit: Maximum road links to return (default: 500, max: 1000)
+
+        Returns:
+            JSON with network data request configuration
+        """
+        return await _get_route_network(
+            bbox=bbox,
+            include_restrictions=include_restrictions,
+            limit=limit,
+        )
+
+    # ============================================================================
+    # MCP-Apps Cross-Widget Communication Tools
+    # ============================================================================
+
+    async def get_shared_context(self) -> str:
+        """Get the current shared widget context.
+
+        Returns the current state of shared selections across widgets,
+        including selected areas, features, datasets, and route points.
+
+        Returns:
+            JSON with current shared context and summary
+        """
+        return await _get_shared_context()
+
+    async def update_shared_context(
+        self,
+        context_type: str,
+        action: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Update the shared widget context.
+
+        Args:
+            context_type: Type of context (areas, features, datasets, route_points, bbox)
+            action: Action to perform (add, remove, clear, set)
+            data: Data for the action
+
+        Returns:
+            JSON with updated context summary
+        """
+        return await _update_shared_context(
+            context_type=context_type,
+            action=action,
+            data=data,
+        )
+
+    async def share_selection(
+        self,
+        source_widget: str,
+        target_widget: str,
+        selection_data: Dict[str, Any],
+    ) -> str:
+        """Share a selection from one widget to another.
+
+        Args:
+            source_widget: Widget sending the selection (geography, statistics, feature, route)
+            target_widget: Widget receiving the selection
+            selection_data: The selection to share
+
+        Returns:
+            JSON with configuration for the target widget
+        """
+        return await _share_selection(
+            source_widget=source_widget,
+            target_widget=target_widget,
+            selection_data=selection_data,
         )

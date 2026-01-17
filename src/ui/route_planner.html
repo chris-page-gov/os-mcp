@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Route Planner</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f8f9fa;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #212529;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Route Inputs */
+    .route-inputs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .input-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .input-wrapper input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+
+    .input-wrapper input:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .map-pick-btn {
+      padding: 0.5rem;
+      background: #e9ecef;
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .map-pick-btn:hover {
+      background: #dee2e6;
+    }
+
+    .map-pick-btn.active {
+      background: #0d6efd;
+      border-color: #0d6efd;
+      color: white;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: #0d6efd;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0b5ed7;
+    }
+
+    .btn-primary:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5c636a;
+    }
+
+    /* Main Layout */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: white;
+      border-left: 1px solid #dee2e6;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    @media (max-width: 768px) {
+      .main {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        max-height: 40vh;
+        border-left: none;
+        border-top: 1px solid #dee2e6;
+      }
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    /* Route Summary */
+    .route-summary {
+      background: #e7f3ff;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .route-summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .route-summary-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .route-summary-label {
+      font-size: 0.75rem;
+      color: #6c757d;
+      text-transform: uppercase;
+    }
+
+    .route-summary-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0a58ca;
+    }
+
+    /* Directions List */
+    .directions-list {
+      list-style: none;
+    }
+
+    .direction-item {
+      display: flex;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .direction-item:last-child {
+      border-bottom: none;
+    }
+
+    .direction-icon {
+      width: 32px;
+      height: 32px;
+      background: #e9ecef;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      margin-right: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .direction-icon.start { background: #d1e7dd; }
+    .direction-icon.end { background: #f8d7da; }
+    .direction-icon.turn-left { background: #fff3cd; }
+    .direction-icon.turn-right { background: #fff3cd; }
+    .direction-icon.straight { background: #cfe2ff; }
+
+    .direction-content {
+      flex: 1;
+    }
+
+    .direction-instruction {
+      font-size: 0.875rem;
+      color: #212529;
+      margin-bottom: 0.25rem;
+    }
+
+    .direction-meta {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    /* Waypoints */
+    .waypoints-section {
+      margin-bottom: 1rem;
+    }
+
+    .waypoint-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 0.375rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .waypoint-marker {
+      width: 24px;
+      height: 24px;
+      background: #ffc107;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .waypoint-name {
+      flex: 1;
+      font-size: 0.875rem;
+    }
+
+    .waypoint-remove {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+      font-size: 0.875rem;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e9ecef;
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 0.75rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Network Stats */
+    .network-stats {
+      background: #f8f9fa;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .network-stats-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Custom markers */
+    .custom-marker {
+      background: none;
+      border: none;
+    }
+
+    .marker-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .marker-start {
+      background: #198754;
+      color: white;
+    }
+
+    .marker-end {
+      background: #dc3545;
+      color: white;
+    }
+
+    .marker-waypoint {
+      background: #ffc107;
+      color: #212529;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>Route Planner</h1>
+    <div class="route-inputs">
+      <div class="input-group">
+        <label>Start Location</label>
+        <div class="input-wrapper">
+          <input type="text" id="start-input" placeholder="Enter start point or click map">
+          <button class="map-pick-btn" id="pick-start" title="Pick on map">📍</button>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>End Location</label>
+        <div class="input-wrapper">
+          <input type="text" id="end-input" placeholder="Enter end point or click map">
+          <button class="map-pick-btn" id="pick-end" title="Pick on map">🏁</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="calculate-btn" disabled>Calculate Route</button>
+      <button class="btn btn-secondary" id="clear-btn">Clear</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div id="map"></div>
+
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Route Details</span>
+      </div>
+      <div class="sidebar-content" id="sidebar-content">
+        <!-- Network Stats -->
+        <div class="network-stats" id="network-stats">
+          <div class="network-stats-row">
+            <span>Network Status:</span>
+            <span id="network-status">Not loaded</span>
+          </div>
+          <div class="network-stats-row">
+            <span>Nodes:</span>
+            <span id="node-count">0</span>
+          </div>
+          <div class="network-stats-row">
+            <span>Edges:</span>
+            <span id="edge-count">0</span>
+          </div>
+        </div>
+
+        <!-- Waypoints Section -->
+        <div class="waypoints-section" id="waypoints-section" style="display: none;">
+          <h3 style="font-size: 0.875rem; margin-bottom: 0.5rem;">Waypoints</h3>
+          <div id="waypoints-list"></div>
+          <button class="btn btn-secondary" id="add-waypoint-btn" style="width: 100%; margin-top: 0.5rem;">
+            + Add Waypoint
+          </button>
+        </div>
+
+        <!-- Route Summary -->
+        <div class="route-summary" id="route-summary" style="display: none;">
+          <div class="route-summary-row">
+            <span class="route-summary-label">Total Distance</span>
+            <span class="route-summary-value" id="total-distance">--</span>
+          </div>
+          <div class="route-summary-row">
+            <span class="route-summary-label">Estimated Time</span>
+            <span class="route-summary-value" id="total-time">--</span>
+          </div>
+          <div class="route-summary-row">
+            <span class="route-summary-label">Road Segments</span>
+            <span class="route-summary-value" id="segment-count">--</span>
+          </div>
+        </div>
+
+        <!-- Directions -->
+        <div id="directions-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">🗺️</div>
+            <p class="empty-state-text">
+              Select start and end points on the map<br>
+              to calculate a route.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // State
+    let map = null;
+    let startMarker = null;
+    let endMarker = null;
+    let waypointMarkers = [];
+    let routeLayer = null;
+    let networkLayer = null;
+    let pickMode = null; // 'start', 'end', or 'waypoint'
+    let routeData = null;
+    let networkData = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      initMap();
+      initControls();
+
+      // Load data from window.__MCP_DATA__ or postMessage
+      if (window.__MCP_DATA__) {
+        handleData(window.__MCP_DATA__);
+      }
+
+      window.addEventListener('message', handleMessage);
+    });
+
+    function handleMessage(event) {
+      const data = event.data;
+      if (data && data.type === 'route_data') {
+        handleData(data.payload);
+      } else if (data && data.type === 'network_data') {
+        loadNetworkData(data.payload);
+      }
+    }
+
+    function handleData(data) {
+      if (data.network) {
+        loadNetworkData(data.network);
+      }
+      if (data.route) {
+        displayRoute(data.route);
+      }
+      if (data.config) {
+        applyConfig(data.config);
+      }
+    }
+
+    function initMap() {
+      map = L.map('map').setView([52.4862, -1.8904], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap'
+      }).addTo(map);
+
+      map.on('click', handleMapClick);
+    }
+
+    function initControls() {
+      // Pick buttons
+      document.getElementById('pick-start').addEventListener('click', () => {
+        togglePickMode('start');
+      });
+
+      document.getElementById('pick-end').addEventListener('click', () => {
+        togglePickMode('end');
+      });
+
+      // Calculate button
+      document.getElementById('calculate-btn').addEventListener('click', calculateRoute);
+
+      // Clear button
+      document.getElementById('clear-btn').addEventListener('click', clearRoute);
+
+      // Add waypoint button
+      document.getElementById('add-waypoint-btn').addEventListener('click', () => {
+        togglePickMode('waypoint');
+      });
+    }
+
+    function togglePickMode(mode) {
+      const startBtn = document.getElementById('pick-start');
+      const endBtn = document.getElementById('pick-end');
+
+      // Clear all active states
+      startBtn.classList.remove('active');
+      endBtn.classList.remove('active');
+
+      if (pickMode === mode) {
+        pickMode = null;
+        map.getContainer().style.cursor = '';
+      } else {
+        pickMode = mode;
+        map.getContainer().style.cursor = 'crosshair';
+        if (mode === 'start') startBtn.classList.add('active');
+        if (mode === 'end') endBtn.classList.add('active');
+      }
+    }
+
+    function handleMapClick(e) {
+      if (!pickMode) return;
+
+      const latlng = e.latlng;
+
+      if (pickMode === 'start') {
+        setStartPoint(latlng);
+      } else if (pickMode === 'end') {
+        setEndPoint(latlng);
+      } else if (pickMode === 'waypoint') {
+        addWaypoint(latlng);
+      }
+
+      togglePickMode(pickMode); // Reset pick mode
+      updateCalculateButton();
+    }
+
+    function createMarkerIcon(type) {
+      const colors = {
+        start: '#198754',
+        end: '#dc3545',
+        waypoint: '#ffc107'
+      };
+      const labels = {
+        start: 'A',
+        end: 'B',
+        waypoint: String(waypointMarkers.length + 1)
+      };
+
+      return L.divIcon({
+        className: 'custom-marker',
+        html: `<div class="marker-icon marker-${type}">${labels[type]}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+    }
+
+    function setStartPoint(latlng) {
+      if (startMarker) {
+        map.removeLayer(startMarker);
+      }
+
+      startMarker = L.marker(latlng, {
+        icon: createMarkerIcon('start'),
+        draggable: true
+      }).addTo(map);
+
+      startMarker.on('dragend', () => {
+        updateInputFromMarker('start', startMarker.getLatLng());
+      });
+
+      updateInputFromMarker('start', latlng);
+    }
+
+    function setEndPoint(latlng) {
+      if (endMarker) {
+        map.removeLayer(endMarker);
+      }
+
+      endMarker = L.marker(latlng, {
+        icon: createMarkerIcon('end'),
+        draggable: true
+      }).addTo(map);
+
+      endMarker.on('dragend', () => {
+        updateInputFromMarker('end', endMarker.getLatLng());
+      });
+
+      updateInputFromMarker('end', latlng);
+    }
+
+    function addWaypoint(latlng) {
+      const marker = L.marker(latlng, {
+        icon: createMarkerIcon('waypoint'),
+        draggable: true
+      }).addTo(map);
+
+      waypointMarkers.push(marker);
+      updateWaypointsList();
+      document.getElementById('waypoints-section').style.display = 'block';
+    }
+
+    function updateInputFromMarker(type, latlng) {
+      const input = document.getElementById(`${type}-input`);
+      input.value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+    }
+
+    function updateCalculateButton() {
+      const btn = document.getElementById('calculate-btn');
+      btn.disabled = !(startMarker && endMarker);
+    }
+
+    function updateWaypointsList() {
+      const list = document.getElementById('waypoints-list');
+      list.innerHTML = '';
+
+      waypointMarkers.forEach((marker, index) => {
+        const latlng = marker.getLatLng();
+        const item = document.createElement('div');
+        item.className = 'waypoint-item';
+        item.innerHTML = `
+          <span class="waypoint-marker">${index + 1}</span>
+          <span class="waypoint-name">${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}</span>
+          <button class="waypoint-remove" data-index="${index}">×</button>
+        `;
+        list.appendChild(item);
+      });
+
+      // Add remove handlers
+      list.querySelectorAll('.waypoint-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          removeWaypoint(index);
+        });
+      });
+    }
+
+    function removeWaypoint(index) {
+      map.removeLayer(waypointMarkers[index]);
+      waypointMarkers.splice(index, 1);
+      updateWaypointsList();
+
+      if (waypointMarkers.length === 0) {
+        document.getElementById('waypoints-section').style.display = 'none';
+      }
+    }
+
+    function calculateRoute() {
+      if (!startMarker || !endMarker) return;
+
+      const startLatLng = startMarker.getLatLng();
+      const endLatLng = endMarker.getLatLng();
+      const waypoints = waypointMarkers.map(m => m.getLatLng());
+
+      // Show loading
+      document.getElementById('directions-container').innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <span>Calculating route...</span>
+        </div>
+      `;
+
+      // Prepare request
+      const request = {
+        type: 'calculate_route',
+        payload: {
+          start: { lat: startLatLng.lat, lng: startLatLng.lng },
+          end: { lat: endLatLng.lat, lng: endLatLng.lng },
+          waypoints: waypoints.map(w => ({ lat: w.lat, lng: w.lng }))
+        }
+      };
+
+      // Send to host
+      if (window.mcpApp) {
+        window.mcpApp.callTool('plan_route', request.payload)
+          .then(result => displayRoute(result))
+          .catch(err => showError(err.message));
+      } else {
+        window.parent.postMessage(request, '*');
+        // Demo mode - simulate route
+        setTimeout(() => {
+          simulateRoute(startLatLng, endLatLng, waypoints);
+        }, 1000);
+      }
+    }
+
+    function simulateRoute(start, end, waypoints) {
+      // Generate a simple straight-line route for demo
+      const points = [start];
+      waypoints.forEach(w => points.push(w));
+      points.push(end);
+
+      const route = {
+        distance: calculateDistance(points),
+        duration: Math.round(calculateDistance(points) / 50 * 60), // Assume 50km/h
+        segments: [],
+        geometry: {
+          type: 'LineString',
+          coordinates: points.map(p => [p.lng, p.lat])
+        }
+      };
+
+      // Generate segments
+      for (let i = 0; i < points.length - 1; i++) {
+        const dist = haversine(points[i], points[i + 1]);
+        route.segments.push({
+          instruction: i === 0 ? 'Start' : i === points.length - 2 ? 'Arrive at destination' : 'Continue',
+          distance: dist,
+          road_name: 'Main Road'
+        });
+      }
+
+      displayRoute(route);
+    }
+
+    function calculateDistance(points) {
+      let total = 0;
+      for (let i = 0; i < points.length - 1; i++) {
+        total += haversine(points[i], points[i + 1]);
+      }
+      return total;
+    }
+
+    function haversine(p1, p2) {
+      const R = 6371; // Earth's radius in km
+      const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+      const dLon = (p2.lng - p1.lng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function displayRoute(route) {
+      routeData = route;
+
+      // Clear existing route
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+      }
+
+      // Draw route on map
+      if (route.geometry) {
+        const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+        routeLayer = L.polyline(coords, {
+          color: '#0d6efd',
+          weight: 5,
+          opacity: 0.8
+        }).addTo(map);
+
+        map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+      }
+
+      // Update summary
+      document.getElementById('route-summary').style.display = 'block';
+      document.getElementById('total-distance').textContent = formatDistance(route.distance);
+      document.getElementById('total-time').textContent = formatDuration(route.duration);
+      document.getElementById('segment-count').textContent = route.segments?.length || 0;
+
+      // Show directions
+      const container = document.getElementById('directions-container');
+      if (route.segments && route.segments.length > 0) {
+        container.innerHTML = '<ul class="directions-list" id="directions-list"></ul>';
+        const list = document.getElementById('directions-list');
+
+        route.segments.forEach((segment, index) => {
+          const iconClass = getDirectionIconClass(segment.instruction);
+          const li = document.createElement('li');
+          li.className = 'direction-item';
+          li.innerHTML = `
+            <div class="direction-icon ${iconClass}">${getDirectionIcon(segment.instruction)}</div>
+            <div class="direction-content">
+              <div class="direction-instruction">${segment.instruction}</div>
+              <div class="direction-meta">
+                ${segment.road_name ? segment.road_name + ' · ' : ''}
+                ${formatDistance(segment.distance)}
+              </div>
+            </div>
+          `;
+          list.appendChild(li);
+        });
+      } else {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">✓</div>
+            <p class="empty-state-text">Route calculated successfully.</p>
+          </div>
+        `;
+      }
+    }
+
+    function loadNetworkData(network) {
+      networkData = network;
+
+      // Update stats
+      document.getElementById('network-status').textContent = network.is_built ? 'Loaded' : 'Not built';
+      document.getElementById('node-count').textContent = network.total_nodes || 0;
+      document.getElementById('edge-count').textContent = network.total_edges || 0;
+
+      // Draw network on map if edges provided
+      if (network.edges && network.edges.length > 0) {
+        if (networkLayer) {
+          map.removeLayer(networkLayer);
+        }
+
+        const lines = [];
+        network.edges.forEach(edge => {
+          if (edge.geometry && edge.geometry.coordinates) {
+            const coords = edge.geometry.coordinates.map(c => [c[1], c[0]]);
+            lines.push(coords);
+          }
+        });
+
+        if (lines.length > 0) {
+          networkLayer = L.polyline(lines, {
+            color: '#6c757d',
+            weight: 2,
+            opacity: 0.5
+          }).addTo(map);
+        }
+      }
+    }
+
+    function clearRoute() {
+      // Remove markers
+      if (startMarker) {
+        map.removeLayer(startMarker);
+        startMarker = null;
+      }
+      if (endMarker) {
+        map.removeLayer(endMarker);
+        endMarker = null;
+      }
+      waypointMarkers.forEach(m => map.removeLayer(m));
+      waypointMarkers = [];
+
+      // Remove route layer
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
+
+      // Reset inputs
+      document.getElementById('start-input').value = '';
+      document.getElementById('end-input').value = '';
+
+      // Reset UI
+      document.getElementById('waypoints-section').style.display = 'none';
+      document.getElementById('waypoints-list').innerHTML = '';
+      document.getElementById('route-summary').style.display = 'none';
+      document.getElementById('directions-container').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🗺️</div>
+          <p class="empty-state-text">
+            Select start and end points on the map<br>
+            to calculate a route.
+          </p>
+        </div>
+      `;
+
+      updateCalculateButton();
+      routeData = null;
+    }
+
+    function showError(message) {
+      document.getElementById('directions-container').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <p class="empty-state-text">${message}</p>
+        </div>
+      `;
+    }
+
+    function formatDistance(km) {
+      if (km < 1) {
+        return Math.round(km * 1000) + ' m';
+      }
+      return km.toFixed(1) + ' km';
+    }
+
+    function formatDuration(minutes) {
+      if (minutes < 60) {
+        return Math.round(minutes) + ' min';
+      }
+      const hours = Math.floor(minutes / 60);
+      const mins = Math.round(minutes % 60);
+      return `${hours} hr ${mins} min`;
+    }
+
+    function getDirectionIcon(instruction) {
+      const lower = instruction.toLowerCase();
+      if (lower.includes('start')) return '▶';
+      if (lower.includes('arrive') || lower.includes('destination')) return '🏁';
+      if (lower.includes('left')) return '↰';
+      if (lower.includes('right')) return '↱';
+      if (lower.includes('straight') || lower.includes('continue')) return '↑';
+      return '•';
+    }
+
+    function getDirectionIconClass(instruction) {
+      const lower = instruction.toLowerCase();
+      if (lower.includes('start')) return 'start';
+      if (lower.includes('arrive') || lower.includes('destination')) return 'end';
+      if (lower.includes('left')) return 'turn-left';
+      if (lower.includes('right')) return 'turn-right';
+      return 'straight';
+    }
+
+    function applyConfig(config) {
+      if (config.bbox) {
+        const [west, south, east, north] = config.bbox.split(',').map(Number);
+        map.fitBounds([[south, west], [north, east]]);
+      }
+      if (config.center) {
+        map.setView([config.center.lat, config.center.lng], config.zoom || 12);
+      }
+    }
+
+    // Demo mode
+    if (window.location.search.includes('demo')) {
+      // Simulate network data
+      loadNetworkData({
+        is_built: true,
+        total_nodes: 150,
+        total_edges: 200
+      });
+    }
+  </script>
+</body>
+</html>
