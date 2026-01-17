@@ -46,7 +46,8 @@ curl -s http://127.0.0.1:8000/health
 - `src/server.py` - Main entry point. Supports stdio (default) and streamable-http transports via `--transport` flag. Creates `FastMCP` instance and wires up middleware.
 
 ### Core Service Layer
-- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains the 22+ tools (search_features, get_feature, chat, routing, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
+- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 37 tools (search_features, get_feature, chat, routing, geography, statistics, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
+- `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (11) and DEFERRED_TOOLS (26) sets for context efficiency.
 - `src/api_service/os_api.py` - `OSAPIClient`: handles all HTTP requests to OS Data Hub APIs. Includes rate limiting, API key sanitization, collection caching, and OpenAPI spec parsing.
 
 ### Workflow Enforcement
@@ -138,23 +139,30 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 - `msoa` - Middle Super Output Areas (~7,000)
 - `oa` - Output Areas (~180,000)
 
-## Tool Search Integration (Planned - Sprint 7)
+## Tool Search Integration (Sprint 7 - Complete)
 
-The project is preparing to implement Anthropic's Tool Search facility for dynamic tool discovery:
+Implements Anthropic's Tool Search facility for dynamic tool discovery with 37 tools.
 
 ### Overview
-- With 36+ tools, the project approaches the threshold where tool selection accuracy degrades
-- Tool search enables `defer_loading: true` to load tools on-demand rather than upfront
+- Tools split into always-loaded (11) and deferred (26) for context efficiency
+- `defer_loading: true` loads tools on-demand rather than upfront
 - Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
 
-### Tool Categories (Planned)
+### Tool Categories
 | Category | Always Loaded | Deferred |
 |----------|---------------|----------|
-| Core | hello_world, version_info, check_api_key | - |
+| Core | hello_world, version_info, check_api_key, get_tool_search_config | - |
 | Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
 | Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
 | Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
-| Features | - | search_features, get_feature, inspect_feature |
+| Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
+| Routing | plan_route | get_route_network |
+| Widget | get_shared_context | update_shared_context, share_selection |
+
+### New Tool
+| Tool | Description |
+|------|-------------|
+| `get_tool_search_config` | Returns tool categories, defer_loading settings, and MCP toolset config |
 
 ### Technical Requirements
 - Beta headers: `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`
@@ -180,15 +188,18 @@ See `docs/mcp_toolsearch.md` for full documentation.
 - Markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`
 - Slow production build test gated by `OS_MCP_RUN_SLOW=1`
 - Many tests mock `OSAPIClient` or specific service methods
+- **See `AGENTS.md`** for common testing pitfalls and mocking patterns (e.g., FastMCP decorator pass-through)
 
 ## Adding a New Tool
 
 1. Add implementation method to `OSDataHubService` in `src/mcp_service/os_service.py`
 2. Add tool name to `tool_names` list in `register_tools()`
 3. If tool should bypass workflow context, add to `skip_functions` set in `_require_workflow_context()`
-4. Create tests covering success path and at least one error path
-5. Run `mypy src` - strict typing is enforced
-6. **Update documentation** (see below)
+4. Add to `ALWAYS_LOADED_TOOLS` or `DEFERRED_TOOLS` in `src/mcp_service/tool_search_config.py`
+5. Add description entry to `TOOL_DESCRIPTIONS` with defer_loading, category, keywords, description_enhanced
+6. Create tests covering success path and at least one error path (see `AGENTS.md` for mocking patterns)
+7. Run `mypy src` - strict typing is enforced
+8. **Update documentation** (see below)
 
 ## Documentation Requirements (MANDATORY)
 
@@ -226,12 +237,12 @@ See `docs/mcp_toolsearch.md` for full documentation.
 
 ### MCP-Apps Implementation Tracking
 
-This project is actively implementing MCP-Apps features. See:
-- `plans/PROGRESS.md` - Detailed sprint/task tracking
+MCP-Apps implementation is complete (Sprints 1-7). See:
+- `plans/PROGRESS.md` - Detailed sprint/task tracking (all complete)
 - `plans/os-mcp-apps-design.md` - Design document
 - `plans/on-ons mcp implementation-roadmap.md` - Sprint breakdown
 
-When working on MCP-Apps features, always update `plans/PROGRESS.md` with:
+For future MCP-Apps work, always update `plans/PROGRESS.md` with:
 - Task completion status
 - Files created/modified
 - Any blockers or issues encountered
