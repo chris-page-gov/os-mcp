@@ -36,6 +36,7 @@ for _module_name, _symbol in [
     ("planning", "PLANNING_PROMPTS"),
     ("routing", "ROUTING_PROMPTS"),
     ("diagnostics", "DIAGNOSTICS_PROMPTS"),
+    ("mcp_apps", "MCP_APPS_PROMPTS"),
 ]:
     try:  # pragma: no cover
         _mod = __import__(f"prompt_templates.{_module_name}", fromlist=[_symbol])

@@ -43,6 +43,17 @@ from tools.widget_communication import (
     update_shared_context as _update_shared_context,
     share_selection as _share_selection,
 )
+from mcp_service.tool_search_config import (
+    get_tool_config,
+    should_defer_loading,
+    get_tools_by_category,
+    get_always_loaded_tools,
+    get_deferred_tools,
+    get_tool_search_system_prompt,
+    generate_mcp_toolset_config,
+    TOOL_DESCRIPTIONS,
+    ToolCategory,
+)
 from pathlib import Path
 
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
@@ -191,6 +202,7 @@ class OSDataHubService:
             "hello_world",
             "check_api_key",
             "version_info",
+            "get_tool_search_config",
             "list_collections",
             "get_single_collection",
             "get_single_collection_queryables",
@@ -490,6 +502,7 @@ class OSDataHubService:
             "check_api_key",
             "chat",
             "version_info",
+            "get_tool_search_config",
             "list_collections",
             "get_knowledge_index_overview",
             "suggest_collections",
@@ -663,6 +676,55 @@ class OSDataHubService:
             },
         }
         return json.dumps(data)
+
+    async def get_tool_search_config(self, category: str = "") -> str:
+        """Get tool search configuration for defer_loading support.
+
+        Returns tool categorization and defer_loading settings for use with
+        Anthropic's Tool Search facility. Tools marked with defer_loading=True
+        are only loaded when discovered via search.
+
+        Args:
+            category: Optional category filter (core, workflow, geography,
+                     statistics, features, routing, widget, search, linked, utility)
+
+        Returns:
+            JSON with:
+            - always_loaded: Tools always in context (defer_loading=False)
+            - deferred: Tools loaded on-demand (defer_loading=True)
+            - mcp_toolset_config: Configuration for MCP toolset integration
+            - system_prompt: Suggested system prompt section for tool search
+            - tools: Per-tool configuration (if category specified)
+        """
+        result: Dict[str, Any] = {
+            "always_loaded": sorted(get_always_loaded_tools()),
+            "deferred": sorted(get_deferred_tools()),
+            "counts": {
+                "always_loaded": len(get_always_loaded_tools()),
+                "deferred": len(get_deferred_tools()),
+                "total": len(TOOL_DESCRIPTIONS),
+            },
+            "mcp_toolset_config": generate_mcp_toolset_config(),
+            "system_prompt": get_tool_search_system_prompt(),
+            "categories": [c.value for c in ToolCategory],
+        }
+
+        if category:
+            try:
+                cat = ToolCategory(category.lower())
+                tools_in_category = get_tools_by_category(cat)
+                result["filtered_category"] = category
+                result["tools"] = {
+                    name: {
+                        "defer_loading": should_defer_loading(name),
+                        **get_tool_config(name),
+                    }
+                    for name in tools_in_category
+                }
+            except ValueError:
+                result["error"] = f"Invalid category: {category}. Valid: {[c.value for c in ToolCategory]}"
+
+        return json.dumps(result, indent=2)
 
     async def check_api_key(self) -> str:
         """Check if the OS API key is available."""

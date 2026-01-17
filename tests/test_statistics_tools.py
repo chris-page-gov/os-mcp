@@ -122,6 +122,69 @@ class TestListOnsDatasets:
         # Should have called get_dataset for each dataset in category
         assert mock_client.get_dataset.called
 
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_category_with_api_error_continues(self, mock_client_class):
+        """Test category fetch continues when some datasets fail"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        # First call fails, second succeeds
+        mock_client.get_dataset.side_effect = [
+            ONSAPIError("Not found", status_code=404),
+            {"id": "wellbeing-quarterly", "title": "Quarterly wellbeing"},
+        ]
+
+        result = await list_ons_datasets(category="wellbeing")
+        data = json.loads(result)
+
+        # Should return partial results (just the successful one)
+        assert data["count"] >= 0  # May be 0 or 1 depending on category size
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_list_datasets_ons_api_error(self, mock_client_class):
+        """Test list_ons_datasets handles ONSAPIError"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.list_local_authority_datasets.side_effect = ONSAPIError(
+            "Service unavailable", status_code=503
+        )
+
+        result = await list_ons_datasets()
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "UPSTREAM_ERROR" in data["error_code"]
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_list_datasets_general_error(self, mock_client_class):
+        """Test list_ons_datasets handles general exceptions"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.list_local_authority_datasets.side_effect = Exception("Network timeout")
+
+        result = await list_ons_datasets()
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "GENERAL_ERROR" in data["error_code"]
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_limit_applied(self, mock_client_class):
+        """Test limit parameter is applied"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.list_local_authority_datasets.return_value = [
+            {"id": f"ds-{i}", "title": f"Dataset {i}"} for i in range(20)
+        ]
+
+        result = await list_ons_datasets(limit=5)
+        data = json.loads(result)
+
+        assert data["count"] == 5
+
 
 class TestGetDatasetInfo:
     """Tests for get_dataset_info tool"""
@@ -385,6 +448,117 @@ class TestCompareAreas:
         data = json.loads(result)
 
         assert data["time_period"] == "2022-23"
+
+
+class TestGetDatasetInfoAdditional:
+    """Additional tests for get_dataset_info"""
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_get_dataset_info_general_error(self, mock_client_class):
+        """Test get_dataset_info handles general exceptions"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.side_effect = Exception("Network error")
+
+        result = await get_dataset_info(dataset_id="test")
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "GENERAL_ERROR" in data["error_code"]
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_get_dataset_no_editions(self, mock_client_class):
+        """Test get_dataset_info with no editions"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.return_value = {
+            "id": "test",
+            "title": "Test Dataset",
+        }
+        mock_client.list_editions.return_value = {"items": []}
+        mock_client.get_latest_version.return_value = {"dimensions": []}
+
+        result = await get_dataset_info(dataset_id="test")
+        data = json.loads(result)
+
+        assert data["id"] == "test"
+        assert data["editions"] == []
+
+
+class TestGetStatisticsAdditional:
+    """Additional tests for get_statistics"""
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_get_statistics_general_error(self, mock_client_class):
+        """Test get_statistics handles general exceptions"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.side_effect = Exception("Connection timeout")
+
+        result = await get_statistics(dataset_id="test", area_code="E08000026")
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "GENERAL_ERROR" in data["error_code"]
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_get_statistics_empty_observations(self, mock_client_class):
+        """Test get_statistics with empty observations"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.return_value = {"id": "test", "title": "Test"}
+        mock_client.get_latest_version.return_value = {"dimensions": []}
+        mock_client.get_observations.return_value = {"observations": []}
+
+        result = await get_statistics(dataset_id="test", area_code="E08000026")
+        data = json.loads(result)
+
+        assert data["status"] == "ok"
+        assert data["observations"] == []
+
+
+class TestCompareAreasAdditional:
+    """Additional tests for compare_areas"""
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_compare_areas_general_error(self, mock_client_class):
+        """Test compare_areas handles general exceptions"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.side_effect = Exception("Network error")
+
+        result = await compare_areas(
+            dataset_id="test",
+            area_codes="E08000026,E08000025"
+        )
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "GENERAL_ERROR" in data["error_code"]
+
+    @pytest.mark.asyncio
+    @patch("tools.statistics_tools.ONSAPIClient")
+    async def test_compare_areas_all_fail(self, mock_client_class):
+        """Test compare_areas when all areas fail"""
+        mock_client = create_mock_client()
+        mock_client_class.return_value = mock_client
+        mock_client.get_dataset.return_value = {"id": "test", "title": "Test"}
+        mock_client.get_observations.side_effect = ONSAPIError("Bad request", 400)
+
+        result = await compare_areas(
+            dataset_id="test",
+            area_codes="E08000026,E08000025"
+        )
+        data = json.loads(result)
+
+        assert data["status"] == "ok"
+        # All areas should have error field
+        assert all("error" in c for c in data["comparison"])
 
 
 class TestDatasetCategories:

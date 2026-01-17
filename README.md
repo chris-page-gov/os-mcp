@@ -27,8 +27,9 @@ We're adding interactive UI widgets to make the server an exemplary MCP-Apps imp
 | 2 | Selection Flow | ✅ Complete | Postcode search, ONS API integration, widget polish |
 | 3 | ONS Statistics | ✅ Complete | ONS API client, statistics tools, 42 new tests |
 | 4 | Statistics Dashboard | ✅ Complete | Chart.js widget, data visualization, export |
-| 5 | Enhanced Features | 🔲 Not Started | Feature inspector, route planner integration |
-| 6 | Polish & Release | 🔲 Not Started | Testing >80%, documentation, production deployment |
+| 5 | Enhanced Features | ✅ Complete | Feature inspector, route planner, cross-widget communication |
+| 6 | Polish & Release | ✅ Complete | 320+ tests, >80% coverage, Docker, CI/CD |
+| 7 | Tool Search | ✅ Complete | defer_loading, MCP toolset integration, 37 tools (11 always-loaded, 26 deferred) |
 
 ### New Geography Tools (Sprint 1-2)
 
@@ -60,6 +61,43 @@ The statistics dashboard widget (`ui://os-ons/statistics-dashboard`) provides:
 - Summary statistics cards
 - Area comparison tables with rankings
 - CSV, JSON, and clipboard export
+
+### Enhanced Feature Tools (Sprint 5)
+
+**Feature Inspector** - Detailed feature exploration with linked identifiers:
+
+| Tool | Description |
+|------|-------------|
+| `inspect_feature` | Opens feature inspector widget with UI resource reference |
+| `get_feature_with_linked` | Prepares feature data with linked identifiers (TOID, UPRN, USRN) |
+
+The feature inspector widget (`ui://os-ons/feature-inspector`) provides:
+- Properties table with filtering and type-aware formatting
+- Leaflet map visualization of feature geometry
+- Linked identifiers display with tabbed navigation
+- Click-to-navigate between linked features
+- Export functionality (JSON, CSV, clipboard)
+
+**Route Planner** - Interactive route planning:
+
+| Tool | Description |
+|------|-------------|
+| `plan_route` | Opens route planner widget with optional preset start/end points |
+| `get_route_network` | Gets road network data for a bounding box |
+
+The route planner widget (`ui://os-ons/route-planner`) provides:
+- Map-based start/end point selection with draggable markers
+- Waypoint support for multi-stop routes
+- Turn-by-turn directions display
+- Route summary (distance, estimated time, segments)
+
+**Cross-Widget Communication** - Share selections across widgets:
+
+| Tool | Description |
+|------|-------------|
+| `get_shared_context` | Gets current cross-widget shared state |
+| `update_shared_context` | Adds/removes/clears selections in shared context |
+| `share_selection` | Shares selection from one widget to another |
 
 ### Experimental Chat Tool
 If you set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`), an additional `chat` MCP tool becomes available. This tool:

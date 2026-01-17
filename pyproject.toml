@@ -1,6 +1,6 @@
 [project]
 name = "os-mcp"
-version = "0.1.16"
+version = "0.1.17"
 description = "A Python MCP server that provides access to Ordnance Survey's DataHub APIs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ markers = [
     "integration: integration tests requiring app/network",
     "manual: manual or exploratory tests (skipped by default)",
     "slow: slow or build-heavy tests (opt-in via OS_MCP_RUN_SLOW=1)",
+    "performance: performance benchmark tests",
 ]
 
 [tool.mypy]

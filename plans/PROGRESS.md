@@ -2,17 +2,19 @@
 
 This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%20implementation-roadmap.md).
 
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-01-17
 
 ## Overall Status
 
 | Metric | Value |
 |--------|-------|
-| Current Sprint | 5 (Complete) |
-| Tools Added | 14 (7 geography/statistics + 2 feature inspector + 2 route planner + 3 widget communication) |
+| Current Sprint | 7 Complete - All MCP-Apps sprints done |
+| Tools Added | 15 (7 geography/statistics + 2 feature inspector + 2 route planner + 3 widget communication + 1 tool search) |
 | UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
-| Test Count | ~210 passing (estimated: 141 + 25 feature inspector + 24 route planner + 21 widget communication) |
-| Coverage | Pending measurement |
+| Test Count | 370+ passing |
+| Coverage | >80% |
+| Prompt Templates | 13 new MCP-Apps prompts added |
+| Tool Search | 11 always-loaded, 26 deferred tools |
 
 ---
 
@@ -198,7 +200,7 @@ ONS ArcGIS REST services verified (January 2025):
 
 ---
 
-## Sprint 6: Polish & Release 🔲 NOT STARTED
+## Sprint 6: Polish & Release ✅ COMPLETE
 
 **Goal**: Production readiness with comprehensive testing and documentation.
 
@@ -206,11 +208,113 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Task | Status | Notes |
 |------|--------|-------|
-| 6.1 Test coverage >80% | 🔲 Pending | Current: TBD |
-| 6.2 Documentation complete | 🔲 Pending | API docs, user guide |
-| 6.3 Performance testing | 🔲 Pending | Large boundary handling |
-| 6.4 Error handling audit | 🔲 Pending | Edge cases, timeouts |
-| 6.5 Production deployment | 🔲 Pending | Docker, CI/CD updates |
+| 6.1 Test coverage >80% | ✅ Done | 73% → 80%+ (320+ tests, 12 new test files) |
+| 6.2 Documentation complete | ✅ Done | SKILL.md, user guide, prompt templates |
+| 6.3 Performance testing | ✅ Done | test_performance.py with boundary/cache tests |
+| 6.4 Error handling audit | ✅ Done | All tools use ErrorCode envelopes |
+| 6.5 Production deployment | ✅ Done | Multi-stage Docker, CI/CD with coverage |
+
+### Files Created (Sprint 6)
+
+**Documentation:**
+- `SKILL.md` - Comprehensive skills documentation for LLM context
+- `docs/mcp_apps_guide.md` - User guide for MCP-Apps widgets
+- `src/prompt_templates/mcp_apps.py` - 13 new MCP-Apps workflow prompts
+
+**Test Files (for coverage improvement):**
+- `tests/test_routing_service_detailed.py` - 40+ tests for InMemoryRoutingNetwork and OSRoutingService
+- `tests/test_ui_resources.py` - 15+ tests for OSUIResources and widget loading
+- `tests/test_guardrails.py` - 15+ tests for prompt injection detection
+- `tests/test_resources.py` - 10+ tests for OSDocumentationResources
+- `tests/test_stdio_middleware.py` - 15+ tests for STDIO auth and rate limiting
+- `tests/test_workflow_planner.py` - 15+ tests for WorkflowPlanner class
+- `tests/test_prompts_detailed.py` - 15+ tests for prompts module
+- `tests/test_server_functions.py` - 15+ tests for server helper functions
+- `tests/test_knowledge_index_builder.py` - 15+ tests for knowledge index
+- `tests/test_http_middleware_detailed.py` - 20+ tests for HTTP middleware
+- `tests/test_error_envelope_detailed.py` - 20+ tests for error envelopes
+- `tests/test_performance.py` - Performance benchmark tests
+
+**Test Files Extended:**
+- `tests/test_geography_tools.py` - Added 15+ tests for error paths
+- `tests/test_statistics_tools.py` - Added 10+ tests for error handling
+- `tests/test_ons_client.py` - Added 10+ tests for edge cases
+
+**Production Deployment:**
+- `Dockerfile` - Updated with multi-stage build, non-root user, health check
+- `.github/workflows/ci.yml` - Added coverage reporting and Docker build job
+
+### Documentation Added
+- **SKILL.md**: Full skills reference covering:
+  - Two-step workflow explanation
+  - Geographic hierarchy (UK admin levels)
+  - Area code formats
+  - Common workflow patterns
+  - All available tools with descriptions
+  - Dataset categories
+  - Best practices and error handling
+
+- **docs/mcp_apps_guide.md**: User-facing guide covering:
+  - Quick start examples
+  - Widget descriptions and features
+  - Statistics workflow
+  - Feature exploration workflow
+  - Cross-widget communication
+  - Troubleshooting
+
+- **MCP-Apps Prompt Templates** (13 prompts):
+  - Geography: select_uk_areas, find_area_by_postcode, compare_local_authorities
+  - Statistics: explore_ons_statistics, census_2021_analysis, area_wellbeing_profile
+  - Features: inspect_os_feature, explore_linked_identifiers
+  - Routes: plan_walking_route, plan_driving_route, analyze_road_network
+  - Cross-widget: area_to_statistics_workflow, feature_to_route_workflow, multi_widget_analysis
+
+---
+
+## Sprint 7: Tool Search Integration ✅ COMPLETE
+
+**Goal**: Implement Anthropic's Tool Search facility to improve context efficiency and tool selection accuracy.
+
+**Background**: With 37+ tools, the project benefits from dynamic tool discovery via `defer_loading: true`, keeping context efficient while maintaining accuracy.
+
+### Tasks
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 7.1 Tool Search Infrastructure | ✅ Done | Created tool_search_config.py with defer_loading |
+| 7.2 MCP Toolset Integration | ✅ Done | Implemented generate_mcp_toolset_config() |
+| 7.3 Tool Description Optimization | ✅ Done | Enhanced descriptions with keywords for search |
+| 7.4 Testing and Documentation | ✅ Done | 50+ tests, full documentation |
+
+### Files Created
+- `src/mcp_service/tool_search_config.py` - Tool categories, defer_loading settings, enhanced descriptions
+- `tests/test_tool_search_config.py` - 30+ unit tests for configuration
+- `tests/test_tool_search_service.py` - 15+ integration tests for new tool
+
+### New Tool Added
+| Tool | Description |
+|------|-------------|
+| `get_tool_search_config` | Returns tool search configuration, categories, MCP toolset config |
+
+### Tool Categories (Implemented)
+
+| Category | Always Loaded | Deferred |
+|----------|---------------|----------|
+| Core | hello_world, version_info, check_api_key, get_tool_search_config | - |
+| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
+| Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
+| Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
+| Features | - | search_features, get_feature, inspect_feature |
+| Routes | plan_route | get_route_network |
+| Widget | get_shared_context | update_shared_context, share_selection |
+| Search | - | suggest_collections, suggest_fields |
+| Linked | - | get_linked_identifiers, get_bulk_linked_features |
+| Utility | - | lookup_addresses, chat, get_prompt_templates |
+
+### Technical Requirements
+- Beta headers: `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`
+- Supported models: Claude Opus 4.5, Claude Sonnet 4.5
+- Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
 
 ---
 
@@ -223,6 +327,7 @@ ONS ArcGIS REST services verified (January 2025):
 | Large boundary performance | Medium | Medium | Implement simplification, pagination | 🔲 Pending |
 | MCP-Apps spec changes | Low | High | Monitor spec, abstract SDK usage | 🔲 Pending |
 | ONS observations API complexity | Medium | Medium | Dimension-handling logic in get_statistics | ✅ Resolved |
+| Tool catalog growth | Medium | Medium | Tool search with defer_loading | ✅ Resolved |
 
 ---
 
@@ -230,6 +335,9 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Date | Tests | Tools | Resources | Notes |
 |------|-------|-------|-----------|-------|
+| 2026-01-17 | 370+ | 37 | 10 | Sprint 7 complete - tool search, defer_loading |
+| 2026-01-17 | 320+ | 36 | 10 | Sprint 6 complete - coverage >80%, Docker, CI/CD |
+| 2026-01-17 | 296+ | 36 | 10 | Sprint 6 in progress - coverage 73%, new test files |
 | 2026-01-15 | ~210 | 36 | 10 | Sprint 5 complete |
 | 2026-01-12 | 141 | 29 | 9 | Sprint 3-4 complete |
 | 2025-01-12 | 97 | 25 | 9 | Sprint 1-2 complete |

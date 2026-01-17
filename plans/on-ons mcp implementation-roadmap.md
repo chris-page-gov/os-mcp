@@ -167,7 +167,72 @@ These items are essential for the MCP-Apps functionality and should be completed
 - **Time**: 3 days
 - **Blocker**: Testing complete
 
-### ⚪ Future Enhancements (Week 9+)
+### 🟣 Sprint 7: Tool Search Integration (Week 9-10)
+
+**Goal**: Implement Anthropic's Tool Search facility to improve context efficiency and tool selection accuracy as the tool catalog grows.
+
+**Background**: The project now has 36+ tools. Tool search enables dynamic tool discovery, keeping context window efficient while maintaining high tool selection accuracy. Tools with `defer_loading: true` are only loaded when Claude discovers them via search.
+
+**7.1 Tool Search Infrastructure**
+- [ ] Add `defer_loading` parameter support to tool definitions
+- [ ] Categorize tools into always-loaded vs deferred groups
+- [ ] Document tool categories for system prompts
+- [ ] Add beta headers to API configuration (`advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`)
+- **Deliverable**: Tool definitions support defer_loading parameter
+- **Time**: 2 days
+- **Blocker**: None
+
+**7.2 MCP Toolset Integration**
+- [ ] Implement `mcp_toolset` with `default_config.defer_loading`
+- [ ] Configure per-tool overrides via `configs` for frequently-used tools
+- [ ] Test tool discovery flow with both regex and BM25 variants
+- [ ] Validate tool_reference expansion works correctly
+- **Deliverable**: MCP server supports deferred tool loading
+- **Time**: 3 days
+- **Blocker**: 7.1 must be complete
+
+**7.3 Tool Description Optimization**
+- [ ] Review and enhance tool descriptions for searchability
+- [ ] Add semantic keywords to tool descriptions
+- [ ] Group tools by category (geography, statistics, features, routes, etc.)
+- [ ] Add system prompt section describing available tool categories
+- **Deliverable**: Tools optimally discoverable via search
+- **Time**: 2 days
+- **Blocker**: 7.2 must be complete
+
+**7.4 Testing and Documentation**
+- [ ] Create unit tests for defer_loading behavior
+- [ ] Test tool search with regex patterns
+- [ ] Test tool search with BM25 natural language queries
+- [ ] Document tool search usage in SKILL.md and user guide
+- [ ] Add troubleshooting for common tool search issues
+- **Deliverable**: Comprehensive test coverage and documentation
+- **Time**: 3 days
+- **Blocker**: 7.3 must be complete
+
+**Success Criteria**:
+- ✅ Tools with `defer_loading: true` not loaded until discovered
+- ✅ Core tools (5-10 most used) always available without search
+- ✅ Tool search returns relevant tools for geography/statistics/routing queries
+- ✅ Context token usage reduced for typical requests
+
+**Tool Categorization Plan**:
+| Category | Always Loaded | Deferred (defer_loading: true) |
+|----------|---------------|--------------------------------|
+| Core | hello_world, version_info, check_api_key | - |
+| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
+| Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
+| Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
+| Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
+| Routes | plan_route | get_route_network |
+| Widget Comm | get_shared_context | update_shared_context, share_selection |
+| Search/Suggest | suggest_collections | suggest_fields |
+| Routing | calculate_route | get_isochrone, get_nearest |
+| Linked IDs | - | get_linked_identifiers, filter_linked_identifiers |
+
+---
+
+### ⚪ Future Enhancements (Week 11+)
 
 **5.1 Advanced Analytics**
 - [ ] Implement spatial analysis tools
@@ -302,6 +367,24 @@ Week 6:
 - ✅ Test coverage >80%
 - ✅ Complete documentation
 - ✅ Ready for public demo
+
+### Sprint 7 (Days 31-40): Tool Search Integration
+**Goal**: Optimize tool discovery for large tool catalog
+
+Week 7:
+- Task 7.1: Tool Search Infrastructure
+- Task 7.2: MCP Toolset Integration (start)
+
+Week 8:
+- Task 7.2: MCP Toolset Integration (complete)
+- Task 7.3: Tool Description Optimization
+- Task 7.4: Testing and Documentation
+
+**Success Criteria**:
+- ✅ defer_loading parameter working on tool definitions
+- ✅ Tool search discovers relevant tools via regex and BM25
+- ✅ Context token usage reduced for typical requests
+- ✅ Core tools remain always-available
 
 ## Technical Decisions Log
 

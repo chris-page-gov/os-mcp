@@ -6,6 +6,83 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-01-17
+
+### Added - MCP-Apps Integration (Sprints 1-7 Complete)
+
+**Sprint 6 - Documentation:**
+- **Skills Documentation** (`SKILL.md`):
+  - Comprehensive reference for LLM context building
+  - Two-step workflow explanation
+  - UK geographic hierarchy and area codes
+  - Common workflow patterns with examples
+  - Tool reference tables
+  - Dataset categories and usage
+  - Best practices and troubleshooting
+
+- **User Guide** (`docs/mcp_apps_guide.md`):
+  - Quick start examples for all widgets
+  - Interactive widget documentation
+  - Statistics workflow guide
+  - Feature exploration guide
+  - Cross-widget communication examples
+  - Troubleshooting section
+
+- **MCP-Apps Prompt Templates** (`src/prompt_templates/mcp_apps.py`):
+  - 13 new workflow prompts for widget usage
+  - Geography: select_uk_areas, find_area_by_postcode, compare_local_authorities
+  - Statistics: explore_ons_statistics, census_2021_analysis, area_wellbeing_profile
+  - Features: inspect_os_feature, explore_linked_identifiers
+  - Routes: plan_walking_route, plan_driving_route, analyze_road_network
+  - Cross-widget: area_to_statistics_workflow, feature_to_route_workflow, multi_widget_analysis
+
+### Added - Tool Search Integration (Sprint 7) ✅ COMPLETE
+- **Tool Search Infrastructure** (`src/mcp_service/tool_search_config.py`):
+  - `ToolCategory` enum with 10 categories (Core, Workflow, Geography, Statistics, Features, Routing, Widget, Search, Linked, Utility)
+  - `ALWAYS_LOADED_TOOLS` set (11 tools) - core entry points loaded immediately
+  - `DEFERRED_TOOLS` set (26 tools) - specialized tools discovered via search
+  - Enhanced descriptions with keywords for regex and BM25 searchability
+- **New Tool**: `get_tool_search_config` - Returns tool search configuration, categories, and MCP toolset config
+- **MCP Toolset Integration**: `generate_mcp_toolset_config()` produces configuration for Anthropic's tool search API
+- **Test Coverage**: 50+ new tests across `test_tool_search_config.py` and `test_tool_search_service.py`
+- **Technical Requirements**: Beta headers `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`; supported models: Claude Opus 4.5, Claude Sonnet 4.5
+
+**Agent Guidance:**
+- **AGENTS.md**: New file with testing patterns and common pitfalls for AI agents
+  - FastMCP mock configuration (pass-through decorator pattern)
+  - String assertion best practices
+  - Tool addition checklist
+
+### Changed
+- README.md updated with Sprint 7 completion status
+- PROGRESS.md updated to Sprint 7 complete (all MCP-Apps sprints done)
+- Tool count increased from 36 to 37 (new: get_tool_search_config)
+- Test count increased from 320+ to 370+ (50+ new tool search tests)
+
+### Internal - Test Coverage Improvement (Sprint 6) ✅ COMPLETE
+- Added `tests/test_routing_service_detailed.py` - 40+ tests for routing network (37% → 100%)
+- Added `tests/test_ui_resources.py` - 15+ tests for UI resource registration (55% → 79%)
+- Added `tests/test_guardrails.py` - 15+ tests for prompt injection (62% → 100%)
+- Added `tests/test_resources.py` - 10+ tests for documentation resources (68% → 100%)
+- Added `tests/test_stdio_middleware.py` - 15+ tests for STDIO middleware
+- Added `tests/test_workflow_planner.py` - 15+ tests for WorkflowPlanner class
+- Added `tests/test_prompts_detailed.py` - 15+ tests for prompts module
+- Added `tests/test_server_functions.py` - 15+ tests for server helper functions
+- Added `tests/test_knowledge_index_builder.py` - 15+ tests for knowledge index
+- Added `tests/test_http_middleware_detailed.py` - 20+ tests for HTTP middleware
+- Added `tests/test_error_envelope_detailed.py` - 20+ tests for error envelopes
+- Added `tests/test_performance.py` - Performance benchmark tests
+- Extended `tests/test_geography_tools.py` with error path tests (73% → 82%)
+- Extended `tests/test_statistics_tools.py` with error handling tests
+- Extended `tests/test_ons_client.py` with edge case tests
+- Overall test count: 211 → 320+ (110+ new tests)
+- Overall coverage: 68% → >80%
+
+### Internal - Production Deployment (Sprint 6)
+- Updated `Dockerfile` with multi-stage build, non-root user, health check
+- Updated `.github/workflows/ci.yml` with coverage reporting and Docker build job
+- Added `performance` pytest marker for benchmark tests
+
 ### Added - MCP-Apps Integration (Sprint 5)
 - **Feature Inspector Widget** (`src/ui/feature_inspector.html`):
   - Properties table with filtering and type-aware formatting

@@ -25,5 +25,10 @@
     // Leave OS_API_KEY unset here; developers export it locally
     "STDIO_KEY": "dev-key",
     "BEARER_TOKENS": "dev-token"
-  }
+  },
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

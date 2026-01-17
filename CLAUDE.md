@@ -63,9 +63,14 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 - `src/middleware/request_id_middleware.py` - Adds X-Request-ID headers
 
 ### Prompt Templates & Resources
-- `src/prompt_templates/` - Categorized prompt templates (planning, routing, diagnostics, warwickshire)
+- `src/prompt_templates/` - Categorized prompt templates (planning, routing, diagnostics, warwickshire, mcp_apps)
+- `src/prompt_templates/mcp_apps.py` - 13 prompts for MCP-Apps widget workflows
 - `src/mcp_service/prompts.py` - Registers MCP prompts
 - `src/mcp_service/resources.py` - Registers MCP resources (documentation access)
+
+### Documentation
+- `SKILL.md` - Skills documentation for LLM context (geographic hierarchy, workflows, tools reference)
+- `docs/mcp_apps_guide.md` - User guide for MCP-Apps interactive widgets
 
 ### Knowledge Index
 - `src/knowledge/` - Metadata harvester and index builder for field/collection suggestions
@@ -132,6 +137,31 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 - `lsoa` - Lower Super Output Areas (~35,000)
 - `msoa` - Middle Super Output Areas (~7,000)
 - `oa` - Output Areas (~180,000)
+
+## Tool Search Integration (Planned - Sprint 7)
+
+The project is preparing to implement Anthropic's Tool Search facility for dynamic tool discovery:
+
+### Overview
+- With 36+ tools, the project approaches the threshold where tool selection accuracy degrades
+- Tool search enables `defer_loading: true` to load tools on-demand rather than upfront
+- Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
+
+### Tool Categories (Planned)
+| Category | Always Loaded | Deferred |
+|----------|---------------|----------|
+| Core | hello_world, version_info, check_api_key | - |
+| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
+| Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
+| Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
+| Features | - | search_features, get_feature, inspect_feature |
+
+### Technical Requirements
+- Beta headers: `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`
+- Supported models: Claude Opus 4.5, Claude Sonnet 4.5
+- MCP integration via `mcp_toolset` with `default_config.defer_loading`
+
+See `docs/mcp_toolsearch.md` for full documentation.
 
 ## Key Environment Variables
 
