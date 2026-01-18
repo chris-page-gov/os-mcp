@@ -48,6 +48,13 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - Edge case and priority handling tests
   - Performance benchmarks
 
+- **MCP Tool Annotations** (`src/mcp_service/tool_search_config.py`):
+  - Added `readOnlyHint` annotation to 36 read-only tools (reduces client permission prompts)
+  - Added `openWorldHint` annotation to 22 tools that call external APIs (OS Data Hub, ONS, OpenAI)
+  - Added `idempotentHint` annotation to 10 tools with no side effects
+  - Only 2 stateful tools: `update_shared_context`, `share_selection`
+  - New helper: `get_tool_annotations(tool_name)` returns annotation hints for any tool
+
 ### Fixed
 - **Critical: Tool routing for common queries**:
   - "Find Birmingham" now correctly routes to `search_geographic_areas` (was incorrectly going to OS NGD)

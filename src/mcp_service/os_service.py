@@ -50,11 +50,13 @@ from mcp_service.tool_search_config import (
     get_tools_by_category,
     get_always_loaded_tools,
     get_deferred_tools,
+    get_tool_annotations,
     get_tool_search_system_prompt,
     generate_mcp_toolset_config,
     TOOL_DESCRIPTIONS,
     ToolCategory,
 )
+from mcp.types import ToolAnnotations
 from pathlib import Path
 
 KNOWLEDGE_INDEX_PATH = Path("data/metadata/knowledge_index_latest.json")
@@ -248,7 +250,10 @@ class OSDataHubService:
         for name in tool_names:
             original = getattr(self, name)
             wrapped = apply_middleware(original)
-            tool_wrapped = self.mcp.tool()(wrapped)
+            # Get MCP tool annotations (readOnlyHint, idempotentHint, openWorldHint)
+            annotation_hints = get_tool_annotations(name)
+            annotations = ToolAnnotations(**annotation_hints) if annotation_hints else None
+            tool_wrapped = self.mcp.tool(annotations=annotations)(wrapped)
             setattr(self, name, cast(Callable[..., Awaitable[Any]], tool_wrapped))
 
     def register_prompts(self) -> None:

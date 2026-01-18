@@ -42,6 +42,11 @@ class ToolConfig(TypedDict, total=False):
     category: str
     keywords: List[str]  # Additional keywords for searchability
     description_enhanced: str  # Enhanced description for better search
+    # MCP Tool Annotations (hints for clients)
+    read_only_hint: bool  # True if tool doesn't modify state (default: True for most tools)
+    destructive_hint: bool  # True if tool may perform destructive updates (default: False)
+    idempotent_hint: bool  # True if repeated calls have no additional effect
+    open_world_hint: bool  # True if tool interacts with external APIs
 
 
 # Tools that should ALWAYS be loaded (defer_loading=False)
@@ -124,6 +129,95 @@ DEFERRED_TOOLS: Set[str] = {
     "get_prompt_templates",
     "chat",
 }
+
+
+# =============================================================================
+# TOOL ANNOTATIONS (MCP hints for client permission handling)
+# =============================================================================
+
+# Tools that MODIFY state (readOnlyHint=False)
+# All other tools are read-only by default
+STATEFUL_TOOLS: Set[str] = {
+    "update_shared_context",  # Modifies shared widget context
+    "share_selection",  # Modifies shared widget context
+}
+
+# Tools that interact with EXTERNAL APIs (openWorldHint=True)
+# These call OS Data Hub, ONS APIs, or OpenAI
+EXTERNAL_API_TOOLS: Set[str] = {
+    # OS Data Hub API tools
+    "get_workflow_context",
+    "list_collections",
+    "fetch_detailed_collections",
+    "get_single_collection",
+    "get_single_collection_queryables",
+    "search_features",
+    "get_feature",
+    "get_linked_identifiers",
+    "get_bulk_features",
+    "get_bulk_linked_features",
+    "get_routing_data",
+    "get_route_network",
+    "lookup_addresses",
+    "diagnose_address_fields",
+    "summarise_buildings_by_road",
+    # ONS Geography API tools
+    "fetch_boundaries",
+    "search_geographic_areas",
+    # ONS Statistics API tools
+    "list_ons_datasets",
+    "get_dataset_info",
+    "get_statistics",
+    "compare_areas",
+    # OpenAI API
+    "chat",
+}
+
+# Tools that are idempotent (calling multiple times has same effect)
+IDEMPOTENT_TOOLS: Set[str] = {
+    "hello_world",
+    "check_api_key",
+    "version_info",
+    "get_tool_search_config",
+    "route_query",
+    "get_shared_context",
+    "get_prompt_templates",
+    "get_knowledge_index_overview",
+    "suggest_collections",
+    "suggest_fields",
+}
+
+
+def get_tool_annotations(tool_name: str) -> Dict[str, bool]:
+    """Get MCP tool annotation hints for a specific tool.
+
+    These hints help MCP clients make better permission decisions:
+    - readOnlyHint: True if tool doesn't modify state (most tools)
+    - destructiveHint: True if tool may perform destructive updates (none currently)
+    - idempotentHint: True if repeated calls have no additional effect
+    - openWorldHint: True if tool interacts with external APIs
+
+    Args:
+        tool_name: Name of the tool
+
+    Returns:
+        Dict with annotation hints (only includes True values)
+    """
+    annotations: Dict[str, bool] = {}
+
+    # Read-only hint (default True, False only for stateful tools)
+    if tool_name not in STATEFUL_TOOLS:
+        annotations["readOnlyHint"] = True
+
+    # Idempotent hint
+    if tool_name in IDEMPOTENT_TOOLS:
+        annotations["idempotentHint"] = True
+
+    # Open world hint (calls external APIs)
+    if tool_name in EXTERNAL_API_TOOLS:
+        annotations["openWorldHint"] = True
+
+    return annotations
 
 
 # Enhanced tool descriptions with keywords for better search discovery
@@ -532,12 +626,16 @@ __all__ = [
     "ToolConfig",
     "ALWAYS_LOADED_TOOLS",
     "DEFERRED_TOOLS",
+    "STATEFUL_TOOLS",
+    "EXTERNAL_API_TOOLS",
+    "IDEMPOTENT_TOOLS",
     "TOOL_DESCRIPTIONS",
     "get_tool_config",
     "should_defer_loading",
     "get_tools_by_category",
     "get_always_loaded_tools",
     "get_deferred_tools",
+    "get_tool_annotations",
     "get_tool_search_system_prompt",
     "generate_mcp_toolset_config",
 ]

@@ -172,6 +172,22 @@ Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 t
 
 See `docs/mcp_toolsearch.md` for full documentation.
 
+## Tool Annotations (MCP Client Hints)
+
+Tools are annotated with MCP hints to help clients make better permission decisions:
+
+| Annotation | Tools | Description |
+|------------|-------|-------------|
+| `readOnlyHint=true` | 36 tools | Doesn't modify state - clients may skip permission prompts |
+| `openWorldHint=true` | 22 tools | Calls external APIs (OS Data Hub, ONS, OpenAI) |
+| `idempotentHint=true` | 10 tools | Repeated calls have no additional effect |
+
+**Stateful tools** (only 2 - require permission prompts):
+- `update_shared_context` - Modifies cross-widget shared state
+- `share_selection` - Modifies cross-widget shared state
+
+Use `get_tool_annotations(tool_name)` to get annotation hints for any tool.
+
 ## Key Environment Variables
 
 | Variable | Purpose |
