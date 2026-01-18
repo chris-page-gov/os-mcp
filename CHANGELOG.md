@@ -60,6 +60,13 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - New prompt: `getting_started` - Critical guidance to call route_query FIRST
   - Helps MCP clients understand correct tool selection workflow
 
+- **STOP_AND_CHECK Warning in Workflow Tools**:
+  - `get_workflow_context` now returns prominent warning at top of response
+  - `list_collections` also returns warning
+  - Warning asks: "Is the user asking to FIND A PLACE BY NAME?"
+  - Directs to use `search_geographic_areas` instead of OS NGD workflow for place lookups
+  - Includes examples: "Find Birmingham", "Local authority code for Coventry"
+
 ### Fixed
 - **Critical: Tool routing for common queries**:
   - "Find Birmingham" now correctly routes to `search_geographic_areas` (was incorrectly going to OS NGD)

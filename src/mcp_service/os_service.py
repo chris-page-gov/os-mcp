@@ -310,6 +310,19 @@ class OSDataHubService:
             return json.dumps(
                 {
                     "status": "ok",
+                    "STOP_AND_CHECK": {
+                        "WARNING": "BEFORE PROCEEDING - Is the user asking to FIND A PLACE BY NAME?",
+                        "examples_of_place_lookups": [
+                            "Find Birmingham",
+                            "Local authority code for Coventry",
+                            "Where is Manchester",
+                            "GSS code for Leeds",
+                        ],
+                        "if_yes": "STOP! Do NOT use this OS NGD workflow. Use search_geographic_areas(query='place name') instead.",
+                        "why": "This OS NGD workflow is for MAPPING FEATURES (buildings, roads, cinemas). For simple place lookups, search_geographic_areas is faster and more accurate.",
+                        "correct_tool": "search_geographic_areas(query='Coventry', level='local_auth')",
+                        "this_workflow_is_for": "Finding mapping features like cinemas, buildings, roads, land use parcels - NOT for finding places by name.",
+                    },
                     "CRITICAL_COLLECTION_LIST": sorted(
                         context["available_collections"].keys()
                     ),
@@ -808,7 +821,14 @@ class OSDataHubService:
                 for col in data.get("collections", [])
             ]
 
-            return json.dumps({"collections": collections})
+            return json.dumps({
+                "STOP_AND_CHECK": {
+                    "WARNING": "Is the user asking to FIND A PLACE BY NAME (like 'find Birmingham', 'local authority code for Coventry')?",
+                    "if_yes": "Do NOT use these OS NGD collections. Use search_geographic_areas(query='place name') instead.",
+                    "these_collections_are_for": "Mapping features (buildings, roads, land use) - NOT for simple place lookups.",
+                },
+                "collections": collections,
+            })
         except Exception as e:
             return json.dumps(
                 build_error_envelope(
