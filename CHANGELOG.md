@@ -75,14 +75,23 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - Query router prevents confusion between ONS Geography and OS NGD APIs
 
 ### Changed
-- **Tool loading priorities**:
-  - Added `route_query` to ALWAYS_LOADED_TOOLS (primary entry point)
-  - Added `search_geographic_areas` to ALWAYS_LOADED_TOOLS (was incorrectly deferred)
-  - Tool count: 12 always-loaded (was 10), 26 deferred (was 27)
-- **Improved tool descriptions** to clarify when to use each approach:
-  - Geography tools (ONS API): For finding places by name (cities, towns, councils)
-  - Workflow tools (OS NGD): For mapping features (buildings, roads, land use)
-  - Added explicit guidance: "NOT for finding cities/towns - use search_geographic_areas"
+- **MAJOR: Reduced always-loaded tools from 12 to 5 for token efficiency**:
+  - PRIMARY: `search_geographic_areas` (find places by name)
+  - PRIMARY: `get_statistics` (get stats for an area)
+  - ROUTING: `route_query` (classifies query intent)
+  - CORE: `hello_world`, `version_info`
+  - MOVED TO DEFERRED: `get_workflow_context`, `list_collections`, `select_geographic_area`, `list_ons_datasets`, `plan_route`, `get_shared_context`, `check_api_key`
+- **MAJOR: Slashed `get_workflow_context` response from ~15KB to ~1KB**:
+  - Removed full collection metadata (was listing every field)
+  - Returns only: theme descriptions, collection IDs by theme, example usage
+  - Includes clear note: "For place lookups, use search_geographic_areas instead"
+- **MAJOR: Slashed `list_collections` response size**:
+  - Returns only: count and sorted list of collection IDs
+  - Includes same routing note
+- **Tool descriptions updated with ★ PRIMARY TOOL ★ markers**:
+  - `search_geographic_areas`: "Find UK places by name (cities, towns, councils)"
+  - `get_statistics`: "Get statistics for an area (wellbeing, population, house prices)"
+  - Workflow tools de-emphasized with "DEFERRED" markers
 - **Enhanced system prompt** with decision guide table showing which tool to use
 - **Updated SKILL.md** with prominent "Use route_query FIRST" section
 

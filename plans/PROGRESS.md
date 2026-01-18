@@ -10,12 +10,12 @@ This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%
 |--------|-------|
 | Current Sprint | 8 Complete - Architecture Review & Evaluation |
 | Tools Added | 16 (15 MCP-Apps + 1 route_query) |
-| Total Tools | 38 (12 always-loaded, 26 deferred) |
+| Total Tools | 38 (5 always-loaded, 33 deferred) |
 | UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
 | Test Count | 370+ passing |
 | Coverage | >80% |
 | Prompt Templates | 13 new MCP-Apps prompts added |
-| Tool Search | 12 always-loaded (route_query, search_geographic_areas), 26 deferred |
+| Tool Search | 5 always-loaded (route_query, search_geographic_areas, get_statistics, hello_world, version_info), 33 deferred |
 | Documentation | User tutorial (docs/tutorial.md), Sprint 8 plan |
 
 ---

@@ -50,79 +50,81 @@ class ToolConfig(TypedDict, total=False):
 
 
 # Tools that should ALWAYS be loaded (defer_loading=False)
-# These are essential for basic operation and frequently used
+# MINIMAL SET - only the most essential tools for fast, simple responses
 ALWAYS_LOADED_TOOLS: Set[str] = {
     # ========================================
-    # PRIMARY ENTRY POINT - Call this FIRST!
+    # PRIMARY TOOLS - These handle 90% of queries
     # ========================================
-    "route_query",  # Analyzes query intent and recommends the right tool
+    "search_geographic_areas",  # THE primary tool - finds places by name, returns codes
+    "get_statistics",           # Get stats for an area (wellbeing, population, etc.)
 
-    # Core tools - essential for server operation
+    # ========================================
+    # ROUTING - Helps choose the right tool
+    # ========================================
+    "route_query",  # Classifies intent, recommends tool
+
+    # ========================================
+    # CORE - Server health/info only
+    # ========================================
     "hello_world",
-    "check_api_key",
     "version_info",
-    "get_tool_search_config",
-
-    # Workflow tools - required for OS NGD 2-step workflow (mapping features only)
-    "get_workflow_context",
-    "list_collections",
-
-    # Primary geography tools - for place lookups
-    "select_geographic_area",
-    "search_geographic_areas",  # For place name lookups - use BEFORE considering OS NGD
-
-    # Primary statistics tool - common entry point
-    "list_ons_datasets",
-
-    # Primary route tool - common entry point
-    "plan_route",
-
-    # Shared context - needed for cross-widget communication
-    "get_shared_context",
 }
 
 
 # Tools that should be DEFERRED (defer_loading=True)
 # These are discovered via tool search when needed
 DEFERRED_TOOLS: Set[str] = {
-    # Workflow - detailed fetch (for OS NGD feature queries)
+    # ========================================
+    # OS NGD WORKFLOW - Only for complex mapping queries
+    # ========================================
+    "get_workflow_context",       # MOVED: Only needed for OS NGD feature searches
+    "list_collections",           # MOVED: Browse OS NGD collections
     "fetch_detailed_collections",
     "get_single_collection",
     "get_single_collection_queryables",
-
-    # Geography - boundary fetch (use after search_geographic_areas finds codes)
-    "fetch_boundaries",
-
-    # Statistics - data retrieval
-    "get_dataset_info",
-    "get_statistics",
-    "compare_areas",
-
-    # Features - search and inspection
-    "search_features",
+    "search_features",            # Search OS NGD (buildings, roads, etc.)
     "get_feature",
     "get_bulk_features",
+
+    # ========================================
+    # GEOGRAPHY - Secondary tools
+    # ========================================
+    "select_geographic_area",     # MOVED: Interactive map widget
+    "fetch_boundaries",           # Get GeoJSON boundaries
+
+    # ========================================
+    # STATISTICS - Secondary tools
+    # ========================================
+    "list_ons_datasets",          # MOVED: Browse available datasets
+    "get_dataset_info",           # Dataset metadata
+    "compare_areas",              # Compare multiple areas
+
+    # ========================================
+    # FEATURE INSPECTION
+    # ========================================
     "inspect_feature",
     "get_feature_with_linked",
-
-    # Linked identifiers
     "get_linked_identifiers",
     "get_bulk_linked_features",
 
-    # Routing - secondary tools
+    # ========================================
+    # ROUTING
+    # ========================================
+    "plan_route",                 # MOVED: Route planner widget
     "get_route_network",
     "get_routing_data",
 
-    # Widget communication - secondary
+    # ========================================
+    # WIDGETS & UTILITIES
+    # ========================================
+    "get_shared_context",         # MOVED: Cross-widget state
     "update_shared_context",
     "share_selection",
-
-    # Search and suggestions
+    "check_api_key",              # MOVED: API key validation
+    "get_tool_search_config",     # MOVED: Tool search config
     "suggest_collections",
     "suggest_fields",
     "get_knowledge_index_overview",
-
-    # Utilities
     "lookup_addresses",
     "diagnose_address_fields",
     "summarise_buildings_by_road",
@@ -232,46 +234,45 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "description_enhanced": "PRIMARY ENTRY POINT - Call this FIRST for any natural language query. Analyzes intent and recommends the right tool. Examples: 'Find Birmingham' → search_geographic_areas, 'Wellbeing in Coventry' → get_statistics, 'Show cinemas' → OS NGD workflow.",
     },
 
-    # === CORE TOOLS (always loaded) ===
+    # === CORE TOOLS ===
     "hello_world": {
         "defer_loading": False,
         "category": ToolCategory.CORE,
         "keywords": ["test", "health", "status", "ping"],
-        "description_enhanced": "Test server connectivity. Returns greeting message to verify the MCP server is responding. Use for health checks and connection testing.",
+        "description_enhanced": "Test server connectivity.",
     },
     "check_api_key": {
-        "defer_loading": False,
+        "defer_loading": True,  # Deferred - only needed for diagnostics
         "category": ToolCategory.CORE,
         "keywords": ["api", "key", "authentication", "credentials", "validate"],
-        "description_enhanced": "Validate OS Data Hub API key. Checks if the configured API key is valid and has proper permissions for accessing Ordnance Survey data.",
+        "description_enhanced": "Validate OS Data Hub API key.",
     },
     "version_info": {
         "defer_loading": False,
         "category": ToolCategory.CORE,
         "keywords": ["version", "info", "mode", "environment", "debug"],
-        "description_enhanced": "Get server version and mode information. Returns package version, runtime mode (dev/prod), and environment details for debugging.",
+        "description_enhanced": "Get server version and runtime mode.",
     },
     "get_tool_search_config": {
-        "defer_loading": False,
+        "defer_loading": True,  # Deferred - only for tool search integration
         "category": ToolCategory.CORE,
         "keywords": ["tool", "search", "config", "defer", "loading", "categories"],
-        "description_enhanced": "Get tool search configuration for defer_loading support. Returns tool categorization, MCP toolset config, and system prompt for Anthropic's Tool Search facility.",
+        "description_enhanced": "Get tool search configuration for defer_loading support.",
     },
 
-    # === WORKFLOW TOOLS ===
-    # NOTE: These are for OS NGD mapping features (buildings, roads, land use).
-    # For SIMPLE PLACE LOOKUPS (find Birmingham, where is Manchester), use search_geographic_areas instead!
+    # === WORKFLOW TOOLS (DEFERRED) ===
+    # For OS NGD mapping features only. NOT for place lookups!
     "get_workflow_context": {
-        "defer_loading": False,
+        "defer_loading": True,  # DEFERRED - only for complex OS NGD queries
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["workflow", "context", "start", "initialize", "plan", "collections", "NGD", "mapping"],
-        "description_enhanced": "Initialize OS NGD workflow for MAPPING FEATURES (buildings, roads, land use). NOT for finding cities/towns - use search_geographic_areas for that. REQUIRED first step before search_features.",
+        "keywords": ["workflow", "NGD", "mapping", "buildings", "roads", "topographic"],
+        "description_enhanced": "Initialize OS NGD workflow for MAPPING DATA (buildings, roads, land use). NOT for place lookups - use search_geographic_areas instead.",
     },
     "list_collections": {
-        "defer_loading": False,
+        "defer_loading": True,  # DEFERRED - only for browsing OS NGD collections
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["collections", "list", "available", "datasets", "catalog", "NGD"],
-        "description_enhanced": "List OS NGD mapping collections (buildings, transport, land use, water). For finding cities/towns by name, use search_geographic_areas instead.",
+        "keywords": ["collections", "NGD", "catalog", "mapping"],
+        "description_enhanced": "List OS NGD collections. For place lookups, use search_geographic_areas.",
     },
     "fetch_detailed_collections": {
         "defer_loading": True,
@@ -293,52 +294,51 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
     },
 
     # === GEOGRAPHY TOOLS ===
-    # NOTE: These tools search the ONS Geography API for UK administrative areas
-    # (councils, wards, constituencies). For OS mapping features (buildings, roads,
-    # land use), use the OS NGD workflow (get_workflow_context -> fetch_detailed_collections -> search_features).
-    "select_geographic_area": {
-        "defer_loading": False,
+    # search_geographic_areas is THE PRIMARY TOOL for finding places by name!
+    "search_geographic_areas": {
+        "defer_loading": False,  # ALWAYS LOADED - primary tool for place lookups
         "category": ToolCategory.GEOGRAPHY,
-        "keywords": ["map", "select", "area", "region", "boundary", "UK", "widget", "interactive"],
-        "description_enhanced": "Open interactive map widget for UK geographic area selection. Supports local authorities, wards, constituencies, LSOAs, MSOAs, and output areas. Returns selected area codes and boundaries.",
+        "keywords": ["search", "find", "city", "town", "council", "local authority", "Birmingham", "Manchester", "London", "Leeds", "Coventry", "Sheffield", "ward", "constituency", "where", "code", "GSS"],
+        "description_enhanced": "★ PRIMARY TOOL ★ Find UK places by name (cities, towns, councils). Returns GSS area codes. Use for: 'find Birmingham', 'where is Manchester', 'local authority code for Coventry'. Direct lookup - no workflow needed.",
+    },
+    "select_geographic_area": {
+        "defer_loading": True,  # Deferred - interactive widget
+        "category": ToolCategory.GEOGRAPHY,
+        "keywords": ["map", "select", "area", "widget", "interactive", "click"],
+        "description_enhanced": "Interactive map widget for visual area selection. Use when user wants to click/browse rather than search by name.",
     },
     "fetch_boundaries": {
         "defer_loading": True,
         "category": ToolCategory.GEOGRAPHY,
-        "keywords": ["boundary", "geojson", "polygon", "ONS", "geometry", "shape"],
-        "description_enhanced": "Fetch GeoJSON boundary polygons from ONS Geography API. Get precise boundary geometries for local authorities, wards, parliamentary constituencies, and statistical areas. Use AFTER search_geographic_areas to get boundaries for known area codes.",
-    },
-    "search_geographic_areas": {
-        "defer_loading": False,
-        "category": ToolCategory.GEOGRAPHY,
-        "keywords": ["search", "area", "name", "find", "city", "town", "council", "Birmingham", "Manchester", "London", "lookup", "where is"],
-        "description_enhanced": "PRIMARY TOOL for finding UK places by name. Search for cities, towns, councils, and regions. Returns GSS codes (e.g., E08000025 for Birmingham). Use this FIRST when user asks 'find Birmingham', 'where is Manchester', etc. This searches the ONS Geography database - NOT OS NGD mapping data.",
+        "keywords": ["boundary", "geojson", "polygon", "geometry", "shape"],
+        "description_enhanced": "Get GeoJSON boundaries for areas. Use after search_geographic_areas to get shapes.",
     },
 
     # === STATISTICS TOOLS ===
-    "list_ons_datasets": {
-        "defer_loading": False,
+    # get_statistics is PRIMARY - use after search_geographic_areas
+    "get_statistics": {
+        "defer_loading": False,  # ALWAYS LOADED - primary stats tool
         "category": ToolCategory.STATISTICS,
-        "keywords": ["ONS", "datasets", "statistics", "census", "data", "catalog"],
-        "description_enhanced": "List available ONS statistical datasets. Browse wellbeing, economy, housing, population, health, employment, and Census 2021 datasets with category filtering.",
+        "keywords": ["statistics", "data", "wellbeing", "population", "house prices", "GDP", "employment", "health", "ONS"],
+        "description_enhanced": "★ PRIMARY TOOL ★ Get statistics for an area (wellbeing, population, house prices, etc.). Use after search_geographic_areas gives you the area code.",
+    },
+    "list_ons_datasets": {
+        "defer_loading": True,  # Deferred - only for browsing datasets
+        "category": ToolCategory.STATISTICS,
+        "keywords": ["ONS", "datasets", "catalog", "browse", "available"],
+        "description_enhanced": "Browse available ONS datasets. Use when exploring what statistics exist.",
     },
     "get_dataset_info": {
         "defer_loading": True,
         "category": ToolCategory.STATISTICS,
-        "keywords": ["dataset", "metadata", "dimensions", "info", "ONS"],
-        "description_enhanced": "Get detailed metadata for an ONS dataset. Returns dimensions, editions, versions, and available geographic breakdowns for statistical analysis.",
-    },
-    "get_statistics": {
-        "defer_loading": True,
-        "category": ToolCategory.STATISTICS,
-        "keywords": ["statistics", "data", "observations", "values", "time series", "ONS"],
-        "description_enhanced": "Retrieve statistical observations for geographic areas. Get wellbeing scores, house prices, population, GDP, life expectancy, and other ONS statistics by area code.",
+        "keywords": ["dataset", "metadata", "dimensions", "info"],
+        "description_enhanced": "Get metadata for a specific dataset.",
     },
     "compare_areas": {
         "defer_loading": True,
         "category": ToolCategory.STATISTICS,
-        "keywords": ["compare", "areas", "ranking", "multiple", "benchmark"],
-        "description_enhanced": "Compare statistics across multiple geographic areas. Generate rankings, side-by-side comparisons, and relative performance metrics for local authorities and regions.",
+        "keywords": ["compare", "areas", "ranking", "benchmark"],
+        "description_enhanced": "Compare statistics across multiple areas side-by-side.",
     },
 
     # === FEATURE TOOLS ===
@@ -387,12 +387,12 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "description_enhanced": "Get linked features in bulk. Retrieve multiple features with their linked identifiers efficiently for relationship analysis.",
     },
 
-    # === ROUTING TOOLS ===
+    # === ROUTING TOOLS (DEFERRED) ===
     "plan_route": {
-        "defer_loading": False,
+        "defer_loading": True,  # Deferred - interactive widget
         "category": ToolCategory.ROUTING,
-        "keywords": ["route", "directions", "navigation", "path", "journey", "widget"],
-        "description_enhanced": "Open route planner widget for interactive navigation. Set start/end points, add waypoints, view turn-by-turn directions, and calculate journey times.",
+        "keywords": ["route", "directions", "navigation", "path", "journey"],
+        "description_enhanced": "Interactive route planner widget. Set start/end points, get directions.",
     },
     "get_route_network": {
         "defer_loading": True,
@@ -407,12 +407,12 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "description_enhanced": "Calculate route using OS Routing API. Get optimized path between points with distance, duration, and turn-by-turn instructions.",
     },
 
-    # === WIDGET COMMUNICATION TOOLS ===
+    # === WIDGET COMMUNICATION TOOLS (DEFERRED) ===
     "get_shared_context": {
-        "defer_loading": False,
+        "defer_loading": True,  # Deferred - only for multi-widget workflows
         "category": ToolCategory.WIDGET,
-        "keywords": ["shared", "context", "state", "selections", "cross-widget"],
-        "description_enhanced": "Get current cross-widget shared state. Access selections and context shared between geography, statistics, feature, and route widgets.",
+        "keywords": ["shared", "context", "state", "selections"],
+        "description_enhanced": "Get cross-widget shared state. For multi-widget workflows only.",
     },
     "update_shared_context": {
         "defer_loading": True,

@@ -47,7 +47,7 @@ curl -s http://127.0.0.1:8000/health
 
 ### Core Service Layer
 - `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 38 tools (search_features, get_feature, chat, routing, geography, statistics, route_query, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
-- `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (12) and DEFERRED_TOOLS (26) sets for context efficiency.
+- `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (5) and DEFERRED_TOOLS (33) sets for context efficiency.
 - `src/api_service/os_api.py` - `OSAPIClient`: handles all HTTP requests to OS Data Hub APIs. Includes rate limiting, API key sanitization, collection caching, and OpenAPI spec parsing.
 
 ### Workflow Enforcement
@@ -144,20 +144,21 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 tools.
 
 ### Overview
-- Tools split into always-loaded (12) and deferred (26) for context efficiency
+- Tools split into always-loaded (5) and deferred (33) for token efficiency
 - `defer_loading: true` loads tools on-demand rather than upfront
 - Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
 
 ### Tool Categories
 | Category | Always Loaded | Deferred |
 |----------|---------------|----------|
-| Core | route_query, hello_world, version_info, check_api_key, get_tool_search_config | - |
-| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
-| Geography | select_geographic_area, search_geographic_areas | fetch_boundaries |
-| Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
+| Core | hello_world, version_info | check_api_key, get_tool_search_config |
+| Routing | route_query | - |
+| Geography | search_geographic_areas (★ PRIMARY) | select_geographic_area, fetch_boundaries |
+| Statistics | get_statistics (★ PRIMARY) | list_ons_datasets, get_dataset_info, compare_areas |
+| Workflow | - | get_workflow_context, list_collections, fetch_detailed_collections |
 | Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
-| Routing | plan_route | get_route_network |
-| Widget | get_shared_context | update_shared_context, share_selection |
+| Routing | - | plan_route, get_route_network |
+| Widget | - | get_shared_context, update_shared_context, share_selection |
 
 ### New Tools (Sprint 7-8)
 | Tool | Description |

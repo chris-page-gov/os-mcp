@@ -285,10 +285,13 @@ class OSDataHubService:
         except Exception as e:
             logger.error(f"Error closing API client: {e}")
 
-    # Get the workflow context from the cached API client data
-    # TODO: Lots of work to do here to reduce the size of the context and make it more readable for the LLM but not sacrificing the information
+    # Get the workflow context - MINIMAL response for token efficiency
     async def get_workflow_context(self) -> str:
-        """Get basic workflow context - no detailed queryables yet"""
+        """Initialize OS NGD workflow context. Returns collection IDs only (no descriptions).
+
+        NOTE: This is for MAPPING FEATURES (buildings, roads, land use).
+        For finding places by name, use search_geographic_areas instead.
+        """
         try:
             if self.workflow_planner is None:
                 collections_cache = await self.api_client.cache_collections()
@@ -297,7 +300,6 @@ class OSDataHubService:
                         "id": coll.id,
                         "title": coll.title,
                         "description": coll.description,
-                        # No queryables here - will be fetched on-demand
                     }
                     for coll in collections_cache.collections
                 }
@@ -306,77 +308,38 @@ class OSDataHubService:
                     await self.api_client.cache_openapi_spec(), basic_collections_info
                 )
 
+            # Group collections by theme prefix for compact display
             context = self.workflow_planner.get_basic_context()
-            return json.dumps(
-                {
-                    "status": "ok",
-                    "STOP_AND_CHECK": {
-                        "WARNING": "BEFORE PROCEEDING - Is the user asking to FIND A PLACE BY NAME?",
-                        "examples_of_place_lookups": [
-                            "Find Birmingham",
-                            "Local authority code for Coventry",
-                            "Where is Manchester",
-                            "GSS code for Leeds",
-                        ],
-                        "if_yes": "STOP! Do NOT use this OS NGD workflow. Use search_geographic_areas(query='place name') instead.",
-                        "why": "This OS NGD workflow is for MAPPING FEATURES (buildings, roads, cinemas). For simple place lookups, search_geographic_areas is faster and more accurate.",
-                        "correct_tool": "search_geographic_areas(query='Coventry', level='local_auth')",
-                        "this_workflow_is_for": "Finding mapping features like cinemas, buildings, roads, land use parcels - NOT for finding places by name.",
-                    },
-                    "CRITICAL_COLLECTION_LIST": sorted(
-                        context["available_collections"].keys()
-                    ),
-                    "MANDATORY_PLANNING_REQUIREMENT": {
-                        "CRITICAL": "You MUST follow the 2-step planning process:",
-                        "step_1": "Explain your complete plan listing which specific collections you will use and why",
-                        "step_2": "Call fetch_detailed_collections('collection-id-1,collection-id-2') to get queryables for those collections BEFORE making search calls",
-                        "required_explanation": {
-                            "1": "Which collections you will use and why",
-                            "2": "What you expect to find in those collections",
-                            "3": "What your search strategy will be",
-                        },
-                        "workflow_enforcement": "Do not proceed with search_features until you have fetched detailed queryables",
-                        "example_planning": "I will use 'lus-fts-site-1' for finding cinemas. Let me fetch its detailed queryables first...",
-                    },
-                    "available_collections": context[
-                        "available_collections"
-                    ],  # Basic info only - no queryables yet - this is to reduce the size of the context for the LLM
-                    "openapi_spec": context["openapi_spec"].model_dump()
-                    if context["openapi_spec"]
-                    else None,
-                    "TWO_STEP_WORKFLOW": {
-                        "step_1": "Plan with basic collection info (no detailed queryables available yet)",
-                        "step_2": "Use fetch_detailed_collections() to get queryables for your chosen collections",
-                        "step_3": "Execute search_features with proper filters using the fetched queryables",
-                    },
-                    "AVAILABLE_TOOLS": {
-                        "fetch_detailed_collections": "Get detailed queryables for specific collections: fetch_detailed_collections('lus-fts-site-1,trn-ntwk-street-1')",
-                        "search_features": "Search features (requires detailed queryables first)",
-                    },
-                    "QUICK_FILTERING_GUIDE": {
-                        "primary_tool": "search_features",
-                        "key_parameter": "filter",
-                        "enum_fields": "Use exact values from collection's enum_queryables (fetch these first!)",
-                        "simple_fields": "Use direct values (e.g., usrn = 12345678)",
-                    },
-                    "COMMON_EXAMPLES": {
-                        "workflow_example": "1) Explain plan → 2) fetch_detailed_collections('lus-fts-site-1') → 3) search_features with proper filter",
-                        "cinema_search": "After fetching queryables: search_features(collection_id='lus-fts-site-1', filter=\"oslandusetertiarygroup = 'Cinema'\")",
-                    },
-                    "CRITICAL_RULES": {
-                        "1": "ALWAYS explain your plan first",
-                        "2": "ALWAYS call fetch_detailed_collections() before search_features",
-                        "3": "Use exact enum values from the fetched enum_queryables",
-                        "4": "Quote string values in single quotes",
-                    },
-                }
-            )
+            collection_ids = sorted(context["available_collections"].keys())
+
+            # Group by prefix (bld, gnm, lnd, lus, str, trn, wtr)
+            themes = {}
+            for cid in collection_ids:
+                prefix = cid.split("-")[0] if "-" in cid else "other"
+                if prefix not in themes:
+                    themes[prefix] = []
+                themes[prefix].append(cid)
+
+            return json.dumps({
+                "status": "ok",
+                "note": "For place lookups (find Birmingham, LA code for Coventry), use search_geographic_areas instead.",
+                "workflow": "1) fetch_detailed_collections('collection-id') → 2) search_features with filter",
+                "collections_by_theme": {
+                    "bld": "Buildings",
+                    "gnm": "Geographic Names",
+                    "lnd": "Land",
+                    "lus": "Land Use Sites (cinemas, parks, etc.)",
+                    "str": "Structures",
+                    "trn": "Transport Network",
+                    "wtr": "Water",
+                },
+                "collection_ids": themes,
+                "example": "fetch_detailed_collections('lus-fts-site-2') then search_features(collection_id='lus-fts-site-2', filter=\"...\")",
+            })
 
         except Exception as e:
             logger.error(f"Error getting workflow context: {e}")
-            return json.dumps(
-                {"error": str(e), "instruction": "Proceed with available tools"}
-            )
+            return json.dumps({"error": str(e)})
 
     # Knowledge index utilities
     def _load_knowledge_index(self) -> Optional["OSDataHubService._KnowledgeIndex"]:
@@ -816,18 +779,13 @@ class OSDataHubService:
                     )
                 )
 
-            collections = [
-                {"id": col.get("id"), "title": col.get("title")}
-                for col in data.get("collections", [])
-            ]
+            # Return just IDs for minimal token usage
+            collection_ids = [col.get("id") for col in data.get("collections", [])]
 
             return json.dumps({
-                "STOP_AND_CHECK": {
-                    "WARNING": "Is the user asking to FIND A PLACE BY NAME (like 'find Birmingham', 'local authority code for Coventry')?",
-                    "if_yes": "Do NOT use these OS NGD collections. Use search_geographic_areas(query='place name') instead.",
-                    "these_collections_are_for": "Mapping features (buildings, roads, land use) - NOT for simple place lookups.",
-                },
-                "collections": collections,
+                "note": "For place lookups, use search_geographic_areas instead.",
+                "count": len(collection_ids),
+                "ids": sorted(collection_ids),
             })
         except Exception as e:
             return json.dumps(
