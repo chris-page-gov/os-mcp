@@ -10,11 +10,90 @@ This MCP server provides access to:
 - **ONS Geography API** - UK administrative boundaries (local authorities, wards, constituencies)
 - **Interactive Widgets** - Map-based selection, statistics dashboards, feature inspection, route planning
 
+## CRITICAL: Use route_query FIRST
+
+**Call `route_query` as your FIRST tool for any natural language query.**
+
+The `route_query` tool analyzes the user's intent and recommends the correct approach:
+
+```
+route_query("Find Birmingham")
+→ {
+    "intent": "place_lookup",
+    "recommended_tool": "search_geographic_areas",
+    "recommended_parameters": {"query": "Birmingham", "level": "local_auth"},
+    "guidance": "Use search_geographic_areas for place name lookups..."
+  }
+```
+
+### Why route_query First?
+
+This server has 38 tools serving different purposes:
+- **ONS Geography API** - Administrative areas (councils, wards)
+- **ONS Statistics API** - Government statistics
+- **OS NGD API** - Mapping features (buildings, roads)
+
+Without routing, it's easy to choose the wrong tool (e.g., using OS NGD's gnm-fts-namedarea collection for "find Birmingham" instead of the simple ONS lookup).
+
+### Quick Examples
+
+| Query | Intent | Recommended Tool |
+|-------|--------|------------------|
+| "Find Birmingham" | place_lookup | search_geographic_areas |
+| "Where is Manchester" | place_lookup | search_geographic_areas |
+| "Find cinemas in Leeds" | feature_search | search_features (OS NGD) |
+| "What's the population of Coventry" | statistics | get_statistics |
+| "Compare Birmingham and Manchester" | area_comparison | compare_areas |
+
+## Approach Summary
+
+### For Finding Places by Name (cities, towns, councils)
+
+**USE: `search_geographic_areas`** - Simple, direct, no workflow needed.
+
+```
+User: "Find Birmingham"
+Tool: search_geographic_areas(query="Birmingham", level="local_auth")
+Result: {code: "E08000025", name: "Birmingham"}
+```
+
+This searches the **ONS Geography database** which contains UK administrative areas.
+
+### For OS Mapping Features (buildings, roads, land use)
+
+**USE: The 2-step OS NGD workflow** - Complex, requires initialization.
+
+```
+User: "Find cinemas in Leeds"
+Step 1: get_workflow_context()
+Step 2: fetch_detailed_collections(["lus-fts-site-1"])
+Step 3: search_features(collection_id="lus-fts-site-1", filter="oslandusetertiarygroup='Cinema'")
+```
+
+This searches the **OS NGD Features API** for detailed mapping data.
+
+### Quick Decision Table
+
+| User Question | Right Tool | Why |
+|---------------|------------|-----|
+| "Find Birmingham" | `search_geographic_areas` | Looking up a place by name |
+| "Where is Manchester" | `search_geographic_areas` | Looking up a place by name |
+| "Get area code for Coventry" | `search_geographic_areas` | Looking up a place by name |
+| "Show buildings in area X" | OS NGD workflow | Mapping features |
+| "Find cinemas near Leeds" | OS NGD workflow | Land use features |
+| "List road links in bbox" | OS NGD workflow | Transport features |
+
+### Common Mistakes to Avoid
+
+1. **DON'T use `gnm-fts-namedarea-1` to find cities** - This is for topographic named features, not administrative areas
+2. **DON'T use the OS NGD workflow for simple place lookups** - Use `search_geographic_areas`
+3. **DON'T skip workflow initialization for OS NGD** - You'll get `WORKFLOW_CONTEXT_REQUIRED` errors
+
 ## Key Concepts
 
 ### Two-Step Workflow (OS Data Hub)
 
-For OS NGD data queries, follow the required workflow:
+For **OS NGD mapping features** (buildings, roads, land use), follow the required workflow:
 
 1. **Initialize context**: Call `get_workflow_context()` to get available collections
 2. **Get queryables**: Call `fetch_detailed_collections(collection_ids=[...])` for specific collections

@@ -43,6 +43,7 @@ from tools.widget_communication import (
     update_shared_context as _update_shared_context,
     share_selection as _share_selection,
 )
+from tools.query_router import route_query as _route_query
 from mcp_service.tool_search_config import (
     get_tool_config,
     should_defer_loading,
@@ -198,6 +199,9 @@ class OSDataHubService:
             return base
 
         tool_names = [
+            # PRIMARY ENTRY POINT - Call this first for any natural language query
+            "route_query",
+            # Workflow tools (for OS NGD mapping features)
             "get_workflow_context",
             "hello_world",
             "check_api_key",
@@ -497,6 +501,9 @@ class OSDataHubService:
     def _require_workflow_context(self, func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
         # Functions that don't need workflow context
         skip_functions = {
+            # PRIMARY ENTRY POINT - should always be callable
+            "route_query",
+            # Core tools
             "get_workflow_context",
             "hello_world",
             "check_api_key",
@@ -645,6 +652,42 @@ class OSDataHubService:
         return response_data
 
     # All the tools
+
+    # =========================================================================
+    # PRIMARY ENTRY POINT - Route Query Tool
+    # This should be called FIRST for any natural language query
+    # =========================================================================
+
+    async def route_query(self, query: str) -> str:
+        """Route a natural language query to the appropriate tool.
+
+        THIS TOOL SHOULD BE CALLED FIRST for any user query. It analyzes the query
+        intent and recommends which tool to use, with parameters and workflow steps.
+
+        Args:
+            query: The user's natural language query (e.g., "Find Birmingham",
+                   "What's the population of Coventry?", "Show cinemas near Leeds")
+
+        Returns:
+            JSON with routing recommendation including:
+            - intent: The classified intent (place_lookup, statistics, feature_search, etc.)
+            - recommended_tool: The tool to use
+            - recommended_parameters: Suggested parameters for the tool
+            - workflow_steps: Sequence of tools to call
+            - guidance: Detailed guidance for this type of query
+
+        Examples:
+            "Find Birmingham" → search_geographic_areas(query="Birmingham")
+            "Wellbeing in Coventry" → search_geographic_areas → get_statistics
+            "Find cinemas near Leeds" → get_workflow_context → search_features
+
+        IMPORTANT:
+        - For place lookups (cities, towns, councils): Use search_geographic_areas
+        - For statistics: First get area codes, then get_statistics
+        - For mapping features (buildings, roads): Use OS NGD workflow
+        """
+        return await _route_query(query)
+
     async def hello_world(self, name: str) -> str:
         """Simple hello world tool for testing"""
         return f"Hello, {name}! 👋"

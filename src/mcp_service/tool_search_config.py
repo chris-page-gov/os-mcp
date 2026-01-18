@@ -47,18 +47,24 @@ class ToolConfig(TypedDict, total=False):
 # Tools that should ALWAYS be loaded (defer_loading=False)
 # These are essential for basic operation and frequently used
 ALWAYS_LOADED_TOOLS: Set[str] = {
+    # ========================================
+    # PRIMARY ENTRY POINT - Call this FIRST!
+    # ========================================
+    "route_query",  # Analyzes query intent and recommends the right tool
+
     # Core tools - essential for server operation
     "hello_world",
     "check_api_key",
     "version_info",
     "get_tool_search_config",
 
-    # Workflow tools - required for 2-step workflow
+    # Workflow tools - required for OS NGD 2-step workflow (mapping features only)
     "get_workflow_context",
     "list_collections",
 
-    # Primary geography tool - common entry point
+    # Primary geography tools - for place lookups
     "select_geographic_area",
+    "search_geographic_areas",  # For place name lookups - use BEFORE considering OS NGD
 
     # Primary statistics tool - common entry point
     "list_ons_datasets",
@@ -74,14 +80,13 @@ ALWAYS_LOADED_TOOLS: Set[str] = {
 # Tools that should be DEFERRED (defer_loading=True)
 # These are discovered via tool search when needed
 DEFERRED_TOOLS: Set[str] = {
-    # Workflow - detailed fetch
+    # Workflow - detailed fetch (for OS NGD feature queries)
     "fetch_detailed_collections",
     "get_single_collection",
     "get_single_collection_queryables",
 
-    # Geography - secondary tools
+    # Geography - boundary fetch (use after search_geographic_areas finds codes)
     "fetch_boundaries",
-    "search_geographic_areas",
 
     # Statistics - data retrieval
     "get_dataset_info",
@@ -123,6 +128,16 @@ DEFERRED_TOOLS: Set[str] = {
 
 # Enhanced tool descriptions with keywords for better search discovery
 TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
+    # ========================================
+    # PRIMARY ENTRY POINT - Call this FIRST!
+    # ========================================
+    "route_query": {
+        "defer_loading": False,
+        "category": ToolCategory.CORE,
+        "keywords": ["route", "query", "intent", "classify", "recommend", "start", "first", "help", "find", "search", "what tool"],
+        "description_enhanced": "PRIMARY ENTRY POINT - Call this FIRST for any natural language query. Analyzes intent and recommends the right tool. Examples: 'Find Birmingham' → search_geographic_areas, 'Wellbeing in Coventry' → get_statistics, 'Show cinemas' → OS NGD workflow.",
+    },
+
     # === CORE TOOLS (always loaded) ===
     "hello_world": {
         "defer_loading": False,
@@ -150,23 +165,25 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
     },
 
     # === WORKFLOW TOOLS ===
+    # NOTE: These are for OS NGD mapping features (buildings, roads, land use).
+    # For SIMPLE PLACE LOOKUPS (find Birmingham, where is Manchester), use search_geographic_areas instead!
     "get_workflow_context": {
         "defer_loading": False,
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["workflow", "context", "start", "initialize", "plan", "collections"],
-        "description_enhanced": "Initialize workflow context with available collections. REQUIRED first step before searching features. Returns list of OS NGD collections for planning queries.",
+        "keywords": ["workflow", "context", "start", "initialize", "plan", "collections", "NGD", "mapping"],
+        "description_enhanced": "Initialize OS NGD workflow for MAPPING FEATURES (buildings, roads, land use). NOT for finding cities/towns - use search_geographic_areas for that. REQUIRED first step before search_features.",
     },
     "list_collections": {
         "defer_loading": False,
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["collections", "list", "available", "datasets", "catalog"],
-        "description_enhanced": "List all available OS NGD collections. Shows collection IDs, titles, and descriptions for buildings, transport, land use, water, and other geographic themes.",
+        "keywords": ["collections", "list", "available", "datasets", "catalog", "NGD"],
+        "description_enhanced": "List OS NGD mapping collections (buildings, transport, land use, water). For finding cities/towns by name, use search_geographic_areas instead.",
     },
     "fetch_detailed_collections": {
         "defer_loading": True,
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["collections", "queryables", "fields", "schema", "filters", "detailed"],
-        "description_enhanced": "Fetch detailed queryables for specific collections. REQUIRED before search_features. Returns available filter fields, types, and enum values for query construction.",
+        "keywords": ["collections", "queryables", "fields", "schema", "filters", "detailed", "NGD"],
+        "description_enhanced": "Fetch queryables for OS NGD collections. REQUIRED before search_features for mapping data. For place name lookups, use search_geographic_areas instead.",
     },
     "get_single_collection": {
         "defer_loading": True,
@@ -182,6 +199,9 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
     },
 
     # === GEOGRAPHY TOOLS ===
+    # NOTE: These tools search the ONS Geography API for UK administrative areas
+    # (councils, wards, constituencies). For OS mapping features (buildings, roads,
+    # land use), use the OS NGD workflow (get_workflow_context -> fetch_detailed_collections -> search_features).
     "select_geographic_area": {
         "defer_loading": False,
         "category": ToolCategory.GEOGRAPHY,
@@ -192,13 +212,13 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "defer_loading": True,
         "category": ToolCategory.GEOGRAPHY,
         "keywords": ["boundary", "geojson", "polygon", "ONS", "geometry", "shape"],
-        "description_enhanced": "Fetch GeoJSON boundary polygons from ONS Geography API. Get precise boundary geometries for local authorities, wards, parliamentary constituencies, and statistical areas.",
+        "description_enhanced": "Fetch GeoJSON boundary polygons from ONS Geography API. Get precise boundary geometries for local authorities, wards, parliamentary constituencies, and statistical areas. Use AFTER search_geographic_areas to get boundaries for known area codes.",
     },
     "search_geographic_areas": {
-        "defer_loading": True,
+        "defer_loading": False,
         "category": ToolCategory.GEOGRAPHY,
-        "keywords": ["search", "area", "name", "find", "postcode", "location"],
-        "description_enhanced": "Search UK geographic areas by name or postcode. Find local authority districts, wards, constituencies by searching ONS geography database.",
+        "keywords": ["search", "area", "name", "find", "city", "town", "council", "Birmingham", "Manchester", "London", "lookup", "where is"],
+        "description_enhanced": "PRIMARY TOOL for finding UK places by name. Search for cities, towns, councils, and regions. Returns GSS codes (e.g., E08000025 for Birmingham). Use this FIRST when user asks 'find Birmingham', 'where is Manchester', etc. This searches the ONS Geography database - NOT OS NGD mapping data.",
     },
 
     # === STATISTICS TOOLS ===
@@ -449,19 +469,38 @@ def get_tool_search_system_prompt() -> str:
     """
     return """## Available Tool Categories
 
-This server provides tools organized into the following categories. Use tool search to discover specific tools:
+This server provides tools organized into the following categories.
 
-- **Core**: Server health, API validation, version info
-- **Workflow**: Initialize context, list collections, fetch queryables
-- **Geography**: Select UK areas, fetch boundaries, search regions
-- **Statistics**: Browse ONS datasets, get statistical data, compare areas
-- **Features**: Search OS NGD features, inspect details, linked identifiers
+### IMPORTANT: Choosing the Right Approach
+
+**For finding cities, towns, councils by NAME** (e.g., "find Birmingham", "where is Manchester"):
+→ Use `search_geographic_areas(query="Birmingham", level="local_auth")`
+→ This searches the ONS Geography database and returns area codes directly.
+→ NO workflow initialization needed.
+
+**For OS mapping features** (buildings, roads, land use, topographic data):
+→ Use the 2-step OS NGD workflow: get_workflow_context → fetch_detailed_collections → search_features
+→ This is for detailed mapping data, NOT for simple place lookups.
+
+### Tool Categories
+
+- **Geography** (ONS API): Search places by name, select areas on map, fetch boundaries
+- **Statistics** (ONS API): Browse datasets, get statistics, compare areas
+- **Workflow** (OS NGD): Initialize context for mapping feature queries
+- **Features** (OS NGD): Search buildings, roads, land use after workflow init
 - **Routing**: Plan routes, get road network data
-- **Widget**: Cross-widget communication and shared context
-- **Search**: Collection/field suggestions, knowledge index
-- **Utility**: Address lookup, diagnostics, building summaries
+- **Widget**: Cross-widget communication
+- **Core**: Health checks, version info
 
-When you need a tool, search using relevant keywords like "boundary", "statistics", "route", "address", etc."""
+### Quick Decision Guide
+
+| User Question | Tool to Use |
+|---------------|-------------|
+| "Find Birmingham" | search_geographic_areas |
+| "Where is Manchester" | search_geographic_areas |
+| "Get statistics for Coventry" | search_geographic_areas → get_statistics |
+| "Find buildings near X" | get_workflow_context → search_features |
+| "List cinemas in Leeds" | get_workflow_context → search_features |"""
 
 
 def generate_mcp_toolset_config() -> Dict[str, Any]:

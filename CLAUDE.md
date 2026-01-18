@@ -46,8 +46,8 @@ curl -s http://127.0.0.1:8000/health
 - `src/server.py` - Main entry point. Supports stdio (default) and streamable-http transports via `--transport` flag. Creates `FastMCP` instance and wires up middleware.
 
 ### Core Service Layer
-- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 37 tools (search_features, get_feature, chat, routing, geography, statistics, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
-- `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (11) and DEFERRED_TOOLS (26) sets for context efficiency.
+- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 38 tools (search_features, get_feature, chat, routing, geography, statistics, route_query, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
+- `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (12) and DEFERRED_TOOLS (26) sets for context efficiency.
 - `src/api_service/os_api.py` - `OSAPIClient`: handles all HTTP requests to OS Data Hub APIs. Includes rate limiting, API key sanitization, collection caching, and OpenAPI spec parsing.
 
 ### Workflow Enforcement
@@ -139,29 +139,30 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 - `msoa` - Middle Super Output Areas (~7,000)
 - `oa` - Output Areas (~180,000)
 
-## Tool Search Integration (Sprint 7 - Complete)
+## Tool Search Integration (Sprint 7-8 - Complete)
 
-Implements Anthropic's Tool Search facility for dynamic tool discovery with 37 tools.
+Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 tools.
 
 ### Overview
-- Tools split into always-loaded (11) and deferred (26) for context efficiency
+- Tools split into always-loaded (12) and deferred (26) for context efficiency
 - `defer_loading: true` loads tools on-demand rather than upfront
 - Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
 
 ### Tool Categories
 | Category | Always Loaded | Deferred |
 |----------|---------------|----------|
-| Core | hello_world, version_info, check_api_key, get_tool_search_config | - |
+| Core | route_query, hello_world, version_info, check_api_key, get_tool_search_config | - |
 | Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
-| Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
+| Geography | select_geographic_area, search_geographic_areas | fetch_boundaries |
 | Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
 | Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
 | Routing | plan_route | get_route_network |
 | Widget | get_shared_context | update_shared_context, share_selection |
 
-### New Tool
+### New Tools (Sprint 7-8)
 | Tool | Description |
 |------|-------------|
+| `route_query` | PRIMARY ENTRY POINT - Analyzes query intent and recommends the right tool |
 | `get_tool_search_config` | Returns tool categories, defer_loading settings, and MCP toolset config |
 
 ### Technical Requirements
@@ -237,7 +238,9 @@ See `docs/mcp_toolsearch.md` for full documentation.
 
 ### MCP-Apps Implementation Tracking
 
-MCP-Apps implementation is complete (Sprints 1-7). See:
+MCP-Apps implementation is complete (Sprints 1-8). See:
+- `docs/tutorial.md` - **User tutorial** with setup for all Claude clients
+- `docs/mcp_apps_guide.md` - Detailed widget documentation
 - `plans/PROGRESS.md` - Detailed sprint/task tracking (all complete)
 - `plans/os-mcp-apps-design.md` - Design document
 - `plans/on-ons mcp implementation-roadmap.md` - Sprint breakdown

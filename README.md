@@ -10,14 +10,23 @@ Ask simple questions such as find me all cinemas in Leeds City Centre or use the
 
 This MCP server enforces a 2 step workflow plan to ensure that the user gets the best results possible.
 
-## MCP-Apps Integration (In Progress)
+## Getting Started
 
-We're adding interactive UI widgets to make the server an exemplary MCP-Apps implementation. See the planning documents for full details:
+**New to OS MCP?** Start with the **[User Tutorial](docs/tutorial.md)** - a hands-on guide covering:
+- Setup for Claude Desktop, Claude Code CLI, and Cowork
+- 8 progressive exercises from basic queries to advanced workflows
+- Interactive widget demonstrations
+- Troubleshooting and quick reference
 
+## MCP-Apps Integration (Complete)
+
+Interactive UI widgets make this an exemplary MCP-Apps implementation. See the documentation:
+
+- **[User Tutorial](docs/tutorial.md)** - Hands-on getting started guide
+- **[MCP Apps Guide](docs/mcp_apps_guide.md)** - Detailed widget documentation
+- **[Skills Reference](SKILL.md)** - Complete tool and workflow reference
 - **[Design Document](plans/os-mcp-apps-design.md)** - Architecture and widget specifications
-- **[Implementation Roadmap](plans/on-ons%20mcp%20implementation-roadmap.md)** - Sprint breakdown and timeline
-- **[Starter Code](plans/on-ons%20mcp%20starter-code.md)** - Reference implementations
-- **[Progress Tracker](plans/PROGRESS.md)** - Detailed task-level progress tracking
+- **[Progress Tracker](plans/PROGRESS.md)** - Implementation status (all sprints complete)
 
 ### Implementation Progress
 
@@ -29,7 +38,8 @@ We're adding interactive UI widgets to make the server an exemplary MCP-Apps imp
 | 4 | Statistics Dashboard | ✅ Complete | Chart.js widget, data visualization, export |
 | 5 | Enhanced Features | ✅ Complete | Feature inspector, route planner, cross-widget communication |
 | 6 | Polish & Release | ✅ Complete | 320+ tests, >80% coverage, Docker, CI/CD |
-| 7 | Tool Search | ✅ Complete | defer_loading, MCP toolset integration, 37 tools (11 always-loaded, 26 deferred) |
+| 7 | Tool Search | ✅ Complete | defer_loading, MCP toolset integration |
+| 8 | Architecture Review | ✅ Complete | Query router, 38 tools (12 always-loaded, 26 deferred), evaluation framework |
 
 ### New Geography Tools (Sprint 1-2)
 

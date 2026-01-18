@@ -2,19 +2,21 @@
 
 This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%20implementation-roadmap.md).
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-18
 
 ## Overall Status
 
 | Metric | Value |
 |--------|-------|
-| Current Sprint | 7 Complete - All MCP-Apps sprints done |
-| Tools Added | 15 (7 geography/statistics + 2 feature inspector + 2 route planner + 3 widget communication + 1 tool search) |
+| Current Sprint | 8 Complete - Architecture Review & Evaluation |
+| Tools Added | 16 (15 MCP-Apps + 1 route_query) |
+| Total Tools | 38 (12 always-loaded, 26 deferred) |
 | UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
 | Test Count | 370+ passing |
 | Coverage | >80% |
 | Prompt Templates | 13 new MCP-Apps prompts added |
-| Tool Search | 11 always-loaded, 26 deferred tools |
+| Tool Search | 12 always-loaded (route_query, search_geographic_areas), 26 deferred |
+| Documentation | User tutorial (docs/tutorial.md), Sprint 8 plan |
 
 ---
 
@@ -318,6 +320,65 @@ ONS ArcGIS REST services verified (January 2025):
 
 ---
 
+## Sprint 8: Architecture Review & Query Router ✅ COMPLETE
+
+**Goal**: Address the "Birmingham problem" - ensure simple queries use the right tools without complex workflows.
+
+**Background**: Users asking "Find Birmingham" were getting 10+ tool calls through OS NGD workflow when a single `search_geographic_areas` call would suffice.
+
+### Tasks
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 8.1 Architecture Analysis | ✅ Done | Root cause identified: tool loading priorities |
+| 8.2 Query Router Design | ✅ Done | Intent classification with priority rules |
+| 8.3 route_query Implementation | ✅ Done | ~500 lines, 8 intent types |
+| 8.4 Service Integration | ✅ Done | Added to OSDataHubService, skip_functions |
+| 8.5 Tool Config Updates | ✅ Done | route_query + search_geographic_areas always-loaded |
+| 8.6 Unit Tests | ✅ Done | `tests/test_query_router.py` (~250 lines) |
+| 8.7 Documentation | ✅ Done | SKILL.md, CHANGELOG, tutorial updated |
+| 8.8 Evaluation Framework | ✅ Done | 30+ questions, 5-dimension rubric, test harness |
+| 8.9 Audit Logging | ✅ Done | LLM-readable logs, JSONL output |
+| 8.10 Evaluation Score | ✅ Done | 100% on basic+intermediate (21/21) |
+
+### Files Created
+- `src/tools/query_router.py` - Query routing and intent classification
+- `src/utils/audit_logger.py` - LLM-readable audit logging
+- `tests/evaluation/questions.py` - Evaluation question suite
+- `tests/evaluation/rubric.py` - Scoring rubric
+- `tests/evaluation/harness.py` - Test execution harness
+- `tests/test_query_router.py` - Query router unit tests
+- `docs/evaluation.md` - Evaluation documentation
+- `plans/sprint-8-architecture-review.md` - Architecture analysis document
+
+### New Tool Added
+| Tool | Description |
+|------|-------------|
+| `route_query` | PRIMARY ENTRY POINT - Analyzes query intent, recommends tool and workflow |
+
+### Query Intent Classification
+
+| Intent | Example Query | Recommended Tool |
+|--------|--------------|------------------|
+| place_lookup | "Find Birmingham" | search_geographic_areas |
+| statistics | "Wellbeing in Coventry" | get_statistics |
+| area_comparison | "Compare Birmingham and Manchester" | compare_areas |
+| feature_search | "Find cinemas near Leeds" | search_features (OS NGD) |
+| boundary_fetch | "Get boundary of Coventry" | fetch_boundaries |
+| interactive_selection | "Let me select on a map" | select_geographic_area |
+| route_planning | "Route from A to B" | plan_route |
+| dataset_discovery | "What datasets are available?" | list_ons_datasets |
+
+### Test Results
+
+| Query | Before | After |
+|-------|--------|-------|
+| "Find Birmingham" | OS NGD workflow (10+ calls) | search_geographic_areas (1 call) |
+| "Find cinemas near Leeds" | place_lookup (wrong) | feature_search (correct) |
+| "Compare Birmingham and Manchester" | place_lookup (wrong) | area_comparison (correct) |
+
+---
+
 ## Risk Register
 
 | Risk | Likelihood | Impact | Mitigation | Status |
@@ -335,6 +396,8 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Date | Tests | Tools | Resources | Notes |
 |------|-------|-------|-----------|-------|
+| 2026-01-18 | 370+ | 38 | 10 | Sprint 8 complete - query router, evaluation framework 100% |
+| 2026-01-17 | 370+ | 38 | 10 | Sprint 8 in progress - route_query, architecture review |
 | 2026-01-17 | 370+ | 37 | 10 | Sprint 7 complete - tool search, defer_loading |
 | 2026-01-17 | 320+ | 36 | 10 | Sprint 6 complete - coverage >80%, Docker, CI/CD |
 | 2026-01-17 | 296+ | 36 | 10 | Sprint 6 in progress - coverage 73%, new test files |

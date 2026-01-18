@@ -6,6 +6,67 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added - Sprint 8: Architecture Review & Query Router
+
+- **Query Router Tool** (`route_query`):
+  - NEW PRIMARY ENTRY POINT - Call this FIRST for any natural language query
+  - Analyzes query intent and recommends the correct tool
+  - Classifies into: place_lookup, statistics, area_comparison, feature_search, etc.
+  - Returns recommended tool, parameters, workflow steps, and guidance
+  - Prevents common mistakes like using OS NGD for simple place lookups
+  - Implementation: `src/tools/query_router.py` (~400 lines)
+
+- **User Tutorial** (`docs/tutorial.md`):
+  - Comprehensive hands-on guide for new users
+  - Setup instructions for Claude Desktop, Claude Code CLI, and Cowork
+  - 8 progressive tutorial exercises from basic queries to advanced workflows
+  - Client comparison table showing feature availability
+  - Troubleshooting guide and quick reference card
+
+- **Sprint 8 Planning** (`plans/sprint-8-architecture-review.md`):
+  - Architecture analysis and redesign plan
+  - Root cause analysis of "Birmingham problem"
+  - Proposed solutions: query router, tiered tools, improved descriptions
+
+- **Evaluation Framework** (`tests/evaluation/`):
+  - Comprehensive question suite (30+ questions) with expected outcomes
+  - 5-dimension scoring rubric (100 points total)
+  - Test harness for automated evaluation
+  - Current score: 100% on basic and intermediate questions (21/21)
+  - Documentation: `docs/evaluation.md`
+
+- **Audit Logging System** (`src/utils/audit_logger.py`):
+  - LLM-readable audit logs with clear sections
+  - Sections: QUERY, ROUTING, TOOL_CALLS, RESPONSE, METRICS
+  - Thread-local context for request tracking
+  - Decorator support for tool call auditing
+  - Dual output: human-readable logs + JSONL for analysis
+
+- **Query Router Unit Tests** (`tests/test_query_router.py`):
+  - 250+ lines of comprehensive tests
+  - Tests for all 8 intent types
+  - Edge case and priority handling tests
+  - Performance benchmarks
+
+### Fixed
+- **Critical: Tool routing for common queries**:
+  - "Find Birmingham" now correctly routes to `search_geographic_areas` (was incorrectly going to OS NGD)
+  - "Find cinemas near Leeds" routes to OS NGD workflow (feature_search intent)
+  - "Compare Birmingham and Manchester" routes to `compare_areas`
+  - Query router prevents confusion between ONS Geography and OS NGD APIs
+
+### Changed
+- **Tool loading priorities**:
+  - Added `route_query` to ALWAYS_LOADED_TOOLS (primary entry point)
+  - Added `search_geographic_areas` to ALWAYS_LOADED_TOOLS (was incorrectly deferred)
+  - Tool count: 12 always-loaded (was 10), 26 deferred (was 27)
+- **Improved tool descriptions** to clarify when to use each approach:
+  - Geography tools (ONS API): For finding places by name (cities, towns, councils)
+  - Workflow tools (OS NGD): For mapping features (buildings, roads, land use)
+  - Added explicit guidance: "NOT for finding cities/towns - use search_geographic_areas"
+- **Enhanced system prompt** with decision guide table showing which tool to use
+- **Updated SKILL.md** with prominent "Use route_query FIRST" section
+
 ## [0.1.17] - 2026-01-17
 
 ### Added - MCP-Apps Integration (Sprints 1-7 Complete)
