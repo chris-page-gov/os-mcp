@@ -203,13 +203,13 @@ class OSDataHubService:
         tool_names = [
             # PRIMARY ENTRY POINT - Call this first for any natural language query
             "route_query",
-            # Workflow tools (for OS NGD mapping features)
-            "get_workflow_context",
+            # OS NGD MAPPING tools - SPECIALIZED for topographic data
+            "os_ngd_init_mapping_workflow",
             "hello_world",
             "check_api_key",
             "version_info",
             "get_tool_search_config",
-            "list_collections",
+            "os_ngd_list_mapping_collections",
             "get_single_collection",
             "get_single_collection_queryables",
             "search_features",
@@ -285,12 +285,16 @@ class OSDataHubService:
         except Exception as e:
             logger.error(f"Error closing API client: {e}")
 
-    # Get the workflow context - MINIMAL response for token efficiency
-    async def get_workflow_context(self) -> str:
-        """Initialize OS NGD workflow context. Returns collection IDs only (no descriptions).
+    # OS NGD mapping workflow - SPECIALIZED for mapping data (buildings, roads, land)
+    async def os_ngd_init_mapping_workflow(self) -> str:
+        """⛔ SPECIALIZED TOOL - For OS NGD mapping data ONLY (buildings, roads, land use).
 
-        NOTE: This is for MAPPING FEATURES (buildings, roads, land use).
-        For finding places by name, use search_geographic_areas instead.
+        ❌ WRONG TOOL if you want to:
+        - Find a place by name → use search_geographic_areas
+        - Show a map to select areas → use select_geographic_area
+        - Get statistics → use get_statistics
+
+        ✅ CORRECT USAGE: Only for OS topographic feature searches (buildings, roads, land use sites).
         """
         try:
             if self.workflow_planner is None:
@@ -485,13 +489,13 @@ class OSDataHubService:
             # PRIMARY ENTRY POINT - should always be callable
             "route_query",
             # Core tools
-            "get_workflow_context",
+            "os_ngd_init_mapping_workflow",
             "hello_world",
             "check_api_key",
             "chat",
             "version_info",
             "get_tool_search_config",
-            "list_collections",
+            "os_ngd_list_mapping_collections",
             "get_knowledge_index_overview",
             "suggest_collections",
             "suggest_fields",
@@ -524,7 +528,7 @@ class OSDataHubService:
                     build_error_envelope(
                         tool=func.__name__,
                         code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
-                        message="Call get_workflow_context then fetch_detailed_collections before using this tool",
+                        message="Call os_ngd_init_mapping_workflow then fetch_detailed_collections before using this tool",
                         details={"blocked_tool": func.__name__},
                     )
                 )
@@ -758,14 +762,15 @@ class OSDataHubService:
         except ValueError as e:
             return json.dumps({"status": "error", "message": str(e)})
 
-    async def list_collections(
+    async def os_ngd_list_mapping_collections(
         self,
     ) -> str:
-        """
-        List all available feature collections in the OS NGD API.
+        """⛔ SPECIALIZED TOOL - Lists OS NGD mapping collections (NOT places).
 
-        Returns:
-            JSON string with collection info (id, title only)
+        ❌ WRONG TOOL if you want to find a place by name → use search_geographic_areas
+        ❌ WRONG TOOL for map widgets → use select_geographic_area
+
+        Returns collection IDs for OS topographic data: buildings, roads, land use, water.
         """
         try:
             data = await self.api_client.make_request("COLLECTIONS")
@@ -773,7 +778,7 @@ class OSDataHubService:
             if not data or "collections" not in data:
                 return json.dumps(
                     build_error_envelope(
-                        tool="list_collections",
+                        tool="os_ngd_list_mapping_collections",
                         code=ErrorCode.NOT_FOUND,
                         message="No collections found",
                     )
@@ -790,7 +795,7 @@ class OSDataHubService:
         except Exception as e:
             return json.dumps(
                 build_error_envelope(
-                    tool="list_collections",
+                    tool="os_ngd_list_mapping_collections",
                     code=ErrorCode.UPSTREAM_ERROR,
                     message=str(e),
                 )

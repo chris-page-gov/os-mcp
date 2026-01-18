@@ -75,10 +75,10 @@ ALWAYS_LOADED_TOOLS: Set[str] = {
 # These are discovered via tool search when needed
 DEFERRED_TOOLS: Set[str] = {
     # ========================================
-    # OS NGD WORKFLOW - Only for complex mapping queries
+    # OS NGD MAPPING - Specialized for topographic data (NOT place lookups!)
     # ========================================
-    "get_workflow_context",       # MOVED: Only needed for OS NGD feature searches
-    "list_collections",           # MOVED: Browse OS NGD collections
+    "os_ngd_init_mapping_workflow",    # RENAMED: Only for OS NGD mapping features
+    "os_ngd_list_mapping_collections", # RENAMED: Browse OS NGD mapping collections
     "fetch_detailed_collections",
     "get_single_collection",
     "get_single_collection_queryables",
@@ -147,9 +147,9 @@ STATEFUL_TOOLS: Set[str] = {
 # Tools that interact with EXTERNAL APIs (openWorldHint=True)
 # These call OS Data Hub, ONS APIs, or OpenAI
 EXTERNAL_API_TOOLS: Set[str] = {
-    # OS Data Hub API tools
-    "get_workflow_context",
-    "list_collections",
+    # OS Data Hub API tools (OS NGD mapping)
+    "os_ngd_init_mapping_workflow",
+    "os_ngd_list_mapping_collections",
     "fetch_detailed_collections",
     "get_single_collection",
     "get_single_collection_queryables",
@@ -260,19 +260,19 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "description_enhanced": "Get tool search configuration for defer_loading support.",
     },
 
-    # === WORKFLOW TOOLS (DEFERRED) ===
-    # For OS NGD mapping features only. NOT for place lookups!
-    "get_workflow_context": {
-        "defer_loading": True,  # DEFERRED - only for complex OS NGD queries
+    # === OS NGD MAPPING TOOLS (DEFERRED) ===
+    # ⛔ SPECIALIZED for topographic mapping data. NOT for place lookups!
+    "os_ngd_init_mapping_workflow": {
+        "defer_loading": True,  # DEFERRED - only for OS NGD mapping features
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["workflow", "NGD", "mapping", "buildings", "roads", "topographic"],
-        "description_enhanced": "Initialize OS NGD workflow for MAPPING DATA (buildings, roads, land use). NOT for place lookups - use search_geographic_areas instead.",
+        "keywords": ["os_ngd", "mapping", "topographic", "buildings", "roads", "land"],
+        "description_enhanced": "⛔ SPECIALIZED - OS NGD mapping data only. ❌ WRONG for place lookups (use search_geographic_areas) or map widgets (use select_geographic_area).",
     },
-    "list_collections": {
-        "defer_loading": True,  # DEFERRED - only for browsing OS NGD collections
+    "os_ngd_list_mapping_collections": {
+        "defer_loading": True,  # DEFERRED - only for browsing OS NGD mapping collections
         "category": ToolCategory.WORKFLOW,
-        "keywords": ["collections", "NGD", "catalog", "mapping"],
-        "description_enhanced": "List OS NGD collections. For place lookups, use search_geographic_areas.",
+        "keywords": ["os_ngd", "collections", "mapping", "topographic"],
+        "description_enhanced": "⛔ SPECIALIZED - Lists OS NGD mapping collections. ❌ WRONG for place lookups (use search_geographic_areas).",
     },
     "fetch_detailed_collections": {
         "defer_loading": True,
@@ -561,40 +561,34 @@ def get_tool_search_system_prompt() -> str:
     Returns:
         System prompt text describing tool categories
     """
-    return """## Available Tool Categories
+    return """## PRIMARY TOOLS (Use These First!)
 
-This server provides tools organized into the following categories.
+★ search_geographic_areas - Find places by name (cities, towns, councils)
+★ get_statistics - Get statistics for an area
+★ select_geographic_area - Show interactive map to select areas
 
-### IMPORTANT: Choosing the Right Approach
+### IMPORTANT: Tool Selection
 
-**For finding cities, towns, councils by NAME** (e.g., "find Birmingham", "where is Manchester"):
+**For finding places by NAME** (e.g., "find Birmingham", "show map of Coventry"):
 → Use `search_geographic_areas(query="Birmingham", level="local_auth")`
-→ This searches the ONS Geography database and returns area codes directly.
-→ NO workflow initialization needed.
+→ Use `select_geographic_area(level="oa", search_term="Coventry")` for map widget
 
-**For OS mapping features** (buildings, roads, land use, topographic data):
-→ Use the 2-step OS NGD workflow: get_workflow_context → fetch_detailed_collections → search_features
-→ This is for detailed mapping data, NOT for simple place lookups.
+**For statistics** (e.g., "wellbeing in Coventry", "population of Leeds"):
+→ First: `search_geographic_areas` to get area code
+→ Then: `get_statistics` with the area code
 
-### Tool Categories
-
-- **Geography** (ONS API): Search places by name, select areas on map, fetch boundaries
-- **Statistics** (ONS API): Browse datasets, get statistics, compare areas
-- **Workflow** (OS NGD): Initialize context for mapping feature queries
-- **Features** (OS NGD): Search buildings, roads, land use after workflow init
-- **Routing**: Plan routes, get road network data
-- **Widget**: Cross-widget communication
-- **Core**: Health checks, version info
+**⛔ os_ngd_* tools are SPECIALIZED** for OS topographic mapping data:
+→ Only use for buildings, roads, land use features
+→ NOT for finding places or showing map widgets
 
 ### Quick Decision Guide
 
 | User Question | Tool to Use |
 |---------------|-------------|
 | "Find Birmingham" | search_geographic_areas |
-| "Where is Manchester" | search_geographic_areas |
+| "Show map of Coventry to select areas" | select_geographic_area |
 | "Get statistics for Coventry" | search_geographic_areas → get_statistics |
-| "Find buildings near X" | get_workflow_context → search_features |
-| "List cinemas in Leeds" | get_workflow_context → search_features |"""
+| "Find buildings on High Street" | os_ngd_init_mapping_workflow → search_features |"""
 
 
 def generate_mcp_toolset_config() -> Dict[str, Any]:

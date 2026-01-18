@@ -58,7 +58,7 @@ route_query("Find cinemas in Leeds")
 This server has 38 tools serving DIFFERENT purposes:
 - **ONS Geography API** (search_geographic_areas) - For finding places by NAME
 - **ONS Statistics API** (get_statistics, compare_areas) - For government statistics
-- **OS NGD API** (get_workflow_context, search_features) - For MAPPING features (buildings, roads)
+- **OS NGD Mapping API** (os_ngd_init_mapping_workflow, search_features) - For MAPPING features (buildings, roads) - ⛔ SPECIALIZED
 
 WITHOUT route_query, it's easy to make mistakes like:
 - Using OS NGD's gnm-fts-namedarea for "find Birmingham" (WRONG - use search_geographic_areas)

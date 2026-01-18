@@ -155,7 +155,7 @@ Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 t
 | Routing | route_query | - |
 | Geography | search_geographic_areas (★ PRIMARY) | select_geographic_area, fetch_boundaries |
 | Statistics | get_statistics (★ PRIMARY) | list_ons_datasets, get_dataset_info, compare_areas |
-| Workflow | - | get_workflow_context, list_collections, fetch_detailed_collections |
+| OS NGD Mapping | - | os_ngd_init_mapping_workflow, os_ngd_list_mapping_collections, fetch_detailed_collections |
 | Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
 | Routing | - | plan_route, get_route_network |
 | Widget | - | get_shared_context, update_shared_context, share_selection |

@@ -75,23 +75,24 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - Query router prevents confusion between ONS Geography and OS NGD APIs
 
 ### Changed
+- **MAJOR: Renamed OS NGD workflow tools to prevent misuse**:
+  - `get_workflow_context` → `os_ngd_init_mapping_workflow` (clearly specialized)
+  - `list_collections` → `os_ngd_list_mapping_collections` (clearly specialized)
+  - Tool descriptions now start with ⛔ SPECIALIZED and ❌ WRONG TOOL warnings
+  - These tools are now obviously for OS topographic mapping, not place lookups
 - **MAJOR: Reduced always-loaded tools from 12 to 5 for token efficiency**:
   - PRIMARY: `search_geographic_areas` (find places by name)
   - PRIMARY: `get_statistics` (get stats for an area)
   - ROUTING: `route_query` (classifies query intent)
   - CORE: `hello_world`, `version_info`
-  - MOVED TO DEFERRED: `get_workflow_context`, `list_collections`, `select_geographic_area`, `list_ons_datasets`, `plan_route`, `get_shared_context`, `check_api_key`
-- **MAJOR: Slashed `get_workflow_context` response from ~15KB to ~1KB**:
+  - MOVED TO DEFERRED: `os_ngd_init_mapping_workflow`, `os_ngd_list_mapping_collections`, `select_geographic_area`, `list_ons_datasets`, `plan_route`, `get_shared_context`, `check_api_key`
+- **MAJOR: Slashed `os_ngd_init_mapping_workflow` response from ~15KB to ~1KB**:
   - Removed full collection metadata (was listing every field)
   - Returns only: theme descriptions, collection IDs by theme, example usage
-  - Includes clear note: "For place lookups, use search_geographic_areas instead"
-- **MAJOR: Slashed `list_collections` response size**:
-  - Returns only: count and sorted list of collection IDs
-  - Includes same routing note
 - **Tool descriptions updated with ★ PRIMARY TOOL ★ markers**:
-  - `search_geographic_areas`: "Find UK places by name (cities, towns, councils)"
-  - `get_statistics`: "Get statistics for an area (wellbeing, population, house prices)"
-  - Workflow tools de-emphasized with "DEFERRED" markers
+  - `search_geographic_areas`: "★ PRIMARY TOOL ★ Find UK places by name"
+  - `get_statistics`: "★ PRIMARY TOOL ★ Get statistics for an area"
+  - OS NGD tools de-emphasized with ⛔ SPECIALIZED markers
 - **Enhanced system prompt** with decision guide table showing which tool to use
 - **Updated SKILL.md** with prominent "Use route_query FIRST" section
 

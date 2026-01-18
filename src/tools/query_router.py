@@ -359,8 +359,8 @@ def _get_tool_for_intent(intent: QueryIntent) -> Tuple[str, List[str], str]:
         ),
         QueryIntent.FEATURE_SEARCH: (
             "search_features",
-            ["get_workflow_context", "fetch_detailed_collections", "search_features"],
-            "For OS mapping features (buildings, roads, etc.), use the OS NGD workflow: initialize context, get queryables, then search."
+            ["os_ngd_init_mapping_workflow", "fetch_detailed_collections", "search_features"],
+            "For OS mapping features (buildings, roads, etc.), use the OS NGD workflow: initialize mapping workflow, get queryables, then search."
         ),
         QueryIntent.BOUNDARY_FETCH: (
             "fetch_boundaries",
@@ -404,7 +404,7 @@ def _get_alternative_tools(intent: QueryIntent) -> List[str]:
         QueryIntent.INTERACTIVE_SELECTION: ["search_geographic_areas"],
         QueryIntent.ROUTE_PLANNING: ["get_route_network"],
         QueryIntent.DATASET_DISCOVERY: ["get_dataset_info"],
-        QueryIntent.UNKNOWN: ["list_collections", "get_workflow_context"],
+        QueryIntent.UNKNOWN: ["search_geographic_areas", "route_query"],
     }
 
     return ALTERNATIVES.get(intent, [])
@@ -440,13 +440,13 @@ async def route_query(query: str) -> str:
         → Recommends: search_geographic_areas first, then get_statistics
 
         >>> route_query("Find cinemas in Leeds")
-        → Recommends: OS NGD workflow (get_workflow_context → search_features)
+        → Recommends: OS NGD workflow (os_ngd_init_mapping_workflow → search_features)
 
     Intent Classification:
         - place_lookup: "Find Birmingham", "Where is Manchester" → search_geographic_areas
         - statistics: "Wellbeing in Coventry", "Population of Leeds" → get_statistics
         - area_comparison: "Compare Birmingham and Manchester" → compare_areas
-        - feature_search: "Find cinemas", "Show buildings" → OS NGD workflow
+        - feature_search: "Find cinemas", "Show buildings" → OS NGD mapping workflow
         - boundary_fetch: "Get boundary of Birmingham" → fetch_boundaries
         - interactive_selection: "Let me select on a map" → select_geographic_area
         - route_planning: "Route from A to B" → plan_route
@@ -506,8 +506,8 @@ def _get_guidance_for_intent(intent: QueryIntent) -> str:
         ),
         QueryIntent.FEATURE_SEARCH: (
             "For OS mapping features (buildings, roads, land use), you MUST use the 2-step workflow: "
-            "1) get_workflow_context, 2) fetch_detailed_collections, 3) search_features. "
-            "This is the ONLY case where the workflow is required."
+            "1) os_ngd_init_mapping_workflow, 2) fetch_detailed_collections, 3) search_features. "
+            "This is the ONLY case where the os_ngd_ tools are required."
         ),
         QueryIntent.BOUNDARY_FETCH: (
             "For boundary geometry, first get the area code using search_geographic_areas, "
