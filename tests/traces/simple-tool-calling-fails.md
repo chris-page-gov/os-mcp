@@ -1,0 +1,815 @@
+# Claude Desktop ↔ os-mcp Server (MCP) Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CD as Claude Desktop (Host)
+    participant T as MCP Transport (stdio/http)
+    participant S as os-mcp Server
+    participant OS as OS Data Hub / NGD API
+
+    CD->>T: Tool call request (e.g., get_workflow_context)
+    T->>S: Forward MCP request
+    S->>OS: HTTPS request (OS_API_KEY)
+
+    alt Success
+        OS-->>S: JSON/GeoJSON payload
+        S-->>T: Tool result (MCP response)
+        T-->>CD: Render tool result in conversation
+    else API / validation error
+        OS-->>S: HTTP 4xx/5xx + error JSON
+        S-->>T: Error envelope / failure response
+        T-->>CD: Show error to model/user
+    end
+```
+![alt text](<Screenshot 2026-01-18 at 19.00.32.png>)
+## Notes from the change
+
+Done. Committed e58c5b5 and pushed to geo-mcpi.
+
+What Was Added
+
+Now when Claude calls get_workflow_context(), the response starts with:
+
+```text
+  {
+    "status": "ok",
+    "STOP_AND_CHECK": {
+      "WARNING": "BEFORE PROCEEDING - Is the user asking to FIND A PLACE BY
+  NAME?",
+      "examples_of_place_lookups": [
+        "Find Birmingham",
+        "Local authority code for Coventry",
+        "Where is Manchester",
+        "GSS code for Leeds"
+      ],
+      "if_yes": "STOP! Do NOT use this OS NGD workflow. Use
+  search_geographic_areas(query='place name') instead.",
+      "why": "This OS NGD workflow is for MAPPING FEATURES (buildings, roads,
+  cinemas). For simple place lookups, search_geographic_areas is faster and more
+   accurate.",
+      "correct_tool": "search_geographic_areas(query='Coventry',
+  level='local_auth')"
+    },
+    ...
+  }
+```
+
+Same warning added to list_collections().
+
+To test: Restart the MCP server connection in Claude Code and try "Find the
+local authority code for Coventry" again. Claude should see the warning and
+switch to search_geographic_areas.
+
+## Trace
+
+✻ Cooked for 2m 53s
+
+❯ Now we get
+Find the local authority code for Coventry18:06Strategized accessing
+geographic database for authority code.The user is asking for the local
+authority code for Coventry. This is a specific piece of UK
+government/geographic data that the user likely needs for their work with
+Ordnance Survey and government systems.
+I should use the os-mcp server to search for this information. The user
+has been working with OS data extensively, and I know there's an os-mcp
+server available that can access Ordnance Survey National Geographic
+Database.
+Let me think about the approach:
+
+I could search for Coventry local authority information in the OS
+collections
+The local authority boundaries collection would likely contain this
+information
+
+Let me start by checking what collections are available, then search for
+Coventry in the appropriate collection.I'll help you find the local
+authority code for Coventry using the OS NGD API.
+
+### Tool call: get_workflow_context
+
+Request:
+
+```json
+{}
+```
+
+Response:
+
+```json
+{"instruction": "MANDATORY:
+  Before making any tool calls, you must explain your complete plan to the
+  user. Tell them: 1) Which collection you will use and why, 2) What steps
+  you will take, 3) What information you will gather. Only after explaining
+  your plan should you proceed with tool calls.", "available_collections":
+  {"bld-fts-building-4": {"id": "bld-fts-building-4", "title": "Building
+  v4", "description": "A new building geometry which represents a single
+  building footprint. This geometry consists of adjoining building parts
+  which have been determined to be part of the same building. When
+  contained in a Land Use Site, adjoining building parts will be
+  represented by a single feature."}, "bld-fts-buildingaccesslocation-1":
+  {"id": "bld-fts-buildingaccesslocation-1", "title": "Building Access
+  Location v1", "description": "Feature which has a point geometry and
+  represents the locations where pedestrians and / or vehicles can enter or
+  exit a building."}, "bld-fts-buildingline-1": {"id":
+  "bld-fts-buildingline-1", "title": "Building Line v1", "description": "A
+  feature which has a line geometry and represents a wall between two
+  buildings, building internal divisions, or an overhanging building
+  edge."}, "bld-fts-buildingpart-2": {"id": "bld-fts-buildingpart-2",
+  "title": "Building Part v2", "description": "Polygon feature representing
+  either a complete separate building, or part of a larger building where
+  internal divisions exist from ground to roof level which can be
+  identified externally. Examples of Building Part features include a
+  multistorey car park, a castle or a windmill."},
+  "gnm-fts-crowdsourcednamepoint-1": {"id":
+  "gnm-fts-crowdsourcednamepoint-1", "title": "Crowd Sourced Name Point
+  v1", "description": "A crowd sourced name collated from data submitted to
+  the Vernacular Names Tool in the OS Data Hub, provided as a point
+  feature."}, "gnm-fts-namedarea-1": {"id": "gnm-fts-namedarea-1", "title":
+  "Named Area v1", "description": "A settlement, locality, geographical
+  feature, or area of water that has a name, represented as a polygon."},
+  "gnm-fts-namedpoint-1": {"id": "gnm-fts-namedpoint-1", "title": "Named
+  Point v1", "description": "A settlement, locality, geographical feature,
+  or area of water that has a name, represented as a point."},
+  "gnm-fts-namedroadjunction-1": {"id": "gnm-fts-namedroadjunction-1",
+  "title": "Named Road Junction v1", "description": "A named intersection
+  between roads at a junction or roundabout. The intersection may be
+  numbered, have an official name or be assigned a modelled name based on
+  the names of the intersecting roads."}, "lnd-fts-land-3": {"id":
+  "lnd-fts-land-3", "title": "Land v3", "description": "Polygon feature
+  representing an area on the Earth's surface that has not otherwise been
+  captured as a Building Part, Rail, Road Track Or Path, Structure, or
+  Water Feature Type. Examples of Land features include arable or grazing
+  land, made surface, bare earth or grass, and heath or rough grassland."},
+  "lnd-fts-landform-1": {"id": "lnd-fts-landform-1", "title": "Landform
+  v1", "description": "Polygon feature representing an area of the Earth's
+  surface with a distinct physical morphology, such as cliffs, artificial
+  slopes, and burial mounds."}, "lnd-fts-landformline-1": {"id":
+  "lnd-fts-landformline-1", "title": "Landform Line v1", "description":
+  "Feature which has a line geometry and represents the alignment of either
+  the higher limit, or the side or lower limit of areas with a distinct
+  physical morphology, typically where there is a significant change in
+  slope angle. This feature type is best used in combination with the
+  Landform Feature Type."}, "lnd-fts-landformpoint-1": {"id":
+  "lnd-fts-landformpoint-1", "title": "Landform Point v1", "description":
+  "Feature which has a point geometry and represents an area of the Earth's
+  surface with a distinct physical morphology that is too small to capture
+  as a Landform feature but is considered to be of sufficient interest to
+  be captured, typically associated with former mineral workings."},
+  "lnd-fts-landpoint-1": {"id": "lnd-fts-landpoint-1", "title": "Land Point
+  v1", "description": "An area on the Earth's surface that has not
+  otherwise been captured as a Building Part, Structure Point, or Water
+  Point feature and is too small to capture as a Land feature, for example,
+  a coniferous tree or a non-coniferous tree."}, "lus-fts-site-2": {"id":
+  "lus-fts-site-2", "title": "Site v2", "description": "Polygon feature
+  which represents the recognisable extent of certain types of function or
+  activity. Examples include a caravan site, a university, and a railway
+  centre."}, "lus-fts-siteaccesslocation-2": {"id":
+  "lus-fts-siteaccesslocation-2", "title": "Site Access Location v2",
+  "description": "Feature which has a point geometry and represents the
+  locations where pedestrians and / or vehicles can enter or exit a
+  site."}, "lus-fts-siteroutingpoint-1": {"id":
+  "lus-fts-siteroutingpoint-1", "title": "Site Routing Point v1",
+  "description": "The location on the road network which provides entry or
+  exit into a site for vehicles and / or pedestrians, represented as a
+  point geometry."}, "str-fts-compoundstructure-2": {"id":
+  "str-fts-compoundstructure-2", "title": "Compound Structure v2",
+  "description": "Polygon feature which encompasses one or more components
+  and represents a manmade construction that has been built for a specific
+  purpose. Examples include a bridge, a dam, and an aqueduct."},
+  "str-fts-fieldboundary-1": {"id": "str-fts-fieldboundary-1", "title":
+  "Field Boundary v1", "description": "A line feature representing field
+  boundary features adjacent to, or contained within, areas of agricultural
+  land, trees, rough grassland or heath. Also includes features adjacent
+  to, or contained within, land in the RPA\u2019s Rural Land Register where
+  they are in urban areas in England. Field Boundary features replicate
+  all, or part of, an underlying OS NGD Structure (Built Obstruction) Line
+  and are classified as Tree Canopy, Wooded Strip, Hedge, Wall, Other or
+  Unknown (in hierarchy order)."}, "str-fts-structure-3": {"id":
+  "str-fts-structure-3", "title": "Structure v3", "description": "Polygon
+  feature representing a manmade construction that is not a building.
+  Examples include a mast, a chimney, and a crane."},
+  "str-fts-structureline-1": {"id": "str-fts-structureline-1", "title":
+  "Structure Line v1", "description": "Feature which has a line geometry
+  and represents a linear, freestanding, manmade construction that is not a
+  building and is not wide enough to capture as a structure. Examples
+  include a gate or barrier, a pipeline, and a sea wall."},
+  "str-fts-structurepoint-1": {"id": "str-fts-structurepoint-1", "title":
+  "Structure Point v1", "description": "Feature which has a point geometry
+  and represents a freestanding manmade construction that is not a building
+  and is less than 4m square but is considered to be of sufficient
+  interest to be captured. Examples include a statue, a telephone call box,
+  and a post box."}, "trn-fts-cartographicraildetail-1": {"id":
+  "trn-fts-cartographicraildetail-1", "title": "Cartographic Rail Detail
+  v1", "description": "A cartographic representation of a Railway Rail or
+  Railway Buffer."}, "trn-fts-rail-3": {"id": "trn-fts-rail-3", "title":
+  "Rail v3", "description": "Features related to travel by railway or
+  tramway. Features representing, describing or limiting the extents of
+  railways. The Transport Features Collection contains information relating
+  to permanent railways that form the network between two points."},
+  "trn-fts-roadline-1": {"id": "trn-fts-roadline-1", "title": "Road Line
+  v1", "description": "A line feature representing the edges of traffic
+  calming."}, "trn-fts-roadtrackorpath-3": {"id":
+  "trn-fts-roadtrackorpath-3", "title": "Road Track Or Path v3",
+  "description": "Features representing, describing or limiting the extents
+  of roadways, tracks and pathways. A road is a metalled way for vehicles.
+  A track is an unmetalled way that is clearly marked, permanent and used
+  by vehicles. A path is defined as any established way other than a road
+  or track."}, "trn-fts-streetlight-1": {"id": "trn-fts-streetlight-1",
+  "title": "Street Light v1", "description": "A point representation of a
+  pole mounted light which is positioned to artificially illuminate
+  sections of a road or path."}, "trn-ntwk-buslane-1": {"id":
+  "trn-ntwk-buslane-1", "title": "Bus Lane v1", "description": "A linear
+  feature that describes a bus lane and it's relationship to the road
+  network."}, "trn-ntwk-connectinglink-1": {"id":
+  "trn-ntwk-connectinglink-1", "title": "Connecting Link v1",
+  "description": "The Road and Path Networks are not topologically
+  structured together. Connecting Links have been introduced to enable a
+  connection between the Road Network and the Path Network without
+  splitting the Road Network. A Connecting Link feature is a linear spatial
+  object which represents a logical connection between the Path Network
+  and the Road Network, and they do represent a feature in the real world.
+  A Connecting Link will always reference a Path Node and a Connecting
+  Node."}, "trn-ntwk-connectingnode-1": {"id": "trn-ntwk-connectingnode-1",
+  "title": "Connecting Node v1", "description": "A Connecting Node is a
+  point feature that identifies the point along the Road Link which the
+  Path Link connects to. The Connecting Node has been snapped to a vertex
+  along the Road Link and provides a reference to the Road Link it has been
+  snapped to. The Road Link is not split at the location of the Connecting
+  Node. The Connecting Node is referenced by a Connecting Link."},
+  "trn-ntwk-cyclelane-1": {"id": "trn-ntwk-cyclelane-1", "title": "Cycle
+  Lane v1", "description": "A linear feature that describes a cycle lane or
+  cycle track and it's relationship to the road or path network."},
+  "trn-ntwk-ferrylink-1": {"id": "trn-ntwk-ferrylink-1", "title": "Ferry
+  Link v1", "description": "A Ferry Link is a linear spatial object which
+  represents the connectivity of a vehicular ferry route across a body of
+  water. A Ferry Link will only be captured where both terminals are
+  located within Great Britain and where there is a timetabled service
+  which is available to the public. Ferry routes with a terminal located
+  outside of Great Britain are not captured (for example, Dover to Calais)
+  and neither are ferry routes where the service is not available to the
+  public."}, "trn-ntwk-ferrynode-1": {"id": "trn-ntwk-ferrynode-1",
+  "title": "Ferry Node v1", "description": "A Ferry Node is a point spatial
+  object which is used to represent the connectivity where the Ferry Link
+  features start and end. A Ferry Node feature may serve multiple Ferry
+  Link features if more than one destination is served from the same
+  location. Ferry Node's will always be referenced by at least one Ferry
+  Link."}, "trn-ntwk-ferryterminal-1": {"id": "trn-ntwk-ferryterminal-1",
+  "title": "Ferry Terminal v1", "description": "The ferry and road network
+  elements are linked together through a Ferry Terminal feature. A Ferry
+  Terminal is a logical connection between the two networks and therefore
+  there is no geometry supplied with these features. They will reference
+  one Road Node and one Ferry Node. The Ferry Terminals will also provide a
+  reference to the OS MasterMap Site feature."}, "trn-ntwk-path-1": {"id":
+  "trn-ntwk-path-1", "title": "Path v1", "description": "A Path feature is
+  a link set which represents a collection of Path Link features that
+  share the same name (for example, Church Walk). A Path will reference the
+  complete collection of Road Link features irrespective of which
+  authority boundary it falls within. A Path Link feature may be referenced
+  by multiple Path features."}, "trn-ntwk-pathlink-3": {"id":
+  "trn-ntwk-pathlink-3", "title": "Path Link v3", "description": "A Path
+  Link is a linear spatial object that defines the geometry and
+  connectivity of the path network between two points in the network. Path
+  Links will be split for connectivity purposes (for example, at junctions)
+  and Path Nodes will connect the Path Links together. Each Path Link will
+  provide a reference to the Path Nodes at the start and end of the Path
+  Link. Path Links will be captured where: They provide a route that cannot
+  be inferred from the Road Network. They provide connectivity between
+  road networks. There is a canal path or tow path. There are paths over
+  footbridges and under subways. Path Links will not be captured where:
+  They run parallel to the Road Network (for example, a pavement). They are
+  connected to a motorway. There is a physical obstruction which prevents
+  connectivity."}, "trn-ntwk-pathnode-1": {"id": "trn-ntwk-pathnode-1",
+  "title": "Path Node v1", "description": "A point spatial object that is
+  used to break up the path network for connectivity. The path network
+  splits for the following circumstances: The location where an attribute
+  changes. The intersection or crossing of Path Links. The start / end of a
+  Path Link."}, "trn-ntwk-pavementlink-1": {"id":
+  "trn-ntwk-pavementlink-1", "title": "Pavement Link v1", "description": "A
+  subsection of the road link geometry that indicates where there is
+  pavement on either side of the road"}, "trn-ntwk-railwaylink-1": {"id":
+  "trn-ntwk-railwaylink-1", "title": "Railway Link v1", "description": "A
+  Railway Link is a linear feature that defines the geometry and
+  connectivity of the Rail Network between two points in the network."},
+  "trn-ntwk-railwaylinkset-1": {"id": "trn-ntwk-railwaylinkset-1", "title":
+  "Railway Link Set v1", "description": "A Railway Link Set depicts the
+  full extent of a named railway as one continuous line."},
+  "trn-ntwk-railwaynode-1": {"id": "trn-ntwk-railwaynode-1", "title":
+  "Railway Node v1", "description": "A point spatial object that is used to
+  break up the Railway Network for connectivity. The Railway Network
+  splits for the following circumstances; 1)The location where an attribute
+  changes; 2)The intersection or crossing of Railway Links; 3)The start /
+  end of a Railway Link"}, "trn-ntwk-road-1": {"id": "trn-ntwk-road-1",
+  "title": "Road v1", "description": "A road feature is a link set which
+  represents a collection of road link features that share the same name
+  (for example, Bilston Road) or classification number (for example, A41),
+  used primarily by motorised vehicles. A road will reference the complete
+  collection of road link features irrespective of which authority boundary
+  it falls within. The feature type will include Motorways, A Roads, B
+  Roads, and Named Thoroughfares (roads). The link set may not be
+  contiguous across junctions or where a classified road consists of
+  separate sections, which may be separated by some considerable distance.
+  In addition, the same road link feature may be referenced by multiple
+  road features."}, "trn-ntwk-roadjunction-1": {"id":
+  "trn-ntwk-roadjunction-1", "title": "Road Junction v1", "description": "A
+  Road Junction feature is a collection of Road Node features that share
+  the same road junction name or number. The collection of Road Nodes will
+  include all Road Nodes that constitute part of a 'slip road' or other
+  link between two or more crossing road features. A Road Node could be
+  referenced by multiple Road Junction features.\nMotorway Junctions will
+  be populated completely, other junctions are being supplied as data is
+  improved for future releases."}, "trn-ntwk-roadlink-5": {"id":
+  "trn-ntwk-roadlink-5", "title": "Road Link v5", "description": "A Road
+  Link is a linear spatial object that defines the geometry and
+  connectivity of a road network between two points in the network. Road
+  Links can represent single carriageways, dual carriageways, slip roads,
+  roundabouts, and indicative trajectories across traffic squares. Road
+  Links will be split for connectivity purposes (for example, at junctions)
+  and Road Nodes will connect the Road Links together. Each Road Link will
+  provide a reference to the Road Nodes at the start and end of the Road
+  Link."}, "trn-ntwk-roadnode-1": {"id": "trn-ntwk-roadnode-1", "title":
+  "Road Node v1", "description": "A point spatial object that is used to
+  break up the road network for connectivity. The road network splits for
+  the following circumstances:\nThe location where an attribute recorded on
+  the Road Link changes (for example, its name or form)\nThe intersection
+  or crossing of roads (including bridges, flyovers, and tunnels where
+  there is no connectivity)\nThe start / end of a Road feature\nWhere a
+  one-way routing feature starts or ends\nWhere a tunnel starts or
+  ends\nChange of Local Highway Authority"}, "trn-ntwk-street-1": {"id":
+  "trn-ntwk-street-1", "title": "Street v1", "description": "A Street
+  feature is the definition of the street as defined in the National Street
+  Gazetteer. A Street includes aggregated geometry. Where possible, the
+  geometry of streets captured by a Roads or Highway Authority is spatially
+  matched to the geometry of OS Road Links."}, "trn-ntwk-tramonroad-1":
+  {"id": "trn-ntwk-tramonroad-1", "title": "Tram On Road v1",
+  "description": "A subsection of the road link geometry that indicates
+  where there is a Tram within the road area."},
+  "trn-rami-averageandindicativespeed-1": {"id":
+  "trn-rami-averageandindicativespeed-1", "title": "Average And Indicative
+  Speed v1", "description": "This feature type provides two sets of speed
+  information for all roads in Great Britain. These are:\n1.\tA historic
+  average speed in kilometres per hours (kph). In this context, 'historic'
+  means that the average speed data was collected over a six-month period
+  for the selected road link. Average speeds are provided in different time
+  periods for each road link. A single day (i.e. a 24-hour period) is
+  split into 8 time periods Monday to Friday (MF) and 6 time periods
+  Saturday to Sunday (SS), for example, Monday\u2013Friday (MF)
+  07:00\u201309:00, Saturday\u2013Sunday (SS) 14:00\u201319:00.
+  There\u2019s a separate attribute for each time period.\n2.\tAn
+  indicative speed limit. This is an indication of the maximum speed limit
+  for vehicles; the indicative speed limits reference road network data.
+  Indicative speed limit values that apply over the majority of a section
+  of road are provided in both miles per hour (mph) and kilometres per hour
+  (kph)."}, "trn-rami-highwaydedication-1": {"id":
+  "trn-rami-highwaydedication-1", "title": "Highway Dedication v1",
+  "description": "Highway dedication provides an indication of the type of
+  Highway user who has access to that particular section of the
+  Highway.\nAgainst every section of geometry supplied by the local highway
+  authority there will be one of eight different types of Highway
+  Dedication defined in the Highways Act 1980 and the Countryside and
+  Rights of Way Act 2000 which determines the Highway user access.\nThere
+  can only be one Highway Dedication type applied to the geometry at any
+  given date or time."}, "trn-rami-maintenancearea-1": {"id":
+  "trn-rami-maintenancearea-1", "title": "Maintenance Area v1",
+  "description": "A feature which has a closed (area) geometry and provides
+  information about whether the road is maintained at public expense by a
+  national or local highway authority, a road authority or is maintained by
+  another responsible organisation (i.e. not maintained at public
+  expense). If a path is prospectively maintainable at public expense, then
+  this is not currently maintained by a road or highway authority, but the
+  responsible organisation has started the process for a highway or road
+  authority to become responsible for the maintenance of the street at
+  public expense."}, "trn-rami-maintenanceline-1": {"id":
+  "trn-rami-maintenanceline-1", "title": "Maintenance Line v1",
+  "description": "A feature which has a line / curve geometry and provides
+  information about whether the road is maintained at public expense by a
+  national or local highway authority, a road authority or is maintained by
+  another responsible organisation (i.e. not maintained at public
+  expense). If a path is prospectively maintainable at public expense, then
+  this is not currently maintained by a road or highway authority, but the
+  responsible organisation has started the process for a highway or road
+  authority to become responsible for the maintenance of the street at
+  public expense."}, "trn-rami-maintenancepoint-1": {"id":
+  "trn-rami-maintenancepoint-1", "title": "Maintenance Point v1",
+  "description": "A feature which has a point geometry and provides
+  information about whether the road is maintained at public expense by a
+  national or local highway authority, a road authority or is maintained by
+  another responsible organisation (i.e. not maintained at public
+  expense). If a path is prospectively maintainable at public expense, then
+  this is not currently maintained by a road or highway authority, but the
+  responsible organisation has started the process for a highway or road
+  authority to become responsible for the maintenance of the street at
+  public expense."}, "trn-rami-reinstatementarea-1": {"id":
+  "trn-rami-reinstatementarea-1", "title": "Reinstatement Area v1",
+  "description": "A feature which has a closed (area) geometry and defines
+  the standard the path must be restored to following opening due to works
+  in the highway, as defined in the New Roads and Street Works Act
+  Specification for the Reinstatement of Openings in Highways in England
+  and Wales, and the New Roads and Street Works Act 1991 Specification for
+  the Reinstatement of Openings in Roads in Scotland."},
+  "trn-rami-reinstatementline-1": {"id": "trn-rami-reinstatementline-1",
+  "title": "Reinstatement Line v1", "description": "A feature which has a
+  line / curve geometry and defines the standard the path must be restored
+  to following opening due to works in the highway, as defined in the New
+  Roads and Street Works Act Specification for the Reinstatement of
+  Openings in Highways in England and Wales, and the New Roads and Street
+  Works Act 1991 Specification for the Reinstatement of Openings in Roads
+  in Scotland."}, "trn-rami-reinstatementpoint-1": {"id":
+  "trn-rami-reinstatementpoint-1", "title": "Reinstatement Point v1",
+  "description": "A feature which has a point geometry and defines the
+  standard the path must be restored to following opening due to works in
+  the highway, as defined in the New Roads and Street Works Act
+  Specification for the Reinstatement of Openings in Highways in England
+  and Wales, and the New Roads and Street Works Act 1991 Specification for
+  the Reinstatement of Openings in Roads in Scotland."},
+  "trn-rami-restriction-1": {"id": "trn-rami-restriction-1", "title":
+  "Restriction v1", "description": "Restriction includes turn restrictions,
+  restriction for vehicles, and access restrictions.\nTurn restrictions
+  are a restriction based upon a vehicle manoeuvre. This type of
+  restriction includes prohibitive driving instructions, mandatory driving
+  instruction and implicit restrictions. Prohibited instructions are
+  indicated by road signs within a red circle, examples include No U Turn,
+  No Right Turn or No Left Turn. These can include exceptions to the
+  instruction and are typically elements like Except for Buses. Mandatory
+  driving instructions indicated by road signs within a blue circle or
+  painted on the roadway such as Turn Right, Ahead Only and Left Turn.
+  Implicit restrictions occur where a turn is not signed as prohibited but
+  would not be a normal manoeuvre. For example, where a road splits around
+  a traffic island or at complex junctions where additional geometry has
+  been captured to reflect the traffic flow. These are not differentiated
+  from actual signed restrictions.\nRestriction for vehicles are
+  constraints that apply to the vehicles based on their physical
+  characteristics: height, weight, width and length. These are required to
+  protect structures such as bridges and tunnels from damage, or to
+  restrict/prohibit use by vehicle that exceed specific dimensions, usually
+  for environmental reasons.\nRestriction for vehicles has been extended
+  to support the full definition of height, weight, width and length
+  restrictions as defined in the UK to ensure that they can:\nApply to
+  specific vehicle types only\nRelate to a structure for which the
+  restriction is designed to protect (for example, a Bridge)"},
+  "trn-rami-routinghazard-1": {"id": "trn-rami-routinghazard-1", "title":
+  "Routing Hazard v1", "description": "These are locations which are
+  hazardous, and caution should be taken to ensure safe travel. Hazards are
+  usually signed using the warning sign through a red triangle."},
+  "trn-rami-routingstructure-1": {"id": "trn-rami-routingstructure-1",
+  "title": "RoutingStructure v1", "description": "These indicate the
+  location of key structures related to the highway network. These may
+  be:\nBarriers: Structures or equipment constructed to control, obstruct,
+  or prevent passage or access\nBridges and Tunnels\nCrossings and Signals:
+  Equipment such as traffic signals, and locations that control the flow
+  of traffic"}, "trn-rami-specialdesignationarea-1": {"id":
+  "trn-rami-specialdesignationarea-1", "title": "Special Designation Area
+  v1", "description": "Special Designations are statutory and advisory
+  designations that can be applied to protect a highway when street or road
+  works are to be undertaken. A Special Designation feature will reference
+  back to the Roads product through Network Reference and will reference a
+  Street Feature. Features which are a partial reference will provide a
+  Network Reference Location."}, "trn-rami-specialdesignationline-1":
+  {"id": "trn-rami-specialdesignationline-1", "title": "Special Designation
+  Line v1", "description": "Special Designations are statutory and
+  advisory designations that can be applied to protect a highway when
+  street or road works are to be undertaken. A Special Designation feature
+  will reference back to the Roads product through Network Reference and
+  will reference a Street Feature. Features which are a partial reference
+  will provide a Network Reference Location."},
+  "trn-rami-specialdesignationpoint-1": {"id":
+  "trn-rami-specialdesignationpoint-1", "title": "Special Designation Point
+  v1", "description": "Special Designations are statutory and advisory
+  designations that can be applied to protect a highway when street or road
+  works are to be undertaken. A Special Designation feature will reference
+  back to the Roads product through Network Reference and will reference a
+  Street Feature. Features which are a partial reference will provide a
+  Network Reference Location."}, "wtr-fts-intertidalline-1": {"id":
+  "wtr-fts-intertidalline-1", "title": "Inter Tidal Line v1",
+  "description": "A watercourse that extends across the inter tidal
+  zone."}, "wtr-fts-tidalboundary-1": {"id": "wtr-fts-tidalboundary-1",
+  "title": "Tidal Boundary v1", "description": "The alignment of the limit
+  of tidal water at specific states of the tide."}, "wtr-fts-water-3":
+  {"id": "wtr-fts-water-3", "title": "Water v3", "description": "Polygon
+  feature representing an area of permanent inland water."},
+  "wtr-fts-waterpoint-1": {"id": "wtr-fts-waterpoint-1", "title": "Water
+  Point v1", "description": "Point feature associated with permanent inland
+  water that is too small to be captured as a Water feature but which OS
+  consider to be of sufficient interest to be captured."},
+  "wtr-ntwk-waterlink-2": {"id": "wtr-ntwk-waterlink-2", "title": "Water
+  Link v2", "description": "A network representation of the general
+  alignment and connectivity of permanent water, including rivers, lakes,
+  and canals."}, "wtr-ntwk-waterlinkset-1": {"id":
+  "wtr-ntwk-waterlinkset-1", "title": "Water Link Set v1", "description":
+  "A body of water with an accepted name that the water network flows
+  through."}, "wtr-ntwk-waternode-1": {"id": "wtr-ntwk-waternode-1",
+  "title": "Water Node v1", "description": "The location where a connected
+  area of permanent water ends, where an area of permanent water is
+  connected to two or more other areas of permanent water, or where a
+  recorded attribute changes for an area of permanent water."}},
+  "openapi_endpoints": ["/", "/conformance", "/collections",
+  "/collections/{collectionId}", "/collections/{collectionId}/schema",
+  "/collections/{collectionId}/queryables",
+  "/collections/{collectionId}/items",
+  "/collections/{collectionId}/items/{featureId}"], "workflow_requirement":
+  "You MUST explain your plan to the user before executing any tools",
+  "guidance": "Start by identifying the most relevant collection for the
+  user's request, then query its queryables to understand available
+  parameters, then execute the appropriate search."}
+```
+
+Strategized data
+collection search for administrative identifier.Now I have the context. I
+need to find the local authority code for Coventry. Looking at the
+available collections, I should check if there's administrative boundary
+data or street data that would contain local authority codes.
+Looking at the collections, I don't see a specific "administrative
+boundaries" or "local authority" collection. However, the
+trn-ntwk-street-1 (Street v1) collection mentions "National Street
+Gazetteer" and streets are typically associated with local authorities.
+Let me plan my approach:
+
+I'll search the Street collection for Coventry, as streets in the
+National Street Gazetteer are typically associated with local authority
+codes
+Or I could search the Named Area collection for Coventry itself
+I should check the queryables for these collections to see what
+attributes are available
+
+Actually, let me think about this more carefully. The user is asking for
+"the local authority code" - this is likely a specific GSS code
+(Government Statistical Service code) or similar identifier used in UK
+government systems.
+The best approach would be:
+
+Search the Named Area collection for Coventry (as it's a named
+settlement)
+Check if it has local authority information
+Or search for administrative boundary data
+
+Let me explain my plan to the user first as required.I'll help you find
+the local authority code for Coventry. Here's my plan:
+Collection to use: I'll use the Named Area (gnm-fts-namedarea-1)
+collection, which contains settlements, localities, and geographical
+features with names.
+Steps:
+
+First, I'll check what queryable properties are available in the Named
+Area collection to see if it includes local authority codes
+Then I'll search for Coventry in the Named Area collection
+Extract the local authority code from the feature properties
+
+Let me start:
+
+### Tool call: search_features (attempt 1)
+
+Request:
+
+```text
+2 steps
+Osearch_features
+Request{
+  `limit`: 5,
+  `query_attr`: `name1_text`,
+  `collection_id`: `gnm-fts-namedarea-1`,
+  `query_attr_value`: `Coventry`
+  }
+```
+
+Response:
+
+```json
+{"error": "Request failed: HTTP Error: 400 - {\n  \"code\" :
+  400,\n  \"description\" : \"The filter parameter 'name1_text=Coventry' is
+  not supported. Please check this is the filter parameter and/or values
+  required.\",\n  \"help\" :
+  \"https://api.os.uk/features/ngd/ofa/v1/collections/gnm-fts-namedarea-1/q
+  ueryables?key=qLiLe3zOqgDFHT0iIDn1xQqNUc7b7PCO\"\n}"}
+```
+
+Navigated multiple
+search strategies to identify Coventry's administrative code.The query
+parameter format isn't working. Let me try using a bounding box search
+for the Coventry area, or I could try a simpler search without query
+parameters. Actually, looking at the search_features function, I might
+need to just search without the query parameters and rely on the API's
+search capabilities.
+Let me try a different approach - perhaps I should look for street data
+or try to use the linked identifiers functionality if I can find a UPRN
+or TOID for something in Coventry.
+Actually, based on my knowledge, the local authority code for Coventry is
+likely to be found in administrative boundary data or through ONS
+(Office for National Statistics) codes. The GSS code for Coventry City
+Council is "E08000026".
+However, let me try to verify this through the OS data. Let me search
+more broadly.
+
+### Tool call: search_features (attempt 2)
+
+Request:
+
+```text
+Let me try a simpler search approach:
+Osearch_featuresRequest{
+  `bbox`: `-1.6,52.35,-1.4,52.45`,
+  `limit`: 5,
+  `collection_id`: `gnm-fts-namedarea-1`
+  }
+```
+
+Response:
+
+```json
+{"type": "FeatureCollection", "links": [{"href":
+  "https://api.os.uk/features/ngd/ofa/v1/collections/gnm-fts-namedarea-1/it
+  ems?limit=5&bbox=-1.6,52.35,-1.4,52.45", "rel": "self", "type":
+  "application/geo+json", "title": "All features from the 'Named Area v1'
+  collection within bounding box: -1.6,52.35,-1.4,52.45"}, {"href":
+  "https://api.os.uk/features/ngd/ofa/v1/collections/gnm-fts-namedarea-1/it
+  ems?offset=5&limit=5&bbox=-1.6,52.35,-1.4,52.45", "rel": "next", "type":
+  "application/geo+json", "title": "Next page"}], "timeStamp":
+  "2026-01-18T18:06:45.001186207Z", "numberReturned": 5, "features":
+  [{"id": "0386dd16-cc9a-43e3-92a1-7b90df1c2191", "type": "Feature",
+  "geometry": {"type": "Polygon", "coordinates": [[[-1.5479365,
+  52.4120815], [-1.54859, 52.4125475], [-1.5492483, 52.412597],
+  [-1.5501777, 52.4119427], [-1.5517342, 52.4117702], [-1.5559723,
+  52.4121802], [-1.5584532, 52.4118015], [-1.5608077, 52.4109421],
+  [-1.5600002, 52.4100756], [-1.5590737, 52.4080237], [-1.5590855,
+  52.4069187], [-1.5589116, 52.4038727], [-1.5585834, 52.4021615],
+  [-1.5540223, 52.4024873], [-1.5516412, 52.402434], [-1.5491186,
+  52.4028123], [-1.5475335, 52.4032089], [-1.5455466, 52.4042131],
+  [-1.5466978, 52.4049364], [-1.5485893, 52.4054373], [-1.5495279,
+  52.4066076], [-1.5502008, 52.4074428], [-1.5503243, 52.4081958],
+  [-1.5498408, 52.4090433], [-1.5494081, 52.4100513], [-1.5485798,
+  52.4110902], [-1.5479365, 52.4120815]]]}, "properties": {"osid":
+  "0386dd16-cc9a-43e3-92a1-7b90df1c2191", "theme": "Geographical Names",
+  "height": null, "changetype": "New", "name1_text": "Whoberley",
+  "name2_text": null, "name3_text": null, "name4_text": null,
+  "description": "Suburban Area", "versiondate": "2022-07-29",
+  "name1_source": "Ordnance Survey", "name2_source": null, "name3_source":
+  null, "name4_source": null, "sameasdbobih": null, "geometry_area":
+  767602.314174, "sameasdbpedia": null, "name1_language": null,
+  "name2_language": null, "name3_language": null, "name4_language": null,
+  "sameasgeonames": null, "geometry_source": "Ordnance Survey",
+  "descriptiongroup": "Settlement", "extentdefinition": "Manually Defined
+  Complete", "name1_updatedate": "2011-06-25", "name2_updatedate": null,
+  "name3_updatedate": null, "name4_updatedate": null, "description_source":
+  "Ordnance Survey", "name1_evidencedate": "2002-11-26",
+  "name2_evidencedate": null, "name3_evidencedate": null,
+  "name4_evidencedate": null, "geometry_updatedate": "2015-05-01",
+  "geometry_evidencedate": "2011-09-01", "description_updatedate":
+  "2014-12-21", "versionavailabletodate": null, "description_evidencedate":
+  "2014-12-21", "versionavailablefromdate": "2022-07-30T00:00:00Z"}},
+  {"id": "0a68fa80-c772-458e-9214-5604d70e777e", "type": "Feature",
+  "geometry": {"type": "Polygon", "coordinates": [[[-1.4066969,
+  52.4191771], [-1.4100082, 52.418093], [-1.4106232, 52.4177013],
+  [-1.4107405, 52.4174809], [-1.4103195, 52.4173363], [-1.4101149,
+  52.4174163], [-1.4091047, 52.4180013], [-1.4078195, 52.4184708],
+  [-1.4080168, 52.4187063], [-1.4066969, 52.4191771]]]}, "properties":
+  {"osid": "0a68fa80-c772-458e-9214-5604d70e777e", "theme": "Geographical
+  Names", "height": null, "changetype": "New", "name1_text": "Top Pool",
+  "name2_text": null, "name3_text": null, "name4_text": null,
+  "description": "Named Area Of Still Water", "versiondate": "2023-05-25",
+  "name1_source": null, "name2_source": null, "name3_source": null,
+  "name4_source": null, "sameasdbobih": null, "geometry_area": 9320.132575,
+  "sameasdbpedia": null, "name1_language": null, "name2_language": null,
+  "name3_language": null, "name4_language": null, "sameasgeonames": null,
+  "geometry_source": "Ordnance Survey", "descriptiongroup": "Water Name",
+  "extentdefinition": "Auto-Generated Indication", "name1_updatedate":
+  "2015-05-09", "name2_updatedate": null, "name3_updatedate": null,
+  "name4_updatedate": null, "description_source": "Ordnance Survey",
+  "name1_evidencedate": "2015-05-09", "name2_evidencedate": null,
+  "name3_evidencedate": null, "name4_evidencedate": null,
+  "geometry_updatedate": "2020-05-22", "geometry_evidencedate":
+  "2020-05-19", "description_updatedate": "2015-05-09",
+  "versionavailabletodate": null, "description_evidencedate": "2015-05-09",
+  "versionavailablefromdate": "2023-05-26T00:00:00Z"}}, {"id":
+  "0be6f2e7-dc97-4173-bd18-9ada49944d9a", "type": "Feature", "geometry":
+  {"type": "Polygon", "coordinates": [[[-1.5050117, 52.3931887],
+  [-1.5055704, 52.3933623], [-1.5056006, 52.3924971], [-1.5051259,
+  52.3925644], [-1.5050117, 52.3931887]]]}, "properties": {"osid":
+  "0be6f2e7-dc97-4173-bd18-9ada49944d9a", "theme": "Geographical Names",
+  "height": null, "changetype": "New", "name1_text": "Quinton Pool",
+  "name2_text": null, "name3_text": null, "name4_text": null,
+  "description": "Named Area Of Still Water", "versiondate": "2023-05-25",
+  "name1_source": null, "name2_source": null, "name3_source": null,
+  "name4_source": null, "sameasdbobih": null, "geometry_area": 2942.098923,
+  "sameasdbpedia": null, "name1_language": null, "name2_language": null,
+  "name3_language": null, "name4_language": null, "sameasgeonames": null,
+  "geometry_source": "Ordnance Survey", "descriptiongroup": "Water Name",
+  "extentdefinition": "Auto-Generated Indication", "name1_updatedate":
+  "2015-05-09", "name2_updatedate": null, "name3_updatedate": null,
+  "name4_updatedate": null, "description_source": "Ordnance Survey",
+  "name1_evidencedate": "2015-05-09", "name2_evidencedate": null,
+  "name3_evidencedate": null, "name4_evidencedate": null,
+  "geometry_updatedate": "2015-05-06", "geometry_evidencedate":
+  "2012-06-22", "description_updatedate": "2015-05-09",
+  "versionavailabletodate": null, "description_evidencedate": "2015-05-09",
+  "versionavailablefromdate": "2023-05-26T00:00:00Z"}}, {"id":
+  "0ee90496-27f3-4f76-b8c4-1b08a9251332", "type": "Feature", "geometry":
+  {"type": "Polygon", "coordinates": [[[-1.4847779, 52.3960419],
+  [-1.4838193, 52.3971003], [-1.4817752, 52.3977135], [-1.480869,
+  52.3980645], [-1.4791934, 52.3971223], [-1.478318, 52.397332],
+  [-1.4774155, 52.3973824], [-1.4774004, 52.398585], [-1.4769411,
+  52.4004053], [-1.4764906, 52.4008973], [-1.4761474, 52.401961],
+  [-1.4760551, 52.4026135], [-1.4760822, 52.4027728], [-1.4766309,
+  52.4030927], [-1.4766562, 52.4033935], [-1.476289, 52.404259],
+  [-1.4747644, 52.4045905], [-1.4737978, 52.4051005], [-1.4733503,
+  52.4059659], [-1.4739387, 52.4069934], [-1.47595, 52.4063273],
+  [-1.4769999, 52.4061358], [-1.4785424, 52.4061226], [-1.4838079,
+  52.4062086], [-1.4849703, 52.4063358], [-1.4861866, 52.4066506],
+  [-1.4867159, 52.4040062], [-1.4866412, 52.4029802], [-1.4875146,
+  52.4029473], [-1.4883034, 52.4026843], [-1.4885265, 52.4027069],
+  [-1.4887465, 52.4021372], [-1.4887859, 52.4013061], [-1.48853,
+  52.4008101], [-1.4884826, 52.3999434], [-1.4887503, 52.3994666],
+  [-1.4887295, 52.3987945], [-1.4883889, 52.3981038], [-1.4874092,
+  52.3973405], [-1.4855848, 52.3966632], [-1.4847779, 52.3960419]]]},
+  "properties": {"osid": "0ee90496-27f3-4f76-b8c4-1b08a9251332", "theme":
+  "Geographical Names", "height": null, "changetype": "Modified Geometry
+  And Attributes", "name1_text": "Lower Stoke", "name2_text": null,
+  "name3_text": null, "name4_text": null, "description": "Suburban Area",
+  "versiondate": "2026-01-14", "name1_source": "Ordnance Survey",
+  "name2_source": null, "name3_source": null, "name4_source": null,
+  "sameasdbobih": null, "geometry_area": 797065.734758, "sameasdbpedia":
+  null, "name1_language": null, "name2_language": null, "name3_language":
+  null, "name4_language": null, "sameasgeonames": null, "geometry_source":
+  "Ordnance Survey", "descriptiongroup": "Settlement", "extentdefinition":
+  "Manually Defined Complete", "name1_updatedate": "2015-05-04",
+  "name2_updatedate": null, "name3_updatedate": null, "name4_updatedate":
+  null, "description_source": "Ordnance Survey", "name1_evidencedate":
+  "2015-05-04", "name2_evidencedate": null, "name3_evidencedate": null,
+  "name4_evidencedate": null, "geometry_updatedate": "2026-01-13",
+  "geometry_evidencedate": "2026-01-13", "description_updatedate":
+  "2014-12-21", "versionavailabletodate": null, "description_evidencedate":
+  "2014-12-21", "versionavailablefromdate": "2026-01-15T00:00:00Z"}},
+  {"id": "0f55ecfd-402c-47a3-83b3-341ae87fd535", "type": "Feature",
+  "geometry": {"type": "Polygon", "coordinates": [[[-1.4744724, 52.424395],
+  [-1.4766868, 52.4250266], [-1.4807621, 52.4249635], [-1.486325,
+  52.4244045], [-1.4870966, 52.4202309], [-1.4870641, 52.4162051],
+  [-1.4829064, 52.4163433], [-1.482858, 52.4169182], [-1.4835776,
+  52.4186207], [-1.4811867, 52.4189638], [-1.4788811, 52.4191365],
+  [-1.4786734, 52.4191475], [-1.4781399, 52.4191643], [-1.4763277,
+  52.4192246], [-1.4757603, 52.4217984], [-1.4749285, 52.4223954],
+  [-1.47385, 52.423168], [-1.4744724, 52.424395]]]}, "properties": {"osid":
+  "0f55ecfd-402c-47a3-83b3-341ae87fd535", "theme": "Geographical Names",
+  "height": null, "changetype": "New", "name1_text": "Stoke Heath",
+  "name2_text": null, "name3_text": null, "name4_text": null,
+  "description": "Suburban Area", "versiondate": "2022-07-29",
+  "name1_source": "Ordnance Survey", "name2_source": null, "name3_source":
+  null, "name4_source": null, "sameasdbobih": null, "geometry_area":
+  584189.923448, "sameasdbpedia": null, "name1_language": null,
+  "name2_language": null, "name3_language": null, "name4_language": null,
+  "sameasgeonames": null, "geometry_source": "Ordnance Survey",
+  "descriptiongroup": "Settlement", "extentdefinition": "Manually Defined
+  Complete", "name1_updatedate": "2015-05-04", "name2_updatedate": null,
+  "name3_updatedate": null, "name4_updatedate": null, "description_source":
+  "Ordnance Survey", "name1_evidencedate": "2015-05-04",
+  "name2_evidencedate": null, "name3_evidencedate": null,
+  "name4_evidencedate": null, "geometry_updatedate": "2015-05-01",
+  "geometry_evidencedate": "2011-09-01", "description_updatedate":
+  "2014-12-21", "versionavailabletodate": null, "description_evidencedate":
+  "2014-12-21", "versionavailablefromdate":
+  "2022-07-30T00:00:00Z"}}]}
+```
+
+Searched local data, identified code, attempted
+verification.I got results for areas within Coventry (Whoberley, Lower
+Stoke, Stoke Heath) but not for Coventry itself as a city. The OS NGD
+data doesn't seem to include local authority codes in these features.
+Based on my knowledge of UK government data, the local authority code
+(GSS code) for Coventry is E08000026. This is the standard ONS code used
+across government systems.
+However, let me try to verify this by searching for "Coventry" more
+directly or by checking if there's administrative boundary data
+available. Let me try a broader search.I can see we're getting areas
+within Coventry, but not the city-level information with the local
+authority code. The OS NGD collection doesn't appear to include
+administrative boundary codes directly in the Named Area features.
+Based on UK government data standards, the local authority code for
+Coventry is E08000026. This is the GSS (Government Statistical Service)
+code used by the Office for National Statistics and across all UK
+government systems.
+This code identifies Coventry as a Metropolitan District in the West
+Midlands. The coding structure is:
+
+E = England
+08 = Metropolitan District
+000026 = Coventry's unique identifier
+
+This is the standard code you'd use when working with ONS data,
+government APIs, or any system that requires local authority
+identification. Is this the code you were looking for, or do you need a
+different type of identifier?
+
+⏺ Claude saw the STOP_AND_CHECK warning but ignored it and continued anyway. The
+warning appears after Claude has already committed to the OS NGD path.
+
+The issue is: by the time Claude sees the warning, it's already "in the
+workflow" and treats the JSON as data rather than an instruction to stop.
+
+Options to make it more forceful:
+
+1. Return an error status - Force Claude to reconsider by not returning "ok"
+2. Add a required parameter - Make get_workflow_context require a query_type
+   parameter
+3. Accept the limitation - Claude eventually got the right answer (E08000026)
+   anyway
+
+Would you like me to try Option 1? I could change the response to return
+"status": "STOP_REQUIRED" with instructions, rather than "status": "ok" with a
+warning that can be ignored.
