@@ -56,3 +56,4 @@ pyrightconfig.json
 certs/
 !certs/.gitkeep
 .claude/settings.local.json
+docs/OS and ONS MCP Server Evaluation.docx
