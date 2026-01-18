@@ -55,6 +55,11 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - Only 2 stateful tools: `update_shared_context`, `share_selection`
   - New helper: `get_tool_annotations(tool_name)` returns annotation hints for any tool
 
+- **MCP Resources and Prompts for Client Guidance**:
+  - New resource: `skills://os-ons/getting-started` - Serves SKILL.md content via MCP
+  - New prompt: `getting_started` - Critical guidance to call route_query FIRST
+  - Helps MCP clients understand correct tool selection workflow
+
 ### Fixed
 - **Critical: Tool routing for common queries**:
   - "Find Birmingham" now correctly routes to `search_geographic_areas` (was incorrectly going to OS NGD)

@@ -2,10 +2,14 @@
 
 import json
 import time
+from pathlib import Path
 from models import NGDAPIEndpoint
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Path to SKILL.md from project root
+SKILL_MD_PATH = Path(__file__).parent.parent.parent / "SKILL.md"
 
 
 # TODO: Do this for
@@ -18,9 +22,46 @@ class OSDocumentationResources:
 
     def register_all(self) -> None:
         """Register all documentation resources"""
+        self._register_skills_resource()
         self._register_transport_network_resources()
         # Future: self._register_land_resources()
         # Future: self._register_building_resources()
+
+    def _register_skills_resource(self) -> None:
+        """Register SKILL.md as an MCP resource for client guidance.
+
+        IMPORTANT: Clients should read this resource to understand how to use the server.
+        It explains to call route_query FIRST for any natural language query.
+        """
+
+        @self.mcp.resource("skills://os-ons/getting-started")
+        async def skills_guide() -> str:
+            """Server usage guide - READ THIS FIRST.
+
+            Contains critical guidance:
+            - Call route_query FIRST for any query
+            - When to use ONS Geography vs OS NGD
+            - Tool selection decision tables
+            - Common workflow patterns
+            """
+            try:
+                if SKILL_MD_PATH.exists():
+                    content = SKILL_MD_PATH.read_text(encoding="utf-8")
+                    return json.dumps({
+                        "resource": "skills://os-ons/getting-started",
+                        "content": content,
+                        "content_type": "markdown",
+                        "description": "Server usage guide - explains how to use route_query and select the right tools",
+                        "priority": "READ_FIRST",
+                    })
+                else:
+                    return json.dumps({
+                        "error": "SKILL.md not found",
+                        "expected_path": str(SKILL_MD_PATH),
+                    })
+            except Exception as e:
+                logger.error(f"Error reading SKILL.md: {e}")
+                return json.dumps({"error": str(e)})
 
     def _register_transport_network_resources(self) -> None:
         """Register transport network documentation resources"""

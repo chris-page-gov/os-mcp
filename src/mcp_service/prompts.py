@@ -14,8 +14,70 @@ class OSWorkflowPrompts:
 
     def register_all(self) -> None:
         """Register all workflow prompts"""
+        self._register_getting_started_prompt()
         self._register_analysis_prompts()
         self._register_general_prompts()
+
+    def _register_getting_started_prompt(self) -> None:
+        """Register the critical getting started prompt.
+
+        IMPORTANT: This prompt should be read first by any client.
+        It explains to ALWAYS call route_query before other tools.
+        """
+
+        @self.mcp.prompt()
+        def getting_started() -> List[PromptMessage]:
+            """CRITICAL: Read this first before using any tools.
+
+            This prompt explains the correct way to use this MCP server:
+            1. ALWAYS call route_query FIRST for any user query
+            2. route_query will recommend the correct tool and workflow
+            3. This prevents common mistakes like using OS NGD for simple place lookups
+            """
+            return [
+                PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text="""# CRITICAL: How to Use This MCP Server
+
+## ALWAYS Call route_query FIRST
+
+For ANY user query, call `route_query` first to get the correct tool recommendation:
+
+```
+route_query("Find Birmingham")
+→ Recommends: search_geographic_areas (NOT OS NGD workflow)
+
+route_query("Find cinemas in Leeds")
+→ Recommends: OS NGD workflow (search_features)
+```
+
+## Why This Matters
+
+This server has 38 tools serving DIFFERENT purposes:
+- **ONS Geography API** (search_geographic_areas) - For finding places by NAME
+- **ONS Statistics API** (get_statistics, compare_areas) - For government statistics
+- **OS NGD API** (get_workflow_context, search_features) - For MAPPING features (buildings, roads)
+
+WITHOUT route_query, it's easy to make mistakes like:
+- Using OS NGD's gnm-fts-namedarea for "find Birmingham" (WRONG - use search_geographic_areas)
+- Using search_geographic_areas for "find cinemas" (WRONG - use OS NGD workflow)
+
+## Quick Decision Table
+
+| User Query | route_query Intent | Correct Tool |
+|------------|-------------------|--------------|
+| "Find Birmingham" | place_lookup | search_geographic_areas |
+| "Local authority code for Coventry" | place_lookup | search_geographic_areas |
+| "Find cinemas in Leeds" | feature_search | OS NGD workflow |
+| "Population of Manchester" | statistics | get_statistics |
+| "Compare Birmingham and London" | area_comparison | compare_areas |
+
+## REMEMBER: route_query FIRST, then follow its recommendation.""",
+                    ),
+                )
+            ]
 
     def _register_analysis_prompts(self) -> None:
         """Register analysis workflow prompts"""
