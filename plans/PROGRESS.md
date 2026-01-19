@@ -25,6 +25,10 @@ This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%
 
 ---
 
+## Internal Notes
+
+- 2026-01-17: Added `.github/copilot-instructions.md` to capture repo-specific AI agent conventions.
+
 ## Sprint 1: MCP-Apps Foundation ✅ COMPLETE
 
 **Goal**: Get basic MCP-Apps infrastructure working with a minimal geography selector.

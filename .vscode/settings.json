@@ -5,6 +5,7 @@
     "os-mcp-stdio": {
       "command": "python",
       "args": ["-m", "server", "--transport", "stdio"],
+      "cwd": "${workspaceFolder}",
       "env": {
         "OS_API_KEY": "${env:OS_API_KEY}",
         "STDIO_KEY": "dev-key",
@@ -13,11 +14,12 @@
       "description": "Editable local MCP server (stdio) from this repo"
     },
     "os-mcp-http": {
-      "url": "http://127.0.0.1:8000/mcp/",
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp",
       "headers": {
         "Authorization": "Bearer dev-token"
       },
-      "description": "HTTP transport (start with: python -m server --transport streamable-http --host 127.0.0.1 --port 8000)"
+      "description": "HTTP transport (start the VS Code task: Run MCP (http); it enables OS_MCP_AUTH_BYPASS=1 for local dev)"
     }
   },
   // Optional: surface common env expectations for devs (informational only)

@@ -7,9 +7,10 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 ## [Unreleased]
 
 ### Added
-- _None._
+- **Agent docs**: added `.github/copilot-instructions.md` to guide AI coding agents with repo-specific architecture and workflows.
 
 ### Changed
+- **VS Code**: auto-run the task "Run MCP (http)" on folder open to simplify local Copilot Chat testing.
 - **Docs**: updated evaluation summary to reflect the latest basic-only run results.
 - **Evaluation harness** now writes results and audit logs under `tests/evaluation/` by default.
 

@@ -19,10 +19,13 @@
       "label": "Run MCP (http)",
       "type": "shell",
       "command": "python -m server --transport streamable-http --host 127.0.0.1 --port 8000",
+      "isBackground": true,
+      "runOptions": {"runOn": "folderOpen"},
       "options": {
         "env": {
           "OS_API_KEY": "${env:OS_API_KEY}",
-          "BEARER_TOKENS": "dev-token"
+          "BEARER_TOKENS": "dev-token",
+          "OS_MCP_AUTH_BYPASS": "1"
         }
       },
       "problemMatcher": [],
