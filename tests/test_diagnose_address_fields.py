@@ -65,7 +65,9 @@ class DummyAPIClient:
 
 
 class DummyMCPService:
-    def tool(self) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
+    def tool(
+        self, *_args: Any, **_kwargs: Any
+    ) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
         def deco(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
             return fn
         return deco
@@ -87,7 +89,7 @@ class DummyMCPService:
 @pytest.mark.asyncio
 async def test_diagnose_address_fields_basic() -> None:
     svc = OSDataHubService(DummyAPIClient(), DummyMCPService())
-    await svc.get_workflow_context()
+    await svc.os_ngd_init_mapping_workflow()
     result = await svc.diagnose_address_fields("Gloucester Street")
     data: Dict[str, Any] = json.loads(result)
     assert data["status"] == "ok"

@@ -152,8 +152,11 @@ class TestBuildStreamableHttpApp:
             app, _ = build_streamable_http_app()
 
             # Check that HTTPMiddleware is in the middleware stack
-            middleware_types = [type(m.cls if hasattr(m, 'cls') else m) for m in app.user_middleware]
-            assert any('HTTPMiddleware' in str(mt) for mt in middleware_types)
+            middleware_classes = []
+            for m in app.user_middleware:
+                if hasattr(m, "cls"):
+                    middleware_classes.append(str(m.cls))
+            assert any("HTTPMiddleware" in mc for mc in middleware_classes)
 
     def test_build_app_with_auth_bypass_skips_auth_middleware(self):
         """Test that HTTPMiddleware is skipped when bypass is on"""

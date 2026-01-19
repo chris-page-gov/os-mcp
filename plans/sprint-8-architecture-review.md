@@ -23,7 +23,7 @@ The current architecture has grown organically from Sprint 1-7, adding features 
 **Problem**: Nothing tells Claude which source to use. It defaults to OS NGD because those tools are more prominent.
 
 ### Problem 3: The 2-Step Workflow is Overused
-The OS NGD workflow (`get_workflow_context` → `fetch_detailed_collections` → `search_features`) is:
+The OS NGD workflow (`os_ngd_init_mapping_workflow` → `fetch_detailed_collections` → `search_features`) is:
 - Required for complex mapping queries
 - Completely unnecessary for simple lookups
 - But it's presented as THE way to do things
@@ -126,7 +126,7 @@ compare_areas         - "Compare statistics across areas"
 
 **Tier 3: Advanced Features (DEFERRED)**
 ```
-get_workflow_context  - "For OS NGD mapping features ONLY"
+os_ngd_init_mapping_workflow  - "For OS NGD mapping features ONLY"
 fetch_detailed_collections
 search_features
 ...
@@ -147,7 +147,7 @@ Pre-built workflows for common patterns:
 WORKFLOWS = {
     "find_place": ["route_query", "search_geographic_areas"],
     "get_statistics": ["route_query", "search_geographic_areas", "get_statistics"],
-    "find_features": ["route_query", "get_workflow_context", "fetch_detailed_collections", "search_features"],
+    "find_features": ["route_query", "os_ngd_init_mapping_workflow", "fetch_detailed_collections", "search_features"],
     "compare_areas": ["route_query", "search_geographic_areas", "compare_areas"],
 }
 ```

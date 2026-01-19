@@ -38,8 +38,8 @@ class FeatureService(Protocol):
         """Check if API key is available"""
         ...
 
-    async def list_collections(self) -> str:
-        """List all available feature collections"""
+    async def os_ngd_list_mapping_collections(self) -> str:
+        """List OS NGD mapping collections (buildings, roads, land use, etc.)"""
         ...
 
     async def get_single_collection(self, collection_id: str) -> str:

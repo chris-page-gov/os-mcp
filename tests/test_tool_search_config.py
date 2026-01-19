@@ -46,24 +46,17 @@ class TestAlwaysLoadedTools:
 
     def test_core_tools_always_loaded(self):
         """Test that core tools are always loaded"""
-        core_tools = ["hello_world", "check_api_key", "version_info"]
+        core_tools = ["hello_world", "version_info", "route_query"]
         for tool in core_tools:
             assert tool in ALWAYS_LOADED_TOOLS
 
     def test_workflow_entry_point_always_loaded(self):
-        """Test that workflow entry point is always loaded"""
-        assert "get_workflow_context" in ALWAYS_LOADED_TOOLS
+        """Test that routing entry point is always loaded"""
+        assert "route_query" in ALWAYS_LOADED_TOOLS
 
     def test_primary_widget_tools_always_loaded(self):
         """Test that primary widget entry points are always loaded"""
-        primary_tools = [
-            "select_geographic_area",
-            "list_ons_datasets",
-            "plan_route",
-            "get_shared_context",
-        ]
-        for tool in primary_tools:
-            assert tool in ALWAYS_LOADED_TOOLS
+        assert "select_geographic_area" in ALWAYS_LOADED_TOOLS
 
 
 class TestDeferredTools:
@@ -77,7 +70,8 @@ class TestDeferredTools:
         """Test that secondary/specialized tools are deferred"""
         secondary_tools = [
             "fetch_boundaries",
-            "get_statistics",
+            "list_ons_datasets",
+            "plan_route",
             "search_features",
             "get_feature",
         ]
@@ -132,7 +126,7 @@ class TestToolDescriptions:
         # Spot check a few tools
         test_cases = [
             ("fetch_boundaries", ["boundary", "geojson"]),
-            ("get_statistics", ["statistics", "observations"]),
+            ("get_statistics", ["statistics", "population"]),
             ("plan_route", ["route", "directions"]),
         ]
         for tool_name, expected_keywords in test_cases:
@@ -273,22 +267,18 @@ class TestGetToolSearchSystemPrompt:
         assert len(prompt) > 100
 
     def test_contains_category_descriptions(self):
-        """Test that system prompt mentions tool categories"""
+        """Test that system prompt mentions primary tools"""
         prompt = get_tool_search_system_prompt()
 
-        assert "Core" in prompt
-        assert "Workflow" in prompt
-        assert "Geography" in prompt
-        assert "Statistics" in prompt
-        assert "Features" in prompt
-        assert "Routing" in prompt
+        assert "PRIMARY TOOLS" in prompt
+        assert "search_geographic_areas" in prompt
+        assert "select_geographic_area" in prompt
 
     def test_contains_search_guidance(self):
         """Test that system prompt has search guidance"""
         prompt = get_tool_search_system_prompt()
 
         assert "search" in prompt.lower()
-        assert "keyword" in prompt.lower()
 
 
 class TestGenerateMcpToolsetConfig:

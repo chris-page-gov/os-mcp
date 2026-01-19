@@ -25,7 +25,7 @@ class DummyAPIClient:
         pass
 
 class DummyMCPService:
-    def tool(self):
+    def tool(self, *_args, **_kwargs):
         def deco(fn):
             return fn
         return deco
@@ -45,8 +45,8 @@ class DummyMCPService:
 async def test_lookup_addresses_basic(tmp_path, monkeypatch):
     svc = OSDataHubService(DummyAPIClient(), DummyMCPService())
     # Ensure workflow context loaded
-    ctx = await svc.get_workflow_context()
-    assert 'CRITICAL_COLLECTION_LIST' in ctx
+    ctx = json.loads(await svc.os_ngd_init_mapping_workflow())
+    assert ctx.get("status") == "ok"
     result_json = await svc.lookup_addresses("Gloucester Street", postcode="CV1")
     data = json.loads(result_json)
     assert data["status"] == "ok"

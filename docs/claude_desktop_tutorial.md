@@ -65,17 +65,17 @@ In a new Claude chat, just type:
 > I want to identify cinema sites in Royal Leamington Spa. Plan the steps first and then execute them.
 
 Ideal tool sequence Claude should decide (summarized):
-1. `get_workflow_context` (bootstraps list of collections + rules)
+1. `os_ngd_init_mapping_workflow` (bootstraps list of collections + rules)
 2. `fetch_detailed_collections` (e.g. `lus-fts-site-1`)
 3. `search_features` with a filter like `oslandusetertiarygroup = 'Cinema'`
 4. (Optional) `chat` at any point for planning refinement (it does not require prior context and returns model reasoning only).
 
 If Claude tries to skip step 1 you’ll see an error envelope with `WORKFLOW_CONTEXT_REQUIRED`; Claude should then recover automatically. You can nudge:
-> First call get_workflow_context, then fetch_detailed_collections for the land use site collection before any searches.
+> First call os_ngd_init_mapping_workflow, then fetch_detailed_collections for the land use site collection before any searches.
 
 JSON envelope example (what Claude sends under the hood):
 ```json
-{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}
+{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"os_ngd_init_mapping_workflow","arguments":{}}}
 ```
 
 ## 4. Using Prompt Templates Conversationally
@@ -94,7 +94,7 @@ Filtering prompts:
 ## 5. Example Conversation Transcript (Abbreviated)
 User: "Find the primary roads in a small box around Warwick and summarise connectivity."
 Claude (internally):
-1. Calls `get_workflow_context`
+1. Calls `os_ngd_init_mapping_workflow`
 2. Calls `fetch_detailed_collections` (e.g. `trn-ntwk-roadlink-4` if selected)
 3. Calls `search_features` with constructed bbox + filter (e.g. classification = 'A Road')
 4. Optionally calls `get_routing_data` for network snapshot
@@ -103,7 +103,7 @@ Claude (reply): Summarises number of links, sample IDs, maybe suggests follow‑
 ## 6. Error & Recovery Patterns (What You Might See)
 | Situation | What Happens | What To Say |
 |-----------|--------------|-------------|
-| Skipped context | Error envelope with `WORKFLOW_CONTEXT_REQUIRED` | "Run get_workflow_context first." |
+| Skipped context | Error envelope with `WORKFLOW_CONTEXT_REQUIRED` | "Run os_ngd_init_mapping_workflow first." |
 | Bad collection id | `INVALID_COLLECTION` error_code | "List valid collections then retry with one." |
 | Overly complex / malformed filter | `INVALID_INPUT` | Simplify filter or fetch queryables again. |
 | Missing enumeration knowledge | Poor filter guess | "Fetch detailed queryables for that collection before filtering." |
@@ -179,7 +179,7 @@ At present there’s no official MCP-driving Claude CLI documented; prefer HTTP 
 |---------|--------------|-----------|
 | No tools appear | Server failed to start | Check Docker logs / STDIO_KEY env. |
 | Authentication failed (stdio) | STDIO_KEY unset | Add env var in config. |
-| Repeated INVALID_COLLECTION | Typo / out-of-date context | Re-run get_workflow_context. |
+| Repeated INVALID_COLLECTION | Typo / out-of-date context | Re-run os_ngd_init_mapping_workflow. |
 | Empty prompt filter | Category mismatch | Use broader substring. |
 | Slow first answer | Caching collections | Subsequent calls faster. |
 
@@ -193,7 +193,7 @@ If `OPENAI_API_KEY` is set in the environment, a `chat` tool is registered. It a
 ```
 {"messages": [{"role": "user", "content": "Outline the steps to search for cinemas then retrieve routing data."}]}
 ```
-Returns JSON with `output` (model text). Use it to iteratively refine a plan that you then execute with `get_workflow_context` + data tools. It skips workflow gating intentionally. No OS data is fetched inside `chat`—it is reasoning only.
+Returns JSON with `output` (model text). Use it to iteratively refine a plan that you then execute with `os_ngd_init_mapping_workflow` + data tools. It skips workflow gating intentionally. No OS data is fetched inside `chat`—it is reasoning only.
 
 ---
 Last Updated: 2025-08-11

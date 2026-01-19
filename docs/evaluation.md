@@ -16,7 +16,7 @@ The evaluation framework consists of:
 |--------|-------|
 | **Overall Score** | 100% (21/21) |
 | **Level** | Excellent |
-| **Date** | 2026-01-18 |
+| **Date** | 2026-01-19 |
 | **Questions Tested** | 21 (Basic + Intermediate) |
 
 ### Score by Difficulty
@@ -114,7 +114,7 @@ Measures how gracefully errors are handled.
 
 ## Question Suite
 
-### Basic Questions (10 questions)
+### Basic Questions (9 questions)
 Simple, single-tool queries testing core functionality.
 
 | ID | Question | Expected Intent | Expected Tool |
@@ -282,7 +282,7 @@ END OF AUDIT LOG
 
 | Date | Version | Score | Notes |
 |------|---------|-------|-------|
-| 2026-01-18 | v0.1.18 | 100% | Sprint 8 - Query Router implementation |
+| 2026-01-19 | v0.1.18 | 100% | Sprint 8 - Query Router implementation |
 
 ---
 

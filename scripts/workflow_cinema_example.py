@@ -2,7 +2,7 @@
 """
 End‑to‑end example invoking the MCP server over stdio to:
  1. Initialize session
- 2. get_workflow_context
+ 2. os_ngd_init_mapping_workflow
  3. fetch_detailed_collections for a target land use collection
  4. search_features for cinemas (oslandusetertiarygroup = 'Cinema')
 
@@ -79,8 +79,8 @@ async def main() -> None:
     async with stdio_client(params) as (r, w):
         async with ClientSession(r, w) as session:
             await session.initialize()
-            print("[1] get_workflow_context ...", flush=True)
-            ctx = await call_tool(session, "get_workflow_context")
+            print("[1] os_ngd_init_mapping_workflow ...", flush=True)
+            ctx = await call_tool(session, "os_ngd_init_mapping_workflow")
             if isinstance(ctx, dict) and ctx.get("error_code"):
                 print("Failed to get workflow context:", ctx)
                 return

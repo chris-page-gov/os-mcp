@@ -52,11 +52,11 @@ curl -s http://127.0.0.1:8000/health
 
 ### Workflow Enforcement
 The server requires a 2-step workflow:
-1. Call `get_workflow_context()` to initialize the `WorkflowPlanner` with basic collection info
+1. Call `os_ngd_init_mapping_workflow()` to initialize the `WorkflowPlanner` with basic collection info
 2. Call `fetch_detailed_collections(collection_ids)` to get queryables for specific collections
 3. Only then can `search_features` and similar tools be called
 
-Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collections, etc.) bypass this requirement.
+Tools in `skip_functions` set (hello_world, check_api_key, chat, os_ngd_list_mapping_collections, etc.) bypass this requirement.
 
 ### Middleware Stack
 - `src/middleware/http_middleware.py` - Bearer token auth for HTTP transport (reads `BEARER_TOKENS` env var)
@@ -100,7 +100,7 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 #### Geography Tools (bypass workflow context)
 | Tool | Description |
 |------|-------------|
-| `select_geographic_area` | Opens interactive map widget, returns `_meta.uiResourceUris` |
+| `select_geographic_area` | Opens interactive map widget, supports focus_level/focus_name |
 | `fetch_boundaries` | Fetches GeoJSON boundaries from ONS Geography API |
 | `search_geographic_areas` | Searches areas by name using ONS API |
 
@@ -111,6 +111,7 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 | `get_dataset_info` | Gets detailed metadata for a specific dataset |
 | `get_statistics` | Retrieves observations for geographic areas |
 | `compare_areas` | Compares statistics across multiple areas |
+Notes: the ONS client is used via an async context manager and surfaces connection failures as `ONSAPIError`.
 
 #### Feature Inspector Tools (bypass workflow context)
 | Tool | Description |
@@ -144,21 +145,23 @@ Tools in `skip_functions` set (hello_world, check_api_key, chat, list_collection
 Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 tools.
 
 ### Overview
-- Tools split into always-loaded (5) and deferred (33) for token efficiency
+- Tools split into always-loaded (6) and deferred (32) for token efficiency
 - `defer_loading: true` loads tools on-demand rather than upfront
 - Two search variants: regex (`tool_search_tool_regex_20251119`) and BM25 (`tool_search_tool_bm25_20251119`)
 
 ### Tool Categories
 | Category | Always Loaded | Deferred |
 |----------|---------------|----------|
-| Core | hello_world, version_info | check_api_key, get_tool_search_config |
-| Routing | route_query | - |
-| Geography | search_geographic_areas (★ PRIMARY) | select_geographic_area, fetch_boundaries |
+| Core | hello_world, version_info, route_query | check_api_key, get_tool_search_config |
+| Geography | search_geographic_areas (★ PRIMARY), select_geographic_area | fetch_boundaries |
 | Statistics | get_statistics (★ PRIMARY) | list_ons_datasets, get_dataset_info, compare_areas |
-| OS NGD Mapping | - | os_ngd_init_mapping_workflow, os_ngd_list_mapping_collections, fetch_detailed_collections |
-| Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |
-| Routing | - | plan_route, get_route_network |
+| OS NGD Mapping | - | os_ngd_init_mapping_workflow, os_ngd_list_mapping_collections, fetch_detailed_collections, get_single_collection, get_single_collection_queryables |
+| Features | - | search_features, get_feature, get_bulk_features, inspect_feature, get_feature_with_linked |
+| Routing | - | plan_route, get_route_network, get_routing_data |
 | Widget | - | get_shared_context, update_shared_context, share_selection |
+| Search | - | suggest_collections, suggest_fields, get_knowledge_index_overview |
+| Linked | - | get_linked_identifiers, get_bulk_linked_features |
+| Utility | - | lookup_addresses, diagnose_address_fields, summarise_buildings_by_road, get_prompt_templates, chat |
 
 ### New Tools (Sprint 7-8)
 | Tool | Description |

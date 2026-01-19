@@ -57,7 +57,7 @@ Browser (React) ──► Frontend Backend (Node/Express or Python FastAPI adapt
 1. User prompts: "Find cinemas in Leamington"
 2. Frontend -> Gateway: POST /chat {message}
 3. Gateway streams LLM tokens; model decides needs context → emits tool call intent (or direct `chat` tool used for reasoning only)
-4. Gateway executes MCP tool sequence: `get_workflow_context` → `fetch_detailed_collections` → `search_features`
+4. Gateway executes MCP tool sequence: `os_ngd_init_mapping_workflow` → `fetch_detailed_collections` → `search_features`
 5. Aggregated results inserted into model context; final answer streamed back
 6. GeoJSON extracted and sent as side-channel event to frontend (WebSocket / SSE) → map layer added
 
@@ -131,7 +131,7 @@ SSE events:
 Expose a curated safe subset (strip any internal-only keys). Gateway can call `get_prompt_templates` then filter by allowlist regex. Cache for 10 minutes.
 
 ## Performance Notes
-- Cache `get_workflow_context` per user session to avoid repeated tool latency.
+- Cache `os_ngd_init_mapping_workflow` per user session to avoid repeated tool latency.
 - Debounce tutorial search input.
 - Lazy load mapping library only when first map result arrives or user opens Map tab.
 

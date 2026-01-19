@@ -65,7 +65,7 @@ This searches the **ONS Geography database** which contains UK administrative ar
 
 ```
 User: "Find cinemas in Leeds"
-Step 1: get_workflow_context()
+Step 1: os_ngd_init_mapping_workflow()
 Step 2: fetch_detailed_collections(["lus-fts-site-1"])
 Step 3: search_features(collection_id="lus-fts-site-1", filter="oslandusetertiarygroup='Cinema'")
 ```
@@ -95,7 +95,7 @@ This searches the **OS NGD Features API** for detailed mapping data.
 
 For **OS NGD mapping features** (buildings, roads, land use), follow the required workflow:
 
-1. **Initialize context**: Call `get_workflow_context()` to get available collections
+1. **Initialize context**: Call `os_ngd_init_mapping_workflow()` to get available collections
 2. **Get queryables**: Call `fetch_detailed_collections(collection_ids=[...])` for specific collections
 3. **Search data**: Now you can call `search_features()`, `get_feature()`, etc.
 
@@ -154,6 +154,16 @@ Steps:
 2. Use returned codes for further analysis
 ```
 
+Example: focus on a larger area and select smaller units
+```
+User: "Select an OA from Coventry West"
+
+Steps:
+1. select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")
+   → Map zooms to Coventry West boundary
+   → Output areas shown within the focus boundary
+```
+
 ### 3. Census Data Analysis
 
 ```
@@ -204,7 +214,7 @@ Steps:
 
 | Tool | Purpose |
 |------|---------|
-| `select_geographic_area` | Open interactive map for area selection |
+| `select_geographic_area` | Open interactive map for area selection (supports focus_level/focus_name) |
 | `fetch_boundaries` | Get GeoJSON boundary for an area |
 | `search_geographic_areas` | Search areas by name or postcode |
 
@@ -243,7 +253,7 @@ Steps:
 
 | Tool | Purpose |
 |------|---------|
-| `get_workflow_context` | Initialize workflow planner |
+| `os_ngd_init_mapping_workflow` | Initialize workflow planner |
 | `fetch_detailed_collections` | Get queryables for collections |
 | `search_features` | Search NGD features with filters |
 | `get_feature` | Get single feature by ID |
@@ -280,7 +290,7 @@ Steps:
 
 ### 1. Start with Discovery
 - Use `list_ons_datasets()` to find relevant statistics
-- Use `get_workflow_context()` to see available OS collections
+- Use `os_ngd_init_mapping_workflow()` to see available OS collections
 - Use `search_geographic_areas()` to find area codes
 
 ### 2. Be Specific with Geographic Levels
@@ -309,7 +319,7 @@ Steps:
 
 | Error Code | Meaning | Resolution |
 |------------|---------|------------|
-| `WORKFLOW_CONTEXT_REQUIRED` | Must initialize workflow first | Call `get_workflow_context()` |
+| `WORKFLOW_CONTEXT_REQUIRED` | Must initialize workflow first | Call `os_ngd_init_mapping_workflow()` |
 | `INVALID_COLLECTION` | Collection ID not found | Check collection ID spelling |
 | `UPSTREAM_ERROR` | OS/ONS API error | Check API status, retry |
 | `RATE_LIMITED` | Too many requests | Wait and retry |

@@ -66,6 +66,7 @@ STATISTICS_PATTERNS = [
     r'\bget (statistics|stats|data)\b',
     r'\b(wellbeing|happiness|anxiety|life satisfaction)\b',
     r'\bhow (many|much)\b.*\bin\b',
+    r'\bpopulation\b',
 ]
 
 COMPARISON_PATTERNS = [
@@ -114,6 +115,7 @@ INTERACTIVE_PATTERNS = [
     r'\bpick\b.*\bareas?\b',
     r'\bselect\b.*\bareas?\b',
     r'\bchoose\b.*\bareas?\b',
+    r'\b(select|choose|pick)\b.*\b(oa|lsoa|msoa|output areas?|ward|constituenc(y|ies)|local authority|council)\b',
 ]
 
 ROUTE_PATTERNS = [
@@ -139,6 +141,24 @@ DATASET_PATTERNS = [
     r'\bshow.*datasets?\b',
 ]
 
+LEVEL_KEYWORDS: Dict[str, List[str]] = {
+    "oa": [r"\boa\b", r"\boutput areas?\b"],
+    "lsoa": [r"\blsoa\b", r"\blower (layer )?super output areas?\b"],
+    "msoa": [r"\bmsoa\b", r"\bmiddle (layer )?super output areas?\b"],
+    "ward": [r"\bwards?\b"],
+    "parl_const": [r"\bconstituenc(y|ies)\b", r"\bparliamentary\b", r"\bwestminster\b", r"\bmp\b"],
+    "local_auth": [r"\blocal authority\b", r"\bcouncil\b", r"\bdistrict\b", r"\bborough\b"],
+}
+
+LEVEL_RANK = {
+    "oa": 0,
+    "lsoa": 1,
+    "msoa": 2,
+    "ward": 3,
+    "parl_const": 4,
+    "local_auth": 5,
+}
+
 
 def _match_patterns(query: str, patterns: List[str]) -> float:
     """Calculate match score for a list of patterns"""
@@ -150,8 +170,74 @@ def _match_patterns(query: str, patterns: List[str]) -> float:
     return min(matches / max(len(patterns) * 0.3, 1), 1.0)  # Cap at 1.0
 
 
+def _find_level_mentions(query_lower: str) -> List[str]:
+    """Find mentioned geographic levels in the query."""
+    hits: List[str] = []
+    for level, patterns in LEVEL_KEYWORDS.items():
+        for pattern in patterns:
+            if re.search(pattern, query_lower, re.IGNORECASE):
+                hits.append(level)
+                break
+    return hits
+
+
+def _pick_smallest_level(levels: List[str]) -> Optional[str]:
+    if not levels:
+        return None
+    return min(levels, key=lambda level: LEVEL_RANK.get(level, 99))
+
+
+def _pick_largest_level(levels: List[str]) -> Optional[str]:
+    if not levels:
+        return None
+    return max(levels, key=lambda level: LEVEL_RANK.get(level, -1))
+
+
+def _build_interactive_params(query: str, place_name: Optional[str]) -> Dict[str, Any]:
+    """Build recommended parameters for select_geographic_area."""
+    query_lower = query.lower()
+    level_mentions = _find_level_mentions(query_lower)
+    selection_level = _pick_smallest_level(level_mentions)
+    params: Dict[str, Any] = {}
+
+    if selection_level:
+        params["level"] = selection_level
+    else:
+        params["level"] = "local_auth"
+
+    focus_level = _pick_largest_level(level_mentions)
+    if focus_level == selection_level:
+        focus_level = None
+
+    if selection_level in {"oa", "lsoa", "msoa", "ward"}:
+        if not focus_level:
+            if place_name and re.search(r"\b(north|south|east|west|central)\b", query_lower):
+                focus_level = "parl_const"
+            else:
+                focus_level = "local_auth"
+
+    if place_name:
+        if focus_level:
+            params["focus_level"] = focus_level
+            params["focus_name"] = place_name
+        else:
+            params["search_term"] = place_name
+
+    return params
+
+
 def _extract_place_name(query: str) -> Optional[str]:
     """Extract a likely place name from the query"""
+    directional_pattern = re.compile(
+        r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+'
+        r'(North East|North West|South East|South West|North|South|East|West|Central)\b',
+        re.IGNORECASE,
+    )
+    directional_match = directional_pattern.search(query)
+    if directional_match:
+        candidate = directional_match.group(0)
+        return candidate.title() if candidate.islower() else candidate
+
     # Known UK places
     known_places = [
         'birmingham', 'manchester', 'london', 'coventry', 'leeds', 'liverpool',
@@ -169,8 +255,14 @@ def _extract_place_name(query: str) -> Optional[str]:
 
     # Try to extract capitalized words that might be place names
     words = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', query)
+    stop_words = {'find', 'search', 'get', 'show', 'where', 'what', 'the'}
     for word in words:
-        if word.lower() not in ['find', 'search', 'get', 'show', 'where', 'what', 'the']:
+        tokens = word.split()
+        if tokens and tokens[0].lower() in stop_words:
+            if len(tokens) > 1:
+                return " ".join(tokens[1:])
+            continue
+        if word.lower() not in stop_words:
             return word
 
     return None
@@ -245,6 +337,10 @@ def _classify_query(query: str) -> Tuple[QueryIntent, float, Dict[str, Any]]:
             scores[QueryIntent.INTERACTIVE_SELECTION] = 0.95
             scores[QueryIntent.PLACE_LOOKUP] = min(scores[QueryIntent.PLACE_LOOKUP], 0.3)
             break
+
+    if re.search(r'\b(select|choose|pick)\b', query_lower) and _find_level_mentions(query_lower):
+        scores[QueryIntent.INTERACTIVE_SELECTION] = max(scores[QueryIntent.INTERACTIVE_SELECTION], 0.9)
+        scores[QueryIntent.PLACE_LOOKUP] = min(scores[QueryIntent.PLACE_LOOKUP], 0.3)
 
     # 5. Route planning keywords - "from X to Y" patterns
     route_keywords = [
@@ -326,6 +422,8 @@ def _classify_query(query: str) -> Tuple[QueryIntent, float, Dict[str, Any]]:
     elif best_intent == QueryIntent.FEATURE_SEARCH and place_name:
         # Include place context for feature searches
         params = {"location_hint": place_name}
+    elif best_intent == QueryIntent.INTERACTIVE_SELECTION:
+        params = _build_interactive_params(query, place_name)
     elif best_intent == QueryIntent.AREA_COMPARISON:
         # Try to extract multiple place names
         places = []
@@ -370,7 +468,8 @@ def _get_tool_for_intent(intent: QueryIntent) -> Tuple[str, List[str], str]:
         QueryIntent.INTERACTIVE_SELECTION: (
             "select_geographic_area",
             ["select_geographic_area"],
-            "Opens an interactive map widget where you can click to select areas."
+            "Opens an interactive map widget where you can click to select areas. "
+            "Supports OA/LSOA/MSOA and focus_level/focus_name to zoom into a larger area first."
         ),
         QueryIntent.ROUTE_PLANNING: (
             "plan_route",
@@ -441,6 +540,9 @@ async def route_query(query: str) -> str:
 
         >>> route_query("Find cinemas in Leeds")
         → Recommends: OS NGD workflow (os_ngd_init_mapping_workflow → search_features)
+
+        >>> route_query("Select an OA from Coventry West")
+        → Recommends: select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")
 
     Intent Classification:
         - place_lookup: "Find Birmingham", "Where is Manchester" → search_geographic_areas
@@ -515,7 +617,8 @@ def _get_guidance_for_intent(intent: QueryIntent) -> str:
         ),
         QueryIntent.INTERACTIVE_SELECTION: (
             "select_geographic_area opens an interactive map widget. "
-            "Users can click to select areas. The widget returns area codes when done."
+            "Set level for OA/LSOA/MSOA/ward selection and use focus_level + focus_name "
+            "to zoom into a larger area before selecting smaller areas."
         ),
         QueryIntent.ROUTE_PLANNING: (
             "plan_route opens the route planner widget. You can optionally provide "

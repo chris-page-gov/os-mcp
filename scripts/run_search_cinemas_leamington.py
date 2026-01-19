@@ -21,7 +21,7 @@ async def main():
         async with ClientSession(read, write) as session:
             await session.initialize()
             # Step 1: workflow context
-            ctx = await session.call_tool("get_workflow_context", {})
+            ctx = await session.call_tool("os_ngd_init_mapping_workflow", {})
             ctx_text: str = next((c.text for c in ctx.content if isinstance(c, TextContent)), "{}")
             try:
                 ctx_json: Dict[str, Any] = json.loads(ctx_text)

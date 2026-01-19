@@ -15,7 +15,7 @@ call(){ local payload=$1; echo "--> ${payload}"; curl -sS $(hdr) --data "${paylo
 
 # 1. Initialize (must be first)
 call '{"jsonrpc":"2.0","id":"0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{}}}'
-# 2. get_workflow_context
-call '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}'
+# 2. os_ngd_init_mapping_workflow
+call '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"os_ngd_init_mapping_workflow","arguments":{}}}'
 
 # Subsequent calls can be appended here.

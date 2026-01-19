@@ -2,7 +2,7 @@
 
 This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%20implementation-roadmap.md).
 
-**Last Updated**: 2026-01-18
+**Last Updated**: 2026-01-19
 
 ## Overall Status
 
@@ -10,13 +10,18 @@ This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%
 |--------|-------|
 | Current Sprint | 8 Complete - Architecture Review & Evaluation |
 | Tools Added | 16 (15 MCP-Apps + 1 route_query) |
-| Total Tools | 38 (5 always-loaded, 33 deferred) |
+| Total Tools | 38 (6 always-loaded, 32 deferred) |
 | UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
 | Test Count | 370+ passing |
 | Coverage | >80% |
 | Prompt Templates | 13 new MCP-Apps prompts added |
-| Tool Search | 5 always-loaded (route_query, search_geographic_areas, get_statistics, hello_world, version_info), 33 deferred |
+| Tool Search | 6 always-loaded (route_query, search_geographic_areas, select_geographic_area, get_statistics, hello_world, version_info), 32 deferred |
 | Documentation | User tutorial (docs/tutorial.md), Sprint 8 plan |
+
+## Recent Updates
+
+- ONS API client now raises `ONSAPIError` for connection failures and requires async context manager usage.
+- Test assertions updated for HTTP middleware detection and MCP tool search prompt checks.
 
 ---
 
@@ -302,16 +307,16 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Category | Always Loaded | Deferred |
 |----------|---------------|----------|
-| Core | hello_world, version_info, check_api_key, get_tool_search_config | - |
-| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
-| Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
-| Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
-| Features | - | search_features, get_feature, inspect_feature |
-| Routes | plan_route | get_route_network |
-| Widget | get_shared_context | update_shared_context, share_selection |
-| Search | - | suggest_collections, suggest_fields |
+| Core | hello_world, version_info, route_query | check_api_key, get_tool_search_config |
+| Workflow | - | os_ngd_init_mapping_workflow, os_ngd_list_mapping_collections, fetch_detailed_collections, get_single_collection, get_single_collection_queryables |
+| Geography | search_geographic_areas, select_geographic_area | fetch_boundaries |
+| Statistics | get_statistics | list_ons_datasets, get_dataset_info, compare_areas |
+| Features | - | search_features, get_feature, get_bulk_features, inspect_feature, get_feature_with_linked |
+| Routes | - | plan_route, get_route_network, get_routing_data |
+| Widget | - | get_shared_context, update_shared_context, share_selection |
+| Search | - | suggest_collections, suggest_fields, get_knowledge_index_overview |
 | Linked | - | get_linked_identifiers, get_bulk_linked_features |
-| Utility | - | lookup_addresses, chat, get_prompt_templates |
+| Utility | - | lookup_addresses, diagnose_address_fields, summarise_buildings_by_road, get_prompt_templates, chat |
 
 ### Technical Requirements
 - Beta headers: `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`
@@ -334,7 +339,7 @@ ONS ArcGIS REST services verified (January 2025):
 | 8.2 Query Router Design | ✅ Done | Intent classification with priority rules |
 | 8.3 route_query Implementation | ✅ Done | ~500 lines, 8 intent types |
 | 8.4 Service Integration | ✅ Done | Added to OSDataHubService, skip_functions |
-| 8.5 Tool Config Updates | ✅ Done | route_query + search_geographic_areas always-loaded |
+| 8.5 Tool Config Updates | ✅ Done | route_query, search_geographic_areas, select_geographic_area always-loaded |
 | 8.6 Unit Tests | ✅ Done | `tests/test_query_router.py` (~250 lines) |
 | 8.7 Documentation | ✅ Done | SKILL.md, CHANGELOG, tutorial updated |
 | 8.8 Evaluation Framework | ✅ Done | 30+ questions, 5-dimension rubric, test harness |

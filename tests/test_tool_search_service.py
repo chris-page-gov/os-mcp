@@ -125,8 +125,8 @@ class TestGetToolSearchConfigTool:
         data = json.loads(result)
 
         prompt = data["system_prompt"]
-        assert "categories" in prompt.lower()
-        assert "tool" in prompt.lower()
+        assert "select_geographic_area" in prompt
+        assert "os_ngd" in prompt
 
     @pytest.mark.asyncio
     async def test_get_tool_search_config_always_loaded_sorted(self, mock_service):
@@ -148,11 +148,11 @@ class TestGetToolSearchConfigTool:
 
     @pytest.mark.asyncio
     async def test_get_tool_search_config_tool_includes_itself(self, mock_service):
-        """Test that get_tool_search_config is in always_loaded"""
+        """Test that get_tool_search_config is in deferred tools"""
         result = await mock_service.get_tool_search_config()
         data = json.loads(result)
 
-        assert "get_tool_search_config" in data["always_loaded"]
+        assert "get_tool_search_config" in data["deferred"]
 
     @pytest.mark.asyncio
     async def test_get_tool_search_config_case_insensitive_category(self, mock_service):

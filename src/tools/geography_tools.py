@@ -125,6 +125,9 @@ async def select_geographic_area(
     initial_lng: Optional[float] = None,
     initial_zoom: Optional[int] = None,
     search_term: Optional[str] = None,
+    focus_level: Optional[str] = None,
+    focus_name: Optional[str] = None,
+    focus_code: Optional[str] = None,
     multi_select: bool = True,
 ) -> str:
     """Opens interactive map widget for selecting UK geographic areas.
@@ -147,6 +150,9 @@ async def select_geographic_area(
         initial_lng: Starting longitude (default: -1.8904 - central UK)
         initial_zoom: Starting zoom level (default: 6 for UK overview)
         search_term: Optional search query to pre-filter areas
+        focus_level: Optional higher-level geography to focus the map (e.g., "parl_const")
+        focus_name: Optional focus area name (e.g., "Coventry West")
+        focus_code: Optional focus area code (e.g., "E14000648")
         multi_select: Allow selection of multiple areas (default: True)
 
     Returns:
@@ -167,6 +173,13 @@ async def select_geographic_area(
 
         # Pre-filter to areas matching "Birmingham"
         select_geographic_area(level="local_auth", search_term="Birmingham")
+
+        # Focus on a larger area but select smaller output areas within it
+        select_geographic_area(
+            level="oa",
+            focus_level="parl_const",
+            focus_name="Coventry West"
+        )
     """
     # Validate level
     if level not in GEOGRAPHIC_LEVELS:
@@ -178,6 +191,19 @@ async def select_geographic_area(
                 details={"available_levels": list(GEOGRAPHIC_LEVELS.keys())},
             )
         )
+
+    if focus_level and focus_level not in GEOGRAPHIC_LEVELS:
+        return json.dumps(
+            build_error_envelope(
+                tool="select_geographic_area",
+                code=ErrorCode.INVALID_INPUT,
+                message=f"Invalid focus_level '{focus_level}'. Must be one of: {', '.join(GEOGRAPHIC_LEVELS.keys())}",
+                details={"available_levels": list(GEOGRAPHIC_LEVELS.keys())},
+            )
+        )
+
+    if (focus_name or focus_code) and not focus_level:
+        focus_level = level
 
     # Default initial view (Birmingham, UK - central position)
     config = {
@@ -200,12 +226,29 @@ async def select_geographic_area(
         ],
     }
 
+    if focus_level and (focus_name or focus_code):
+        focus_area = {
+            "level": focus_level,
+            "level_name": GEOGRAPHIC_LEVELS[focus_level]["name"],
+        }
+        if focus_name:
+            focus_area["name"] = focus_name
+        if focus_code:
+            focus_area["code"] = focus_code
+        config["focus_area"] = focus_area
+
+    focus_note = ""
+    if focus_level and (focus_name or focus_code):
+        focus_label = focus_name or focus_code or "the focus area"
+        focus_note = f" The map will focus on {focus_label} so you can select smaller areas within it."
+
     return json.dumps(
         {
             "status": "selection_pending",
             "config": config,
             "instructions": (
-                f"An interactive map widget will open showing {GEOGRAPHIC_LEVELS[level]['name']}. "
+                f"An interactive map widget will open showing {GEOGRAPHIC_LEVELS[level]['name']}."
+                f"{focus_note} "
                 "Click on areas to select them, use the dropdown to change geographic levels, "
                 "or use the search box to find specific locations. Click 'Confirm Selection' "
                 "when you're ready to proceed with your chosen areas."

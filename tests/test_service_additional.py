@@ -15,7 +15,7 @@ async def test_search_features_requires_workflow_context():
     out = await service.search_features(collection_id="some-coll")
     data = json.loads(out)
     # Guard now returns full message and nested details
-    assert "Call get_workflow_context" in data["message"]
+    assert "Call os_ngd_init_mapping_workflow" in data["message"]
     assert data.get("details", {}).get("blocked_tool") == "search_features"
 
 

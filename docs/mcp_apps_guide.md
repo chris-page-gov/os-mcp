@@ -78,6 +78,15 @@ select_geographic_area(
 )
 ```
 
+**Example: Focus on a larger area and select output areas**
+```
+select_geographic_area(
+    level="oa",
+    focus_level="parl_const",
+    focus_name="Coventry West"
+)
+```
+
 ### Statistics Dashboard (`ui://os-ons/statistics-dashboard`)
 
 Interactive visualizations for ONS statistics.
@@ -201,7 +210,7 @@ Find features using the OS NGD API:
 
 ```
 # First initialize workflow
-get_workflow_context()
+os_ngd_init_mapping_workflow()
 
 # Then get queryables
 fetch_detailed_collections(collection_ids=["bld-fts-buildingpart-1"])
@@ -331,7 +340,7 @@ share_selection(
 
 1. Initialize workflow:
    ```
-   get_workflow_context()
+   os_ngd_init_mapping_workflow()
    fetch_detailed_collections(collection_ids=["bld-fts-buildingpart-1"])
    ```
 
@@ -378,7 +387,7 @@ share_selection(
 
 For OS NGD data tools, you must first call:
 ```
-get_workflow_context()
+os_ngd_init_mapping_workflow()
 ```
 
 Then for specific collections:

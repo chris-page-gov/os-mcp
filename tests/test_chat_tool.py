@@ -30,7 +30,7 @@ class DummyAPI:  # Structural typing; no need to inherit from Protocol
         params: Optional[Dict[str, Any]] = None,
         path_params: Optional[List[str]] = None,
     ) -> Dict[str, Any]:  # pragma: no cover
-        # Minimal shape expected by list_collections if ever called
+        # Minimal shape expected by os_ngd_list_mapping_collections if ever called
         return {"collections": []}
 
     async def make_request_no_auth(

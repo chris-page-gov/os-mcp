@@ -52,7 +52,7 @@ class DummyMCPService:
 
 async def main():
     svc = OSDataHubService(DummyAPIClient(), DummyMCPService())
-    await svc.get_workflow_context()
+    await svc.os_ngd_init_mapping_workflow()
     print("Type a chat message (or 'exit' to quit):")
     while True:
         user = input("You: ").strip()

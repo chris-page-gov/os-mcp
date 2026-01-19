@@ -65,7 +65,7 @@ class TestQueryClassification:
 
         assert data["intent"] == "feature_search"
         assert data["recommended_tool"] == "search_features"
-        assert "get_workflow_context" in data["workflow_steps"]
+        assert "os_ngd_init_mapping_workflow" in data["workflow_steps"]
 
     @pytest.mark.asyncio
     async def test_feature_search_buildings(self):
@@ -143,6 +143,19 @@ class TestQueryClassification:
 
         assert data["intent"] == "interactive_selection"
         assert data["recommended_tool"] == "select_geographic_area"
+
+    @pytest.mark.asyncio
+    async def test_interactive_selection_oa_focus(self):
+        """Output area selection should include focus parameters"""
+        result = await route_query("Select an OA from Coventry West")
+        data = json.loads(result)
+
+        assert data["intent"] == "interactive_selection"
+        assert data["recommended_tool"] == "select_geographic_area"
+        params = data.get("recommended_parameters", {})
+        assert params.get("level") == "oa"
+        assert params.get("focus_level") == "parl_const"
+        assert "Coventry West" in str(params.get("focus_name"))
 
     @pytest.mark.asyncio
     async def test_route_planning(self):
@@ -226,7 +239,7 @@ class TestToolRecommendation:
         """Feature search should recommend OS NGD workflow"""
         tool, workflow, explanation = _get_tool_for_intent(QueryIntent.FEATURE_SEARCH)
         assert tool == "search_features"
-        assert "get_workflow_context" in workflow
+        assert "os_ngd_init_mapping_workflow" in workflow
 
     def test_statistics_tool(self):
         """Statistics should recommend get_statistics"""
@@ -337,7 +350,7 @@ class TestWorkflowSteps:
         result = await route_query("Find cinemas in Leeds")
         data = json.loads(result)
 
-        assert "get_workflow_context" in data["workflow_steps"]
+        assert "os_ngd_init_mapping_workflow" in data["workflow_steps"]
         assert "search_features" in data["workflow_steps"]
 
 

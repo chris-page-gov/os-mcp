@@ -60,7 +60,7 @@ class DummyMCPService:
 
 async def main():
     svc = OSDataHubService(DummyAPIClient(), DummyMCPService())
-    await svc.get_workflow_context()
+    await svc.os_ngd_init_mapping_workflow()
     lookup_json = await svc.lookup_addresses("Gloucester Street", postcode="CV1 3BZ")
     summary_json = await svc.summarise_buildings_by_road("Gloucester Street", postcode="CV1 3BZ")
     print("Lookup Result:\n", json.dumps(json.loads(lookup_json), indent=2))

@@ -49,8 +49,8 @@ export const ChatWindow: React.FC = () => {
   async function streamPlanningSearch({ assistantId }: { assistantId: string }) {
     addTrace({ text: 'Heuristic planning search triggered (cinemas leamington)' });
     updateMessage(assistantId, { text: 'Planning workflow...\n' });
-    // Step 1: get_workflow_context
-  await callMCPTool('get_workflow_context', {});
+    // Step 1: os_ngd_init_mapping_workflow
+  await callMCPTool('os_ngd_init_mapping_workflow', {});
     updateMessageAppend(assistantId, '\nGot workflow context. Fetching detailed collections...');
     // Step 2: fetch_detailed_collections (land use site)
     await callMCPTool('fetch_detailed_collections', { collection_ids: 'lus-fts-site-1' });

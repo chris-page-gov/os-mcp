@@ -664,7 +664,8 @@ class OSDataHubService:
         Examples:
             "Find Birmingham" → search_geographic_areas(query="Birmingham")
             "Wellbeing in Coventry" → search_geographic_areas → get_statistics
-            "Find cinemas near Leeds" → get_workflow_context → search_features
+            "Find cinemas near Leeds" → os_ngd_init_mapping_workflow → search_features
+            "Select an OA from Coventry West" → select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")
 
         IMPORTANT:
         - For place lookups (cities, towns, councils): Use search_geographic_areas
@@ -917,7 +918,7 @@ class OSDataHubService:
                                 f"Invalid collection '{collection_id}'. Valid collections (sample): {sorted(valid_collections)[:10]}..."
                             ),
                             details={
-                                "suggestion": "Call get_workflow_context() to see all available collections",
+                                "suggestion": "Call os_ngd_init_mapping_workflow() or os_ngd_list_mapping_collections() to see available collections",
                                 "provided_collection": collection_id,
                             },
                         )
@@ -1141,7 +1142,7 @@ class OSDataHubService:
                     build_error_envelope(
                         tool="fetch_detailed_collections",
                         code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
-                        message="Workflow planner not initialized. Call get_workflow_context() first.",
+                        message="Workflow planner not initialized. Call os_ngd_init_mapping_workflow() first.",
                     )
                 )
 
@@ -1293,7 +1294,7 @@ class OSDataHubService:
                 return json.dumps(build_error_envelope(
                     tool="lookup_addresses",
                     code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED,
-                    message="Call get_workflow_context first."
+                    message="Call os_ngd_init_mapping_workflow first."
                 ))
 
             clean_road = road.strip()
@@ -1384,7 +1385,7 @@ class OSDataHubService:
         """
         try:
             if not self.workflow_planner:
-                return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call get_workflow_context first."))
+                return json.dumps(build_error_envelope(tool="diagnose_address_fields", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call os_ngd_init_mapping_workflow first."))
 
             clean = sample_road.strip()
             if not clean or len(clean) < 3:
@@ -1493,7 +1494,7 @@ class OSDataHubService:
         """
         try:
             if not self.workflow_planner:
-                return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call get_workflow_context first."))
+                return json.dumps(build_error_envelope(tool="summarise_buildings_by_road", code=ErrorCode.WORKFLOW_CONTEXT_REQUIRED, message="Call os_ngd_init_mapping_workflow first."))
 
             # Step 1: address lookup (reuse existing logic, parse result)
             lookup_raw = await self.lookup_addresses(road, postcode=postcode, limit=200)

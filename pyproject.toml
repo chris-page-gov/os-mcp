@@ -1,6 +1,6 @@
 [project]
 name = "os-mcp"
-version = "0.1.17"
+version = "0.1.18"
 description = "A Python MCP server that provides access to Ordnance Survey's DataHub APIs."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -58,4 +58,3 @@ namespaces = false
 os-mcp = "server:main"
 # Convenience alias for stdio transport (still accepts normal args)
 os-mcp-stdio = "server:main"
-

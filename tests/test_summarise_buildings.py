@@ -35,7 +35,7 @@ class DummyAPIClient:
         pass
 
 class DummyMCPService:
-    def tool(self):
+    def tool(self, *_args, **_kwargs):
         def deco(fn):
             return fn
         return deco
@@ -53,7 +53,7 @@ class DummyMCPService:
 @pytest.mark.asyncio
 async def test_summarise_buildings_by_road(monkeypatch):
     svc = OSDataHubService(DummyAPIClient(), DummyMCPService())
-    await svc.get_workflow_context()
+    await svc.os_ngd_init_mapping_workflow()
     result_json = await svc.summarise_buildings_by_road("Gloucester Street", postcode="CV1")
     data = json.loads(result_json)
     assert data["status"] == "ok"

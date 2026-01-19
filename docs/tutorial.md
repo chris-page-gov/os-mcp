@@ -317,6 +317,12 @@ Open a map so I can select some local authorities
 - Search by name or postcode
 - Multi-select for comparisons
 
+**Focused selection example:**
+```
+select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")
+```
+This zooms the map to Coventry West and shows output areas for selection.
+
 ---
 
 ### Exercise 5: Explore OS Mapping Data
@@ -330,12 +336,12 @@ Find cinema sites near Leamington Spa
 ```
 
 **What happens:**
-1. Claude initializes the workflow: `get_workflow_context()`
+1. Claude initializes the workflow: `os_ngd_init_mapping_workflow()`
 2. Gets collection details: `fetch_detailed_collections(["lus-fts-site-1"])`
 3. Searches: `search_features(collection_id="lus-fts-site-1", filter="oslandusetertiarygroup = 'Cinema'")`
 
 **Important**: OS NGD queries require a 2-step workflow:
-1. Initialize with `get_workflow_context()`
+1. Initialize with `os_ngd_init_mapping_workflow()`
 2. Fetch queryables with `fetch_detailed_collections()`
 3. Then search
 
@@ -536,7 +542,7 @@ ONS API limits: 120 requests/10 seconds. If you hit limits:
 
 | Task | Command |
 |------|---------|
-| Initialize | `get_workflow_context()` |
+| Initialize | `os_ngd_init_mapping_workflow()` |
 | Get queryables | `fetch_detailed_collections(collection_ids=["bld-fts-buildingpart-1"])` |
 | Search features | `search_features(collection_id="...", bbox="...", limit=10)` |
 | Get single feature | `get_feature(collection_id="...", feature_id="...")` |

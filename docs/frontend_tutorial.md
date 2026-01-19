@@ -62,7 +62,7 @@ Type (or click a tutorial chip that’s similar to):
 ```
 Find the cinema sites in Royal Leamington Spa.
 ```
-If using an agent loop, watch it call `get_workflow_context` → `fetch_detailed_collections` → `search_features`.
+If using an agent loop, watch it call `os_ngd_init_mapping_workflow` → `fetch_detailed_collections` → `search_features`.
 When `search_features` returns a FeatureCollection, a layer appears under Map.
 
 If using only the `chat` tool (no automated tool calling yet), you’ll receive reasoning but no data layers; then manually trigger tool calls once wiring is added.
@@ -78,7 +78,7 @@ Switch to Data tab to view a tabular or raw JSON representation (depending on im
 
 ## 10. Handling Errors
 If a tool error occurs you’ll see an error banner with a human-friendly message. Typical recovery:
-- `WORKFLOW_CONTEXT_REQUIRED`: run `get_workflow_context` first.
+- `WORKFLOW_CONTEXT_REQUIRED`: run `os_ngd_init_mapping_workflow` first.
 - `INVALID_COLLECTION`: list valid collections or correct the ID.
 
 ## 11. Using the Chat Tool
@@ -112,7 +112,7 @@ Consider adding simple Jest/Vitest tests for:
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Map empty after search | No GeoJSON returned | Verify tool call & API key |
-| Repeated WORKFLOW_CONTEXT_REQUIRED | Skipped context step | Call `get_workflow_context` then retry |
+| Repeated WORKFLOW_CONTEXT_REQUIRED | Skipped context step | Call `os_ngd_init_mapping_workflow` then retry |
 | Chat returns only reasoning | Using `chat` tool alone | Implement / enable agent tool calling |
 | 401 on MCP HTTP | Missing/invalid bearer token | Ensure `BEARER_TOKENS` if auth enforced |
 

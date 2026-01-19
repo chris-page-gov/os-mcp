@@ -220,7 +220,7 @@ These items are essential for the MCP-Apps functionality and should be completed
 | Category | Always Loaded | Deferred (defer_loading: true) |
 |----------|---------------|--------------------------------|
 | Core | hello_world, version_info, check_api_key | - |
-| Workflow | get_workflow_context, list_collections | fetch_detailed_collections |
+| Workflow | os_ngd_init_mapping_workflow, os_ngd_list_mapping_collections | fetch_detailed_collections |
 | Geography | select_geographic_area | fetch_boundaries, search_geographic_areas |
 | Statistics | list_ons_datasets | get_dataset_info, get_statistics, compare_areas |
 | Features | - | search_features, get_feature, inspect_feature, get_feature_with_linked |

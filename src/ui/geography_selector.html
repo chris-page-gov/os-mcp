@@ -324,6 +324,8 @@
     let currentLevel = 'local_auth';
     let selectedAreas = [];
     let boundaryLayer = null;
+    let focusLayer = null;
+    let pendingConfig = null;
     let searchTimeout = null;
 
     // =========================================================================
@@ -349,6 +351,11 @@
 
       // Initial load
       loadBoundariesForView();
+
+      if (pendingConfig) {
+        applyConfig(pendingConfig);
+        pendingConfig = null;
+      }
 
       setStatus('Ready. Click on areas to select them.');
     }
@@ -659,6 +666,94 @@
       }
     }
 
+    async function applyFocusArea(focus) {
+      if (!focus || !focus.level) return;
+      const config = GEOGRAPHIC_LEVELS[focus.level];
+      if (!config) return;
+
+      let whereClause = '1=1';
+      if (focus.code) {
+        const safeCode = String(focus.code).replace(/'/g, "''");
+        whereClause = `${config.codeField} = '${safeCode}'`;
+      } else if (focus.name) {
+        const safeName = String(focus.name).replace(/'/g, "''");
+        whereClause = `UPPER(${config.nameField}) LIKE UPPER('%${safeName}%')`;
+      } else {
+        return;
+      }
+
+      setStatus(`Focusing on ${focus.name || focus.code || config.name}...`);
+
+      try {
+        const url = `${ONS_API_BASE}/${config.service}/FeatureServer/0/query`;
+        const params = new URLSearchParams({
+          where: whereClause,
+          outFields: `${config.codeField},${config.nameField}`,
+          f: 'geojson',
+          returnGeometry: 'true',
+          resultRecordCount: '1'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (!data.features || data.features.length === 0) {
+          setStatus(`No focus area found for "${focus.name || focus.code}"`);
+          return;
+        }
+
+        if (focusLayer) {
+          map.removeLayer(focusLayer);
+        }
+
+        const feature = data.features[0];
+        focusLayer = L.geoJSON(feature, {
+          style: {
+            color: '#ff922b',
+            weight: 3,
+            fillOpacity: 0.05
+          }
+        }).addTo(map);
+
+        const bounds = focusLayer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        const focusLabel = feature.properties[config.nameField] || focus.name || focus.code;
+        setStatus(`Focused on ${focusLabel}. Select areas within the boundary.`);
+      } catch (error) {
+        console.error('Focus area error:', error);
+        setStatus(`Focus area error: ${error.message}`);
+      }
+    }
+
+    function applyConfig(config) {
+      if (!map) {
+        pendingConfig = config;
+        return;
+      }
+
+      if (config.level && GEOGRAPHIC_LEVELS[config.level]) {
+        currentLevel = config.level;
+        document.getElementById('level-select').value = config.level;
+      }
+      if (config.initial_view) {
+        const { lat, lng, zoom } = config.initial_view;
+        if (lat && lng) {
+          map.setView([lat, lng], zoom || 6);
+        }
+      }
+      if (config.search_term) {
+        document.getElementById('search-input').value = config.search_term;
+        handleSearch(config.search_term);
+      }
+      if (config.focus_area) {
+        applyFocusArea(config.focus_area);
+      }
+    }
+
     // =========================================================================
     // Confirm Selection (MCP-Apps communication)
     // =========================================================================
@@ -724,21 +819,7 @@
       if (event.data && event.data.type === 'mcp-app-config') {
         const config = event.data.config;
         if (config) {
-          // Apply initial configuration
-          if (config.level && GEOGRAPHIC_LEVELS[config.level]) {
-            currentLevel = config.level;
-            document.getElementById('level-select').value = config.level;
-          }
-          if (config.initial_view) {
-            const { lat, lng, zoom } = config.initial_view;
-            if (lat && lng) {
-              map.setView([lat, lng], zoom || 6);
-            }
-          }
-          if (config.search_term) {
-            document.getElementById('search-input').value = config.search_term;
-            searchAreas(config.search_term);
-          }
+          applyConfig(config);
         }
       }
     });

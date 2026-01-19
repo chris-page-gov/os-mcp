@@ -3,7 +3,7 @@ import { decideAction } from './plan';
 
 describe('decideAction', () => {
   it('detects list collections', () => {
-    expect(decideAction('List collections')).toEqual({ kind: 'tool', name: 'list_collections', args: {} });
+    expect(decideAction('List collections')).toEqual({ kind: 'tool', name: 'os_ngd_list_mapping_collections', args: {} });
   });
   it('detects cinema search heuristic', () => {
     const a = decideAction('show me a cinema in leamington');

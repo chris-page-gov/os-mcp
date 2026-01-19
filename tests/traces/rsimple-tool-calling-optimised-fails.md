@@ -44,7 +44,7 @@ Strategized geographic data retrieval for interactive output area selection.
 
 I'll help you view a map of Coventry West to select an output area. Let me start by checking what's available through the OS data services.
 
-### Tool call: get_workflow_context
+### Tool call: os_ngd_init_mapping_workflow
 Flow: [Claude Desktop ↔ os-mcp Server (MCP) Flow](#claude-desktop--os-mcp-server-mcp-flow)
 
 
@@ -93,7 +93,7 @@ So os-mcp should have ONS data including Output Areas! Let me list the collectio
 
 Great! Let me search for Output Area boundaries in the OS-MCP collections. Since you mentioned os-mcp provides access to both OS and ONS data, let me check what's available.
 
-### Tool call: list_collections
+### Tool call: os_ngd_list_mapping_collections
 Flow: [Claude Desktop ↔ os-mcp Server (MCP) Flow](#claude-desktop--os-mcp-server-mcp-flow)
 
 Request:

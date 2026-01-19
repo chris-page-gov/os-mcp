@@ -10,7 +10,7 @@ class DummyAPI:
     async def get_api_key(self) -> str: return "k"
     async def make_request(self, endpoint: str, params: Optional[Dict[str, Any]] = None, path_params: Optional[List[str]] = None):
         # minimal responses for collection endpoints
-        if endpoint.endswith("/collections"):
+        if endpoint == "COLLECTIONS":
             return {"collections": []}
         return {}
     async def make_request_no_auth(self, url: str, params: Optional[Dict[str, Any]] = None, max_retries: int = 2): return "{}"
@@ -38,10 +38,10 @@ async def test_workflow_guard_blocks_without_context():
 async def test_workflow_context_allows_subsequent_calls():
     mcp = FastMCP("guard-test")
     svc = OSDataHubService(DummyAPI(), mcp)
-    ctx_raw = await svc.get_workflow_context()
+    ctx_raw = await svc.os_ngd_init_mapping_workflow()
     ctx = json.loads(ctx_raw)
     assert ctx.get("status") == "ok"
     # After context established, guarded call should proceed (may still error differently if missing params)
-    out = await svc.list_collections()
+    out = await svc.os_ngd_list_mapping_collections()
     data = json.loads(out)
-    assert isinstance(data.get("collections", []), list)
+    assert isinstance(data.get("ids", []), list)

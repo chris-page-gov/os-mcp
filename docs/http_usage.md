@@ -56,7 +56,7 @@ Example tool call envelope:
   "jsonrpc": "2.0",
   "id": "1",
   "method": "tools/call",
-  "params": { "name": "get_workflow_context", "arguments": {} }
+  "params": { "name": "os_ngd_init_mapping_workflow", "arguments": {} }
 }
 ```
 Headers:
@@ -72,7 +72,7 @@ mcp(){ curl -s -H "Authorization: Bearer dev-token" -H 'Content-Type: applicatio
 
 ## 7. Workflow Context
 ```
-mcp '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}' | jq
+mcp '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"os_ngd_init_mapping_workflow","arguments":{}}}' | jq
 ```
 
 ## 8. Fetch Detailed Collections
@@ -122,7 +122,7 @@ set -euo pipefail
 AUTH='-H Authorization: Bearer dev-token'
 endpoint=http://127.0.0.1:8000/mcp
 call(){ curl -s $AUTH -H 'Content-Type: application/json' -d "$1" $endpoint | jq -r '.result.content[0].text'; }
-call '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_workflow_context","arguments":{}}}' >/dev/null
+call '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"os_ngd_init_mapping_workflow","arguments":{}}}' >/dev/null
 call '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"fetch_detailed_collections","arguments":{"collection_ids":"lus-fts-site-1"}}}' >/dev/null
 call '{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"search_features","arguments":{"collection_id":"lus-fts-site-1","limit":2,"filter":"oslandusetertiarygroup = 'Cinema'"}}}' | jq
 ```
@@ -138,8 +138,8 @@ health:
 Issue | Cause | Fix
 ----- | ----- | ----
 401 Unauthorized | Missing bearer | Set BEARER_TOKENS env & header
-WORKFLOW_CONTEXT_REQUIRED | Skipped init | Call get_workflow_context first
-INVALID_COLLECTION | Wrong id | Re-check list_collections output
+WORKFLOW_CONTEXT_REQUIRED | Skipped init | Call os_ngd_init_mapping_workflow first
+INVALID_COLLECTION | Wrong id | Re-check os_ngd_list_mapping_collections output
 Rate limited | Too many rapid calls | Back off (HTTP middleware: 10/min default)
 
 ## 19. Next Steps

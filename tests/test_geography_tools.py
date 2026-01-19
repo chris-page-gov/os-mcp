@@ -64,6 +64,25 @@ class TestSelectGeographicArea:
         assert "INVALID_INPUT" in data["error_code"]
 
     @pytest.mark.asyncio
+    async def test_invalid_focus_level(self):
+        """Test with invalid focus_level returns error"""
+        result = await select_geographic_area(level="oa", focus_level="bad_level", focus_name="Coventry West")
+        data = json.loads(result)
+
+        assert "error_code" in data
+        assert "INVALID_INPUT" in data["error_code"]
+
+    @pytest.mark.asyncio
+    async def test_focus_area_config(self):
+        """Test focus area config is included"""
+        result = await select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")
+        data = json.loads(result)
+
+        assert data["config"]["focus_area"]["level"] == "parl_const"
+        assert data["config"]["focus_area"]["name"] == "Coventry West"
+        assert data["config"]["focus_area"]["level_name"] == "Parliamentary Constituencies"
+
+    @pytest.mark.asyncio
     async def test_all_levels_available(self):
         """Test that all levels are in available_levels config"""
         result = await select_geographic_area()

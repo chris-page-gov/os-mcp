@@ -20,7 +20,7 @@ async function submit(text: string) {
 }
 
 describe('ChatWindow heuristics', () => {
-  it('calls list_collections tool for prompt', async () => {
+  it('calls os_ngd_list_mapping_collections tool for prompt', async () => {
   (callMCPTool as unknown as CallMock).mockResolvedValueOnce('COLLS');
     render(<ChatWindow />);
     await submit('List collections');
@@ -28,7 +28,7 @@ describe('ChatWindow heuristics', () => {
       const msgs = useChatStore.getState().messages;
       expect(msgs.some(m => m.role === 'assistant' && m.text.includes('COLLS'))).toBe(true);
     });
-  expect((callMCPTool as unknown as CallMock).mock.calls[0][0]).toBe('list_collections');
+  expect((callMCPTool as unknown as CallMock).mock.calls[0][0]).toBe('os_ngd_list_mapping_collections');
   });
 
   it('runs planning workflow for cinema search', async () => {

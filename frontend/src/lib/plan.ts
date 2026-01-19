@@ -7,7 +7,7 @@ export type PlannedAction =
 export function decideAction(prompt: string): PlannedAction {
   const p = prompt.trim();
   if (!p) return { kind: 'chat' };
-  if (/^list collections/i.test(p)) return { kind: 'tool', name: 'list_collections', args: {} };
+  if (/^list collections/i.test(p)) return { kind: 'tool', name: 'os_ngd_list_mapping_collections', args: {} };
   if (/cinema/i.test(p) && /leamington/i.test(p)) return { kind: 'planning', scenario: 'cinemaSearch', town: 'Leamington' };
   return { kind: 'chat' };
 }

@@ -110,9 +110,9 @@ class ONSAPIClient:
             self._session = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session"""
+        """Get existing aiohttp session or raise if not initialized."""
         if self._session is None:
-            self._session = aiohttp.ClientSession(timeout=self.timeout)
+            raise RuntimeError("ONSAPIClient session not initialized; use 'async with ONSAPIClient()'.")
         return self._session
 
     async def _request(
@@ -137,25 +137,28 @@ class ONSAPIClient:
 
         # Make request
         session = await self._get_session()
-        async with session.get(url, params=params) as resp:
-            if resp.status == 429:
-                # Rate limited - wait and retry
-                retry_after = int(resp.headers.get("Retry-After", 60))
-                logger.warning(f"Rate limited, waiting {retry_after}s")
-                await asyncio.sleep(retry_after)
-                return await self._request(endpoint, params, use_cache)
+        try:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 429:
+                    # Rate limited - wait and retry
+                    retry_after = int(resp.headers.get("Retry-After", 60))
+                    logger.warning(f"Rate limited, waiting {retry_after}s")
+                    await asyncio.sleep(retry_after)
+                    return await self._request(endpoint, params, use_cache)
 
-            if resp.status != 200:
-                text = await resp.text()
-                raise ONSAPIError(f"ONS API error {resp.status}: {text[:200]}", resp.status)
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise ONSAPIError(f"ONS API error {resp.status}: {text[:200]}", resp.status)
 
-            data = await resp.json()
+                data = await resp.json()
 
-            # Cache result
-            if use_cache and self.cache:
-                self.cache.set(cache_key, data)
+                # Cache result
+                if use_cache and self.cache:
+                    self.cache.set(cache_key, data)
 
-            return data
+                return data
+        except aiohttp.ClientError as exc:
+            raise ONSAPIError(f"ONS API connection error: {exc}") from exc
 
     # =========================================================================
     # Dataset Discovery

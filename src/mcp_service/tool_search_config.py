@@ -57,6 +57,7 @@ ALWAYS_LOADED_TOOLS: Set[str] = {
     # ========================================
     "search_geographic_areas",  # THE primary tool - finds places by name, returns codes
     "get_statistics",           # Get stats for an area (wellbeing, population, etc.)
+    "select_geographic_area",   # Interactive map to select areas (OA/LSOA/MSOA/etc.)
 
     # ========================================
     # ROUTING - Helps choose the right tool
@@ -89,7 +90,6 @@ DEFERRED_TOOLS: Set[str] = {
     # ========================================
     # GEOGRAPHY - Secondary tools
     # ========================================
-    "select_geographic_area",     # MOVED: Interactive map widget
     "fetch_boundaries",           # Get GeoJSON boundaries
 
     # ========================================
@@ -302,16 +302,19 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "description_enhanced": "★ PRIMARY TOOL ★ Find UK places by name (cities, towns, councils). Returns GSS area codes. Use for: 'find Birmingham', 'where is Manchester', 'local authority code for Coventry'. Direct lookup - no workflow needed.",
     },
     "select_geographic_area": {
-        "defer_loading": True,  # Deferred - interactive widget
+        "defer_loading": False,  # ALWAYS LOADED - primary map widget
         "category": ToolCategory.GEOGRAPHY,
-        "keywords": ["map", "select", "area", "widget", "interactive", "click"],
-        "description_enhanced": "Interactive map widget for visual area selection. Use when user wants to click/browse rather than search by name.",
+        "keywords": [
+            "map", "select", "area", "widget", "interactive", "click", "choose", "pick",
+            "output area", "oa", "lsoa", "msoa", "ward", "constituency", "local authority",
+        ],
+        "description_enhanced": "Interactive map widget for visual area selection. Supports OA/LSOA/MSOA/ward/constituency levels and zoom-focused selection within a larger area.",
     },
     "fetch_boundaries": {
         "defer_loading": True,
         "category": ToolCategory.GEOGRAPHY,
         "keywords": ["boundary", "geojson", "polygon", "geometry", "shape"],
-        "description_enhanced": "Get GeoJSON boundaries for areas. Use after search_geographic_areas to get shapes.",
+        "description_enhanced": "Get GeoJSON boundary and boundaries for areas. Use after search_geographic_areas to get shapes.",
     },
 
     # === STATISTICS TOOLS ===
@@ -565,13 +568,16 @@ def get_tool_search_system_prompt() -> str:
 
 ★ search_geographic_areas - Find places by name (cities, towns, councils)
 ★ get_statistics - Get statistics for an area
-★ select_geographic_area - Show interactive map to select areas
+★ select_geographic_area - Interactive map to select areas (OA/LSOA/MSOA/etc.)
 
 ### IMPORTANT: Tool Selection
 
 **For finding places by NAME** (e.g., "find Birmingham", "show map of Coventry"):
 → Use `search_geographic_areas(query="Birmingham", level="local_auth")`
-→ Use `select_geographic_area(level="oa", search_term="Coventry")` for map widget
+→ Use `select_geographic_area(level="ward", search_term="Coventry")` for a map widget
+
+**For selecting smaller areas within a larger area** (e.g., "select an OA from Coventry West"):
+→ Use `select_geographic_area(level="oa", focus_level="parl_const", focus_name="Coventry West")`
 
 **For statistics** (e.g., "wellbeing in Coventry", "population of Leeds"):
 → First: `search_geographic_areas` to get area code
@@ -587,6 +593,7 @@ def get_tool_search_system_prompt() -> str:
 |---------------|-------------|
 | "Find Birmingham" | search_geographic_areas |
 | "Show map of Coventry to select areas" | select_geographic_area |
+| "Select an OA from Coventry West" | select_geographic_area |
 | "Get statistics for Coventry" | search_geographic_areas → get_statistics |
 | "Find buildings on High Street" | os_ngd_init_mapping_workflow → search_features |"""
 

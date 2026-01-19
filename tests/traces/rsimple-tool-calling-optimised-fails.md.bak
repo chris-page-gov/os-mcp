@@ -16,7 +16,7 @@ I'll help you view a map of Coventry West to select an output area. Let me start
 O
 
 
-get_workflow_context
+os_ngd_init_mapping_workflow
 
 
 
@@ -68,7 +68,7 @@ Great! Let me search for Output Area boundaries in the OS-MCP collections. Since
 O
 
 
-list_collections
+os_ngd_list_mapping_collections
 Request
 
 {}

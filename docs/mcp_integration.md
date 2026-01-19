@@ -88,7 +88,7 @@ HTTP production variant:
 ## Tools & Sequence
 | Tool | Typical First Use? | Purpose |
 |------|--------------------|---------|
-| get_workflow_context | Yes | Bootstraps planning context (collections list, planning rules) |
+| os_ngd_init_mapping_workflow | Yes | Bootstraps planning context (collections list, planning rules) |
 | fetch_detailed_collections | After planning | Pulls queryables for selected collections |
 | search_features | After queryables | Executes filtered feature searches |
 | get_feature | On-demand | Single feature retrieval |
@@ -126,7 +126,7 @@ All tool errors return:
   "retry_guidance": { "tool": "search_features", "hint": "..." }
 }
 ```
-Integrating with VS Code Chat: The agent can branch on `error_code` to automatically run recovery (e.g., call `get_workflow_context` or list valid collections).
+Integrating with VS Code Chat: The agent can branch on `error_code` to automatically run recovery (e.g., call `os_ngd_init_mapping_workflow` or list valid collections).
 
 ## Prompt Library Design
 Directory (proposal):
@@ -196,7 +196,7 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
   ```
   Use the prompt template 'search_cinemas_leamington' and execute the workflow.
   ```
-  The agent should: (a) call `get_workflow_context`, (b) call `fetch_detailed_collections`, (c) call `search_features` with the Cinema filter.
+  The agent should: (a) call `os_ngd_init_mapping_workflow`, (b) call `fetch_detailed_collections`, (c) call `search_features` with the Cinema filter.
 
 ## Validating the Two‑Step Workflow Enforcement
 1. Attempt a search prematurely:
@@ -206,7 +206,7 @@ Future extension: Add a `suggest_workflow` tool to parse user natural language, 
 2. If context not initialized you'll receive `WORKFLOW_CONTEXT_REQUIRED` in the error envelope.
 3. Recover:
   ```
-  @os-mcp-dev call get_workflow_context {}
+  @os-mcp-dev call os_ngd_init_mapping_workflow {}
   @os-mcp-dev call fetch_detailed_collections {"collection_ids": "lus-fts-site-1"}
   ```
 4. Re-run the search; it should now succeed (subject to real API data & credentials).
@@ -243,7 +243,7 @@ pytest tests -q
 All tests (currently backend 52 + frontend 20 = 72) should pass; category tests validate prompt filtering and chat tool coverage.
 
 ## Raw HTTP / cURL Usage
-For detailed examples of posting MCP JSON envelopes (tools/call) directly to the `/mcp` endpoint—including `get_workflow_context`, `fetch_detailed_collections`, `search_features`, prompts filtering, routing, and error handling—see `http_usage.md` in this directory.
+For detailed examples of posting MCP JSON envelopes (tools/call) directly to the `/mcp` endpoint—including `os_ngd_init_mapping_workflow`, `fetch_detailed_collections`, `search_features`, prompts filtering, routing, and error handling—see `http_usage.md` in this directory.
 
 ## VS Code Launch Task (Optional)
 Create `.vscode/tasks.json`:
@@ -260,7 +260,7 @@ Create `.vscode/tasks.json`:
 ## Quick Troubleshooting Matrix
 | Symptom | Likely Cause | Action |
 |---------|-------------|--------|
-| `WORKFLOW_CONTEXT_REQUIRED` | Skipped planning step | Run `get_workflow_context` then `fetch_detailed_collections` |
+| `WORKFLOW_CONTEXT_REQUIRED` | Skipped planning step | Run `os_ngd_init_mapping_workflow` then `fetch_detailed_collections` |
 | `INVALID_COLLECTION` | Typo or unsupported collection id | List collections or inspect `valid_collections` in error details |
 | Empty prompt filter result | Category substring mismatch | Re-check category value / use broader substring |
 | Bearer auth failure (HTTP) | Missing or wrong token | Set `BEARER_TOKENS` & pass correct Authorization header |
@@ -298,9 +298,14 @@ Create `.vscode/tasks.json`:
 - Version bump when adding or materially changing prompts.
 - Provide region-specific modules (e.g., `london.py`) under same pattern.
 
+## Client Trace Strategy
+- Use the stdio proxy in `scripts/mcp_stdio_trace_proxy.py` to log JSON-RPC traffic.
+- Pair the MCP trace log with a client-side transcript (and reasoning trace if available).
+- Full instructions: `docs/client_trace_strategy.md`.
+
 ## Appendix: Example Full Prompt (search_cinemas_leamington)
 ```
-"search_cinemas_leamington": "Goal: List cinema sites near Royal Leamington Spa. Step 1: get_workflow_context(). Step 2: fetch_detailed_collections('lus-fts-site-1'). Step 3: search_features(collection_id='lus-fts-site-1', filter=\"oslandusetertiarygroup = 'Cinema'\"). Provide concise list with id, name (if present), and coordinate centroid." 
+"search_cinemas_leamington": "Goal: List cinema sites near Royal Leamington Spa. Step 1: os_ngd_init_mapping_workflow(). Step 2: fetch_detailed_collections('lus-fts-site-1'). Step 3: search_features(collection_id='lus-fts-site-1', filter=\"oslandusetertiarygroup = 'Cinema'\"). Provide concise list with id, name (if present), and coordinate centroid." 
 ```
 
 ## Open Questions

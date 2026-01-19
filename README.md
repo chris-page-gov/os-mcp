@@ -39,7 +39,7 @@ Interactive UI widgets make this an exemplary MCP-Apps implementation. See the d
 | 5 | Enhanced Features | ✅ Complete | Feature inspector, route planner, cross-widget communication |
 | 6 | Polish & Release | ✅ Complete | 320+ tests, >80% coverage, Docker, CI/CD |
 | 7 | Tool Search | ✅ Complete | defer_loading, MCP toolset integration |
-| 8 | Architecture Review | ✅ Complete | Query router, 38 tools (12 always-loaded, 26 deferred), evaluation framework |
+| 8 | Architecture Review | ✅ Complete | Query router, 38 tools (6 always-loaded, 32 deferred), evaluation framework |
 
 ### New Geography Tools (Sprint 1-2)
 
@@ -47,11 +47,12 @@ Three new tools for UK geographic boundary selection (bypass workflow context):
 
 | Tool | Description |
 |------|-------------|
-| `select_geographic_area` | Opens interactive map widget for area selection |
+| `select_geographic_area` | Opens interactive map widget for area selection (supports focus_level/focus_name) |
 | `fetch_boundaries` | Fetches GeoJSON boundaries from ONS Geography API |
 | `search_geographic_areas` | Searches UK areas by name |
 
 Supported geographic levels: Parliamentary Constituencies, Local Authority Districts, Wards, LSOA, MSOA, Output Areas.
+Use `focus_level` + `focus_name` to zoom to a larger area before selecting smaller areas (e.g., select OAs within Coventry West).
 
 ### New Statistics Tools (Sprint 3-4)
 
@@ -65,6 +66,7 @@ Four new tools for ONS statistics data (bypass workflow context):
 | `compare_areas` | Compares statistics across multiple areas |
 
 Available dataset categories: wellbeing, economy, housing, population, health, employment, census.
+The internal ONS client runs under an async context manager and raises `ONSAPIError` on connection failures.
 
 The statistics dashboard widget (`ui://os-ons/statistics-dashboard`) provides:
 - Chart.js line and bar chart visualizations

@@ -2,7 +2,7 @@ Done. Committed e58c5b5 and pushed to geo-mcpi.
 
   What Was Added
 
-  Now when Claude calls get_workflow_context(), the response starts with:
+  Now when Claude calls os_ngd_init_mapping_workflow(), the response starts with:
 
   {
     "status": "ok",
@@ -26,7 +26,7 @@ Done. Committed e58c5b5 and pushed to geo-mcpi.
     ...
   }
 
-  Same warning added to list_collections().
+  Same warning added to os_ngd_list_mapping_collections().
 
   To test: Restart the MCP server connection in Claude Code and try "Find the
   local authority code for Coventry" again. Claude should see the warning and
@@ -54,7 +54,7 @@ Done. Committed e58c5b5 and pushed to geo-mcpi.
   Let me start by checking what collections are available, then search for
   Coventry in the appropriate collection.I'll help you find the local
   authority code for Coventry using the OS NGD API.2
-  stepsOget_workflow_contextRequest{}Response{"instruction": "MANDATORY:
+  stepsOos_ngd_init_mapping_workflowRequest{}Response{"instruction": "MANDATORY:
   Before making any tool calls, you must explain your complete plan to the
   user. Tell them: 1) Which collection you will use and why, 2) What steps
   you will take, 3) What information you will gather. Only after explaining
@@ -725,7 +725,7 @@ Done. Committed e58c5b5 and pushed to geo-mcpi.
   Options to make it more forceful:
 
   1. Return an error status - Force Claude to reconsider by not returning "ok"
-  2. Add a required parameter - Make get_workflow_context require a query_type
+  2. Add a required parameter - Make os_ngd_init_mapping_workflow require a query_type
   parameter
   3. Accept the limitation - Claude eventually got the right answer (E08000026)
   anyway

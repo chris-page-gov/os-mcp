@@ -141,16 +141,16 @@ class StubAPI:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_mcp_list_collections_matches_api():
+async def test_mcp_os_ngd_list_mapping_collections_matches_api():
     stub = StubAPI()
     mcp = FastMCP("equivalence")
     service = OSDataHubService(stub, mcp)
     api_data = await stub.make_request("COLLECTIONS")
-    out = await service.list_collections()
+    out = await service.os_ngd_list_mapping_collections()
     mcp_data = json.loads(out)
-    assert "collections" in mcp_data
-    expected = [{"id": c["id"], "title": c["title"]} for c in api_data["collections"]]
-    assert sorted(mcp_data["collections"], key=lambda x: x["id"]) == sorted(expected, key=lambda x: x["id"])  # order-insensitive
+    assert "ids" in mcp_data
+    expected = sorted([c["id"] for c in api_data["collections"]])
+    assert sorted(mcp_data["ids"]) == expected
 
 
 class RichStubAPI:
@@ -236,7 +236,7 @@ async def test_mcp_get_feature_matches_api():
     mcp = FastMCP("equivalence")
     service = OSDataHubService(stub, mcp)
     # initialise workflow context so guard allows tool usage
-    await service.get_workflow_context()
+    await service.os_ngd_init_mapping_workflow()
     api_feature = await stub.make_request("COLLECTION_FEATURE_BY_ID", path_params=["col-1", "f1"])
     out = await service.get_feature("col-1", "f1")
     mcp_feature = json.loads(out)
@@ -249,7 +249,7 @@ async def test_mcp_search_features_matches_api_filter():
     stub = RichStubAPI()
     mcp = FastMCP("equivalence")
     service = OSDataHubService(stub, mcp)
-    await service.get_workflow_context()
+    await service.os_ngd_init_mapping_workflow()
     filt = "category = 'A'"
     api_result = await stub.make_request(
         "COLLECTION_FEATURES", params={"filter": filt, "limit": 100}, path_params=["col-1"]

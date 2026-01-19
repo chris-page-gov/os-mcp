@@ -8,7 +8,7 @@ sequenceDiagram
     participant S as os-mcp Server
     participant OS as OS Data Hub / NGD API
 
-    CD->>T: Tool call request (e.g., get_workflow_context)
+    CD->>T: Tool call request (e.g., os_ngd_init_mapping_workflow)
     T->>S: Forward MCP request
     S->>OS: HTTPS request (OS_API_KEY)
 
@@ -29,7 +29,7 @@ Done. Committed e58c5b5 and pushed to geo-mcpi.
 
 What Was Added
 
-Now when Claude calls get_workflow_context(), the response starts with:
+Now when Claude calls os_ngd_init_mapping_workflow(), the response starts with:
 
 ```text
   {
@@ -55,7 +55,7 @@ Now when Claude calls get_workflow_context(), the response starts with:
   }
 ```
 
-Same warning added to list_collections().
+Same warning added to os_ngd_list_mapping_collections().
 
 To test: Restart the MCP server connection in Claude Code and try "Find the
 local authority code for Coventry" again. Claude should see the warning and
@@ -86,7 +86,7 @@ Let me start by checking what collections are available, then search for
 Coventry in the appropriate collection.I'll help you find the local
 authority code for Coventry using the OS NGD API.
 
-### Tool call: get_workflow_context
+### Tool call: os_ngd_init_mapping_workflow
 
 Request:
 
@@ -805,7 +805,7 @@ workflow" and treats the JSON as data rather than an instruction to stop.
 Options to make it more forceful:
 
 1. Return an error status - Force Claude to reconsider by not returning "ok"
-2. Add a required parameter - Make get_workflow_context require a query_type
+2. Add a required parameter - Make os_ngd_init_mapping_workflow require a query_type
    parameter
 3. Accept the limitation - Claude eventually got the right answer (E08000026)
    anyway

@@ -6,6 +6,28 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+- _None._
+
+### Changed
+- _None._
+
+### Fixed
+- _None._
+
+## [0.1.18] - 2026-01-19
+
+### Added
+- **Client trace proxy** (`scripts/mcp_stdio_trace_proxy.py`) to log MCP JSON-RPC traffic for tool list/call analysis.
+- **Client trace guidance** (`docs/client_trace_strategy.md`) covering MCP logs + client reasoning transcripts.
+- **Geography selector focus support**: map config accepts `focus_level`/`focus_name` to zoom into a larger area before selecting smaller units.
+
+### Changed
+- **select_geographic_area** is now always-loaded to surface the map widget for clients with limited tool lists.
+- **route_query** detects OA/LSOA/MSOA selection intent and recommends focus parameters for map zooming.
+- **Hard rename cleanup** across docs/tests/error guidance to use `os_ngd_init_mapping_workflow` and `os_ngd_list_mapping_collections`.
+- **ONS API client** now requires an async context manager session and maps connection failures to `ONSAPIError` for consistent error handling.
+
 ### Added - Sprint 8: Architecture Review & Query Router
 
 - **Query Router Tool** (`route_query`):
@@ -61,8 +83,8 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
   - Helps MCP clients understand correct tool selection workflow
 
 - **STOP_AND_CHECK Warning in Workflow Tools**:
-  - `get_workflow_context` now returns prominent warning at top of response
-  - `list_collections` also returns warning
+  - `os_ngd_init_mapping_workflow` now returns prominent warning at top of response
+  - `os_ngd_list_mapping_collections` also returns warning
   - Warning asks: "Is the user asking to FIND A PLACE BY NAME?"
   - Directs to use `search_geographic_areas` instead of OS NGD workflow for place lookups
   - Includes examples: "Find Birmingham", "Local authority code for Coventry"
@@ -407,4 +429,3 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ### Notes
 Earlier versions (<0.1.6) covered initial project scaffolding, basic MCP service, and discovery endpoints.
-

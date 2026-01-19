@@ -334,7 +334,7 @@ After connecting, these tools become available:
 |----------|-------|
 | Geography | `select_geographic_area`, `fetch_boundaries`, `search_geographic_areas` |
 | Statistics | `list_ons_datasets`, `get_dataset_info`, `get_statistics`, `compare_areas` |
-| OS NGD | `search_features`, `get_feature`, `get_linked_identifiers`, `list_collections` |
+| OS NGD | `search_features`, `get_feature`, `get_linked_identifiers`, `os_ngd_list_mapping_collections` |
 | Routing | `get_routing_data` |
 | Knowledge | `suggest_collections`, `suggest_fields` |
 
