@@ -53,6 +53,7 @@ from mcp_service.tool_search_config import (
     get_tool_annotations,
     get_tool_search_system_prompt,
     generate_mcp_toolset_config,
+    STATEFUL_TOOLS,
     TOOL_DESCRIPTIONS,
     ToolCategory,
 )
@@ -209,6 +210,7 @@ class OSDataHubService:
             "check_api_key",
             "version_info",
             "get_tool_search_config",
+            "diagnose_tool_permissions",
             "os_ngd_list_mapping_collections",
             "get_single_collection",
             "get_single_collection_queryables",
@@ -495,6 +497,7 @@ class OSDataHubService:
             "chat",
             "version_info",
             "get_tool_search_config",
+            "diagnose_tool_permissions",
             "os_ngd_list_mapping_collections",
             "get_knowledge_index_overview",
             "suggest_collections",
@@ -754,6 +757,101 @@ class OSDataHubService:
                 result["error"] = f"Invalid category: {category}. Valid: {[c.value for c in ToolCategory]}"
 
         return json.dumps(result, indent=2)
+
+    async def diagnose_tool_permissions(
+        self,
+        tool_names: Optional[List[str]] = None,
+        include_details: bool = True,
+    ) -> str:
+        """Diagnose tool permission annotations and client prompt behavior.
+
+        Args:
+            tool_names: Optional list of tool names to inspect (defaults to all).
+            include_details: If True, include per-tool annotations and mismatches.
+        """
+        try:
+            tools = await self.mcp.list_tools()
+            available = {tool.name: tool for tool in tools}
+            requested = tool_names or []
+            selected_names = (
+                sorted(available.keys())
+                if not requested
+                else [name for name in requested if name in available]
+            )
+            missing_requested = sorted(set(requested) - set(available.keys()))
+
+            tool_details: List[Dict[str, Any]] = []
+            read_only_tools: List[str] = []
+            open_world_tools: List[str] = []
+            idempotent_tools: List[str] = []
+            missing_read_only: List[str] = []
+            missing_expected_hints: List[Dict[str, Any]] = []
+
+            for name in selected_names:
+                tool = available[name]
+                annotations = tool.annotations.model_dump() if tool.annotations else {}
+                annotations = {k: v for k, v in annotations.items() if v is not None}
+                expected = get_tool_annotations(name)
+
+                missing = [key for key in expected if annotations.get(key) is not True]
+                if name not in STATEFUL_TOOLS and annotations.get("readOnlyHint") is not True:
+                    missing_read_only.append(name)
+                if annotations.get("readOnlyHint") is True:
+                    read_only_tools.append(name)
+                if annotations.get("openWorldHint") is True:
+                    open_world_tools.append(name)
+                if annotations.get("idempotentHint") is True:
+                    idempotent_tools.append(name)
+                if missing:
+                    missing_expected_hints.append({"name": name, "missing_hints": missing})
+
+                if include_details:
+                    detail: Dict[str, Any] = {
+                        "name": name,
+                        "annotations": annotations,
+                        "expected_hints": expected,
+                    }
+                    if missing:
+                        detail["missing_hints"] = missing
+                    tool_details.append(detail)
+
+            result = {
+                "status": "ok",
+                "summary": {
+                    "total_tools": len(available),
+                    "reported_tools": len(selected_names),
+                    "read_only_tools": len(read_only_tools),
+                    "stateful_tools": sorted(STATEFUL_TOOLS),
+                    "open_world_tools": len(open_world_tools),
+                    "idempotent_tools": len(idempotent_tools),
+                },
+                "diagnostics": {
+                    "missing_read_only_hint": missing_read_only,
+                    "missing_expected_hints": missing_expected_hints,
+                    "missing_requested_tools": missing_requested,
+                },
+                "issue_status": {
+                    "name": "claude_desktop_permission_prompt",
+                    "status": "Read-only hints are set; prompts appear client-side.",
+                    "details": (
+                        "Claude Desktop can still ask permission for tool calls, especially for open-world tools. "
+                        "Use 'Always allow' to persist approvals."
+                    ),
+                },
+            }
+
+            if include_details:
+                result["tools"] = tool_details
+
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps(
+                build_error_envelope(
+                    tool="diagnose_tool_permissions",
+                    code=ErrorCode.GENERAL_ERROR,
+                    message=str(e),
+                )
+            )
 
     async def check_api_key(self) -> str:
         """Check if the OS API key is available."""

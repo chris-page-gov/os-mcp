@@ -1,6 +1,6 @@
 ============================================================
-AUDIT LOG: fe5e45b6
-Timestamp: 2026-01-19T11:45:16.238104
+AUDIT LOG: 77974207
+Timestamp: 2026-01-19T13:48:51.756913
 ============================================================
 
 ## 1. QUERY
@@ -18,9 +18,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.245052
+Timestamp: 2026-01-19T13:48:52.052774
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -33,29 +33,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Birmingham",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Birmingham",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "E08000025",
+      "name": "Birmingham",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Birmingham", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Birmingham", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "E08000025", "name": "Birmingham", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 7.0ms
+Total Duration: 295.9ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -67,8 +66,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 3f140a4b
-Timestamp: 2026-01-19T11:45:16.245803
+AUDIT LOG: a34e9fc3
+Timestamp: 2026-01-19T13:48:52.055583
 ============================================================
 
 ## 1. QUERY
@@ -86,9 +85,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.248775
+Timestamp: 2026-01-19T13:48:52.359415
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -101,29 +100,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Manchester",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Manchester",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "E08000003",
+      "name": "Manchester",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Manchester", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Manchester", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "E08000003", "name": "Manchester", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 3.0ms
+Total Duration: 303.9ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -135,8 +133,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: fe0ae2fc
-Timestamp: 2026-01-19T11:45:16.249343
+AUDIT LOG: ed059fe0
+Timestamp: 2026-01-19T13:48:52.362977
 ============================================================
 
 ## 1. QUERY
@@ -154,9 +152,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.251404
+Timestamp: 2026-01-19T13:48:52.607826
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -169,29 +167,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Coventry",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Coventry",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "E08000026",
+      "name": "Coventry",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Coventry", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Coventry", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "E08000026", "name": "Coventry", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.1ms
+Total Duration: 244.9ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -203,8 +200,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: f337ef18
-Timestamp: 2026-01-19T11:45:16.251869
+AUDIT LOG: 47e07a37
+Timestamp: 2026-01-19T13:48:52.610006
 ============================================================
 
 ## 1. QUERY
@@ -222,9 +219,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.254632
+Timestamp: 2026-01-19T13:48:52.845064
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -237,29 +234,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Leeds",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Leeds",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "E08000035",
+      "name": "Leeds",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Leeds", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Leeds", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "E08000035", "name": "Leeds", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.8ms
+Total Duration: 235.1ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -271,8 +267,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 1639a9f7
-Timestamp: 2026-01-19T11:45:16.255124
+AUDIT LOG: ba45e72b
+Timestamp: 2026-01-19T13:48:52.847309
 ============================================================
 
 ## 1. QUERY
@@ -290,9 +286,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.257707
+Timestamp: 2026-01-19T13:48:53.092313
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -305,29 +301,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Edinburgh",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Edinburgh",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "S12000036",
+      "name": "City of Edinburgh",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Edinburgh", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Edinburgh", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "S12000036", "name": "City of Edinburgh", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.6ms
+Total Duration: 245.0ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -339,8 +334,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 79144b9c
-Timestamp: 2026-01-19T11:45:16.258238
+AUDIT LOG: 7f15a89f
+Timestamp: 2026-01-19T13:48:53.092950
 ============================================================
 
 ## 1. QUERY
@@ -360,11 +355,12 @@ No tool calls recorded
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "ONS API connection error: Cannot connect to host api.beta.ons.gov.uk:443 ssl:default [Name or service not known]", "message": "ONS API connection error: Cannot connect to host api.beta.ons.gov.uk:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "list_ons_datasets", "retry_guidance": {"tool": "list_ons_datasets", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"count": 23, "datasets": [{"id": "wellbeing-local-authority", "title": "Personal well-being estimates by local authority", "description": "Estimates of life satisfaction, feeling that the things done in life are worthwhile, happiness and anxiety at the UK, country, regional, county, local and unitary authority level.", "keywords": ["well-being"], "last_updated": "2023-12-13T09:40:21.928Z", "release_frequency": "Annual"}, {"id": "weekly-deaths-region", "title": "Deaths registered weekly in England and Wales by region", "description": "Provisional counts of the number of deaths registered in England and Wales, by region, in the latest weeks for which data are available.", "keywords": ["Deaths", "weekly deaths"], "last_updated": "2026-01-14T10:29:59.751Z", "release_frequency": "Weekly"}, {"id": "weekly-deaths-local-authority", "title": "Death registrations and occurrences by local authority and place of death", "description": "Provisional counts of the number of deaths registered in England and Wales, including deaths involving the coronavirus (COVID-19), by local authority, health board and place of death in the latest wee", "keywords": ["Deaths", "weekly deaths"], "last_updated": "2024-01-09T10:10:57.755Z", "release_frequency": "Weekly"}, {"id": "uk-business-by-enterprises-and-local-units", "title": "UK Business: Activity, Size and Location", "description": "The data contained in these tables are numbers of enterprises and local units produced from a snapshot of the Inter-Departmental Business Register (IDBR) taken on 12 March 2021. This dataset contains ", "keywords": ["enterprises", "local units,IDBR,business counts,Inter-Departmental Business Register"], "last_updated": "2022-11-03T09:50:09.932Z", "release_frequency": "Annual"}, {"id": "suicides-in-the-uk", "title": "Suicide registrations in England and Wales by local authority", "description": "Number of suicides by local authority in England and Wales, registered from 2001.\n\nIf you are struggling to cope, please call Samaritans for free on 116 123 (UK and ROI) or contact other sources of su", "keywords": ["suicide", "mortality"], "last_updated": "2024-09-05T12:10:34.352Z", "release_frequency": "Annually"}, {"id": "sexual-orientation-by-region", "title": "Sexual orientation by English regions and UK countries", "description": "Sexual orientation in the UK from 2012 to 2020 by region.\n\nData source: Annual Population Survey, ONS\n", "keywords": ["gay", "lesbian,bisexual,straight,LGB"], "last_updated": "2023-10-18T09:27:23.046Z", "release_frequency": "Annual"}, {"id": "regional-gdp-by-year", "title": "Annual GDP for England, Wales and the English regions", "description": "Annual economic activity within England, Wales and the nine English regions (North East, North West, Yorkshire and the Humber, East Midlands, West Midlands, East of England, Greater London, South East", "keywords": ["regional GDP"], "last_updated": "2023-05-24T08:36:20.126Z", "release_frequency": "Annual"}, {"id": "regional
+... [truncated]
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 3.6ms
+Total Duration: 232.9ms
 Tool Calls: 0
 Overall Status: SUCCESS
 
@@ -373,8 +369,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 388d2d71
-Timestamp: 2026-01-19T11:45:16.262230
+AUDIT LOG: 3a390b9b
+Timestamp: 2026-01-19T13:48:53.328464
 ============================================================
 
 ## 1. QUERY
@@ -394,11 +390,12 @@ No tool calls recorded
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "ONS API connection error: Cannot connect to host api.beta.ons.gov.uk:443 ssl:default [Name or service not known]", "message": "ONS API connection error: Cannot connect to host api.beta.ons.gov.uk:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "list_ons_datasets", "retry_guidance": {"tool": "list_ons_datasets", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"count": 23, "datasets": [{"id": "wellbeing-local-authority", "title": "Personal well-being estimates by local authority", "description": "Estimates of life satisfaction, feeling that the things done in life are worthwhile, happiness and anxiety at the UK, country, regional, county, local and unitary authority level.", "keywords": ["well-being"], "last_updated": "2023-12-13T09:40:21.928Z", "release_frequency": "Annual"}, {"id": "weekly-deaths-region", "title": "Deaths registered weekly in England and Wales by region", "description": "Provisional counts of the number of deaths registered in England and Wales, by region, in the latest weeks for which data are available.", "keywords": ["Deaths", "weekly deaths"], "last_updated": "2026-01-14T10:29:59.751Z", "release_frequency": "Weekly"}, {"id": "weekly-deaths-local-authority", "title": "Death registrations and occurrences by local authority and place of death", "description": "Provisional counts of the number of deaths registered in England and Wales, including deaths involving the coronavirus (COVID-19), by local authority, health board and place of death in the latest wee", "keywords": ["Deaths", "weekly deaths"], "last_updated": "2024-01-09T10:10:57.755Z", "release_frequency": "Weekly"}, {"id": "uk-business-by-enterprises-and-local-units", "title": "UK Business: Activity, Size and Location", "description": "The data contained in these tables are numbers of enterprises and local units produced from a snapshot of the Inter-Departmental Business Register (IDBR) taken on 12 March 2021. This dataset contains ", "keywords": ["enterprises", "local units,IDBR,business counts,Inter-Departmental Business Register"], "last_updated": "2022-11-03T09:50:09.932Z", "release_frequency": "Annual"}, {"id": "suicides-in-the-uk", "title": "Suicide registrations in England and Wales by local authority", "description": "Number of suicides by local authority in England and Wales, registered from 2001.\n\nIf you are struggling to cope, please call Samaritans for free on 116 123 (UK and ROI) or contact other sources of su", "keywords": ["suicide", "mortality"], "last_updated": "2024-09-05T12:10:34.352Z", "release_frequency": "Annually"}, {"id": "sexual-orientation-by-region", "title": "Sexual orientation by English regions and UK countries", "description": "Sexual orientation in the UK from 2012 to 2020 by region.\n\nData source: Annual Population Survey, ONS\n", "keywords": ["gay", "lesbian,bisexual,straight,LGB"], "last_updated": "2023-10-18T09:27:23.046Z", "release_frequency": "Annual"}, {"id": "regional-gdp-by-year", "title": "Annual GDP for England, Wales and the English regions", "description": "Annual economic activity within England, Wales and the nine English regions (North East, North West, Yorkshire and the Humber, East Midlands, West Midlands, East of England, Greater London, South East", "keywords": ["regional GDP"], "last_updated": "2023-05-24T08:36:20.126Z", "release_frequency": "Annual"}, {"id": "regional
+... [truncated]
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.3ms
+Total Duration: 258.2ms
 Tool Calls: 0
 Overall Status: SUCCESS
 
@@ -407,8 +404,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 919a35eb
-Timestamp: 2026-01-19T11:45:16.264857
+AUDIT LOG: fd0386c8
+Timestamp: 2026-01-19T13:48:53.589309
 ============================================================
 
 ## 1. QUERY
@@ -432,7 +429,7 @@ No tool calls recorded
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 0.3ms
+Total Duration: 1.0ms
 Tool Calls: 0
 Overall Status: SUCCESS
 
@@ -441,8 +438,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: ef4d2611
-Timestamp: 2026-01-19T11:45:16.265625
+AUDIT LOG: f4481f3d
+Timestamp: 2026-01-19T13:48:53.591496
 ============================================================
 
 ## 1. QUERY
@@ -466,7 +463,7 @@ No tool calls recorded
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 0.1ms
+Total Duration: 0.3ms
 Tool Calls: 0
 Overall Status: SUCCESS
 
@@ -475,8 +472,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 3d8fa352
-Timestamp: 2026-01-19T11:45:16.266089
+AUDIT LOG: dfe2795b
+Timestamp: 2026-01-19T13:48:53.592347
 ============================================================
 
 ## 1. QUERY
@@ -494,9 +491,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.268147
+Timestamp: 2026-01-19T13:48:53.857342
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -509,29 +506,22 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Atlantis",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Atlantis",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 0,
+  "results": []
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Atlantis", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Atlantis", "level": "local_auth", "level_name": "Local Authority Districts", "count": 0, "results": []}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.1ms
+Total Duration: 265.0ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -543,8 +533,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: b31a8760
-Timestamp: 2026-01-19T11:45:16.268579
+AUDIT LOG: a97580fb
+Timestamp: 2026-01-19T13:48:53.859945
 ============================================================
 
 ## 1. QUERY
@@ -574,8 +564,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 78e41a60
-Timestamp: 2026-01-19T11:45:16.268852
+AUDIT LOG: 08240c14
+Timestamp: 2026-01-19T13:48:53.860930
 ============================================================
 
 ## 1. QUERY
@@ -593,9 +583,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.270990
+Timestamp: 2026-01-19T13:48:54.113689
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -608,29 +598,22 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "SELECT * FROM users; DROP TABLE users;--",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "SELECT * FROM users; DROP TABLE users;--",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 0,
+  "results": []
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "SELECT * FROM users; DROP TABLE users;--", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "SELECT * FROM users; DROP TABLE users;--", "level": "local_auth", "level_name": "Local Authority Districts", "count": 0, "results": []}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.1ms
+Total Duration: 252.8ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -642,8 +625,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 0c188179
-Timestamp: 2026-01-19T11:45:16.271338
+AUDIT LOG: 404919e3
+Timestamp: 2026-01-19T13:48:54.116084
 ============================================================
 
 ## 1. QUERY
@@ -661,9 +644,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.273330
+Timestamp: 2026-01-19T13:48:54.373091
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -676,29 +659,22 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Find the <script>alert('xss')</script> area",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Find the <script>alert('xss')</script> area",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 0,
+  "results": []
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Find the <script>alert('xss')</script> area", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Find the <script>alert('xss')</script> area", "level": "local_auth", "level_name": "Local Authority Districts", "count": 0, "results": []}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.0ms
+Total Duration: 257.0ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -710,8 +686,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 7b3e7274
-Timestamp: 2026-01-19T11:45:16.273781
+AUDIT LOG: 679190c8
+Timestamp: 2026-01-19T13:48:54.375819
 ============================================================
 
 ## 1. QUERY
@@ -729,9 +705,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.275791
+Timestamp: 2026-01-19T13:48:54.630431
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -744,29 +720,22 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "asdfghjkl qwertyuiop zxcvbnm",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "asdfghjkl qwertyuiop zxcvbnm",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 0,
+  "results": []
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "asdfghjkl qwertyuiop zxcvbnm", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "asdfghjkl qwertyuiop zxcvbnm", "level": "local_auth", "level_name": "Local Authority Districts", "count": 0, "results": []}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.0ms
+Total Duration: 254.7ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -778,8 +747,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: 9ccceb19
-Timestamp: 2026-01-19T11:45:16.276186
+AUDIT LOG: df43bcbb
+Timestamp: 2026-01-19T13:48:54.633163
 ============================================================
 
 ## 1. QUERY
@@ -797,9 +766,9 @@ Workflow Steps: search_geographic_areas
 ------------------------------------------------------------
 ### Tool Call 1: search_geographic_areas
 ········································
-Timestamp: 2026-01-19T11:45:16.278343
+Timestamp: 2026-01-19T13:48:54.761928
 Duration: 0.0ms
-Status: FAILED
+Status: SUCCESS
 
 **Inputs:**
 ```json
@@ -812,29 +781,28 @@ Status: FAILED
 **Outputs:**
 ```json
 {
-  "error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]",
-  "error_code": "UPSTREAM_ERROR",
-  "tool": "search_geographic_areas",
-  "details": {
-    "query": "Birmingham",
-    "level": "local_auth"
-  },
-  "retry_guidance": {
-    "tool": "search_geographic_areas",
-    "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"
-  }
+  "query": "Birmingham",
+  "level": "local_auth",
+  "level_name": "Local Authority Districts",
+  "count": 1,
+  "results": [
+    {
+      "code": "E08000025",
+      "name": "Birmingham",
+      "level": "local_auth"
+    }
+  ]
 }
 ```
 
 
 ## 4. FINAL RESPONSE
 ------------------------------------------------------------
-{"error": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "message": "Cannot connect to host services1.arcgis.com:443 ssl:default [Name or service not known]", "error_code": "UPSTREAM_ERROR", "tool": "search_geographic_areas", "details": {"query": "Birmingham", "level": "local_auth"}, "retry_guidance": {"tool": "search_geographic_areas", "hint": "Temporary upstream failure \u2013 retry with backoff if idempotent"}}
+{"query": "Birmingham", "level": "local_auth", "level_name": "Local Authority Districts", "count": 1, "results": [{"code": "E08000025", "name": "Birmingham", "level": "local_auth"}]}
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 2.2ms
+Total Duration: 128.8ms
 Tool Calls: 1
 Overall Status: SUCCESS
 
@@ -846,8 +814,8 @@ END OF AUDIT LOG
 ============================================================
 
 ============================================================
-AUDIT LOG: a4534aaa
-Timestamp: 2026-01-19T11:45:16.278778
+AUDIT LOG: d92b7d1c
+Timestamp: 2026-01-19T13:48:54.764269
 ============================================================
 
 ## 1. QUERY
@@ -871,7 +839,7 @@ No tool calls recorded
 
 ## 5. METRICS
 ------------------------------------------------------------
-Total Duration: 0.1ms
+Total Duration: 0.3ms
 Tool Calls: 0
 Overall Status: SUCCESS
 

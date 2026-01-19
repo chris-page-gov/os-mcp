@@ -171,7 +171,7 @@ These items are essential for the MCP-Apps functionality and should be completed
 
 **Goal**: Implement Anthropic's Tool Search facility to improve context efficiency and tool selection accuracy as the tool catalog grows.
 
-**Background**: The project now has 36+ tools. Tool search enables dynamic tool discovery, keeping context window efficient while maintaining high tool selection accuracy. Tools with `defer_loading: true` are only loaded when Claude discovers them via search.
+**Background**: The project now has 39+ tools. Tool search enables dynamic tool discovery, keeping context window efficient while maintaining high tool selection accuracy. Tools with `defer_loading: true` are only loaded when Claude discovers them via search.
 
 **7.1 Tool Search Infrastructure**
 - [ ] Add `defer_loading` parameter support to tool definitions

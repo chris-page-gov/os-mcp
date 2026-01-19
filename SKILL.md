@@ -28,7 +28,7 @@ route_query("Find Birmingham")
 
 ### Why route_query First?
 
-This server has 38 tools serving different purposes:
+This server has 39 tools serving different purposes:
 - **ONS Geography API** - Administrative areas (councils, wards)
 - **ONS Statistics API** - Government statistics
 - **OS NGD API** - Mapping features (buildings, roads)
@@ -248,6 +248,17 @@ Steps:
 | `get_shared_context` | Get current shared selections |
 | `update_shared_context` | Add/remove shared selections |
 | `share_selection` | Share between widgets |
+
+### Diagnostics & Utility Tools (No workflow context required)
+
+| Tool | Purpose |
+|------|---------|
+| `diagnose_tool_permissions` | Report readOnly/openWorld/idempotent hints for client prompt troubleshooting |
+| `lookup_addresses` | Look up addresses by postcode or search term |
+| `diagnose_address_fields` | Diagnose address field issues |
+| `summarise_buildings_by_road` | Summarize buildings along a road |
+| `get_prompt_templates` | Get workflow prompt templates |
+| `chat` | Experimental OpenAI chat tool (requires OPENAI_API_KEY) |
 
 ### OS Data Tools (Require workflow context)
 

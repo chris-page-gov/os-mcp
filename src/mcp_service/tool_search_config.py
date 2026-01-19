@@ -3,7 +3,7 @@
 This module defines tool categories, defer_loading settings, and enhanced
 descriptions for Anthropic's Tool Search facility.
 
-Tool search enables dynamic tool discovery for large tool catalogs (36+ tools).
+Tool search enables dynamic tool discovery for large tool catalogs (39+ tools).
 Tools marked with defer_loading=True are only loaded into context when Claude
 discovers them via search.
 
@@ -126,6 +126,7 @@ DEFERRED_TOOLS: Set[str] = {
     "suggest_fields",
     "get_knowledge_index_overview",
     "lookup_addresses",
+    "diagnose_tool_permissions",
     "diagnose_address_fields",
     "summarise_buildings_by_road",
     "get_prompt_templates",
@@ -181,6 +182,7 @@ IDEMPOTENT_TOOLS: Set[str] = {
     "check_api_key",
     "version_info",
     "get_tool_search_config",
+    "diagnose_tool_permissions",
     "route_query",
     "get_shared_context",
     "get_prompt_templates",
@@ -456,6 +458,12 @@ TOOL_DESCRIPTIONS: Dict[str, ToolConfig] = {
         "category": ToolCategory.UTILITY,
         "keywords": ["address", "lookup", "postcode", "find", "location"],
         "description_enhanced": "Look up addresses by postcode or search term. Find UK addresses with full details including UPRN, coordinates, and classification.",
+    },
+    "diagnose_tool_permissions": {
+        "defer_loading": True,
+        "category": ToolCategory.UTILITY,
+        "keywords": ["diagnose", "permissions", "tool", "annotations", "readOnly", "openWorld", "prompt"],
+        "description_enhanced": "Diagnose MCP tool permission hints. Reports readOnly/openWorld/idempotent annotations and highlights any missing hints for client prompt troubleshooting.",
     },
     "diagnose_address_fields": {
         "defer_loading": True,

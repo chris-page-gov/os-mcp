@@ -46,7 +46,7 @@ curl -s http://127.0.0.1:8000/health
 - `src/server.py` - Main entry point. Supports stdio (default) and streamable-http transports via `--transport` flag. Creates `FastMCP` instance and wires up middleware.
 
 ### Core Service Layer
-- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 38 tools (search_features, get_feature, chat, routing, geography, statistics, route_query, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
+- `src/mcp_service/os_service.py` - `OSDataHubService` class: registers all MCP tools, resources, and prompts. Contains 39 tools (search_features, get_feature, chat, routing, geography, statistics, route_query, etc.). Implements workflow context enforcement via `_require_workflow_context` decorator.
 - `src/mcp_service/tool_search_config.py` - Tool search configuration with defer_loading support. Defines ALWAYS_LOADED_TOOLS (5) and DEFERRED_TOOLS (33) sets for context efficiency.
 - `src/api_service/os_api.py` - `OSAPIClient`: handles all HTTP requests to OS Data Hub APIs. Includes rate limiting, API key sanitization, collection caching, and OpenAPI spec parsing.
 
@@ -142,7 +142,7 @@ Notes: the ONS client is used via an async context manager and surfaces connecti
 
 ## Tool Search Integration (Sprint 7-8 - Complete)
 
-Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 tools.
+Implements Anthropic's Tool Search facility for dynamic tool discovery with 39 tools.
 
 ### Overview
 - Tools split into always-loaded (6) and deferred (32) for token efficiency
@@ -161,13 +161,14 @@ Implements Anthropic's Tool Search facility for dynamic tool discovery with 38 t
 | Widget | - | get_shared_context, update_shared_context, share_selection |
 | Search | - | suggest_collections, suggest_fields, get_knowledge_index_overview |
 | Linked | - | get_linked_identifiers, get_bulk_linked_features |
-| Utility | - | lookup_addresses, diagnose_address_fields, summarise_buildings_by_road, get_prompt_templates, chat |
+| Utility | - | lookup_addresses, diagnose_tool_permissions, diagnose_address_fields, summarise_buildings_by_road, get_prompt_templates, chat |
 
 ### New Tools (Sprint 7-8)
 | Tool | Description |
 |------|-------------|
 | `route_query` | PRIMARY ENTRY POINT - Analyzes query intent and recommends the right tool |
 | `get_tool_search_config` | Returns tool categories, defer_loading settings, and MCP toolset config |
+| `diagnose_tool_permissions` | Reports tool annotations for readOnly/openWorld/idempotent hints |
 
 ### Technical Requirements
 - Beta headers: `advanced-tool-use-2025-11-20`, `mcp-client-2025-11-20`
@@ -182,9 +183,9 @@ Tools are annotated with MCP hints to help clients make better permission decisi
 
 | Annotation | Tools | Description |
 |------------|-------|-------------|
-| `readOnlyHint=true` | 36 tools | Doesn't modify state - clients may skip permission prompts |
+| `readOnlyHint=true` | 37 tools | Doesn't modify state - clients may skip permission prompts |
 | `openWorldHint=true` | 22 tools | Calls external APIs (OS Data Hub, ONS, OpenAI) |
-| `idempotentHint=true` | 10 tools | Repeated calls have no additional effect |
+| `idempotentHint=true` | 11 tools | Repeated calls have no additional effect |
 
 **Stateful tools** (only 2 - require permission prompts):
 - `update_shared_context` - Modifies cross-widget shared state

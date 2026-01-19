@@ -55,7 +55,7 @@ route_query("Find cinemas in Leeds")
 
 ## Why This Matters
 
-This server has 38 tools serving DIFFERENT purposes:
+This server has 39 tools serving DIFFERENT purposes:
 - **ONS Geography API** (search_geographic_areas) - For finding places by NAME
 - **ONS Statistics API** (get_statistics, compare_areas) - For government statistics
 - **OS NGD Mapping API** (os_ngd_init_mapping_workflow, search_features) - For MAPPING features (buildings, roads) - ⛔ SPECIALIZED

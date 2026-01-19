@@ -8,6 +8,7 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ### Added
 - **Agent docs**: added `.github/copilot-instructions.md` to guide AI coding agents with repo-specific architecture and workflows.
+- **diagnose_tool_permissions** tool for inspecting readOnly/openWorld/idempotent hints and client permission behavior.
 
 ### Changed
 - **VS Code**: auto-run the task "Run MCP (http)" on folder open to simplify local Copilot Chat testing.

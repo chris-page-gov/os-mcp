@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-01-19T11:45:16.279172",
+  "timestamp": "2026-01-19T13:48:54.766142",
   "summary": {
     "total_questions": 16,
-    "total_score": 1340,
-    "percentage": 83.75
+    "total_score": 1400,
+    "percentage": 87.5
   },
   "results": [
     {
@@ -12,14 +12,14 @@
       "expected_intent": "place_lookup",
       "detected_intent": "place_lookup",
       "confidence": 0.95,
-      "score": 85,
-      "percentage": 85.0,
-      "level": "good",
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
       "tool_calls": [
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 7.631778717041016,
+      "duration_ms": 298.2935905456543,
       "error": null,
       "dimensions": [
         {
@@ -45,10 +45,10 @@
         },
         {
           "dimension": "response_quality",
-          "points": 5,
+          "points": 20,
           "max_points": 20,
-          "level": "poor",
-          "details": "Found 1/2 keywords, 0/1 expected values"
+          "level": "excellent",
+          "details": "Found 2/2 keywords, 1/1 expected values"
         },
         {
           "dimension": "error_handling",
@@ -65,14 +65,14 @@
       "expected_intent": "place_lookup",
       "detected_intent": "place_lookup",
       "confidence": 0.95,
-      "score": 90,
-      "percentage": 90.0,
+      "score": 100,
+      "percentage": 100.0,
       "level": "excellent",
       "tool_calls": [
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 3.437042236328125,
+      "duration_ms": 306.90622329711914,
       "error": null,
       "dimensions": [
         {
@@ -98,10 +98,10 @@
         },
         {
           "dimension": "response_quality",
-          "points": 10,
+          "points": 20,
           "max_points": 20,
-          "level": "acceptable",
-          "details": "Found 1/1 keywords, 0/1 expected values"
+          "level": "excellent",
+          "details": "Found 1/1 keywords, 1/1 expected values"
         },
         {
           "dimension": "error_handling",
@@ -118,14 +118,14 @@
       "expected_intent": "place_lookup",
       "detected_intent": "place_lookup",
       "confidence": 0.95,
-      "score": 85,
-      "percentage": 85.0,
-      "level": "good",
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
       "tool_calls": [
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.456188201904297,
+      "duration_ms": 246.77634239196777,
       "error": null,
       "dimensions": [
         {
@@ -151,10 +151,10 @@
         },
         {
           "dimension": "response_quality",
-          "points": 5,
+          "points": 20,
           "max_points": 20,
-          "level": "poor",
-          "details": "Found 1/2 keywords, 0/1 expected values"
+          "level": "excellent",
+          "details": "Found 2/2 keywords, 1/1 expected values"
         },
         {
           "dimension": "error_handling",
@@ -178,7 +178,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 3.177642822265625,
+      "duration_ms": 237.08176612854004,
       "error": null,
       "dimensions": [
         {
@@ -231,7 +231,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 3.036975860595703,
+      "duration_ms": 245.57161331176758,
       "error": null,
       "dimensions": [
         {
@@ -284,7 +284,7 @@
         "route_query",
         "list_ons_datasets"
       ],
-      "duration_ms": 3.9119720458984375,
+      "duration_ms": 235.1853847503662,
       "error": null,
       "dimensions": [
         {
@@ -337,7 +337,7 @@
         "route_query",
         "list_ons_datasets"
       ],
-      "duration_ms": 2.542734146118164,
+      "duration_ms": 260.41436195373535,
       "error": null,
       "dimensions": [
         {
@@ -389,7 +389,7 @@
       "tool_calls": [
         "route_query"
       ],
-      "duration_ms": 0.690460205078125,
+      "duration_ms": 2.0895004272460938,
       "error": null,
       "dimensions": [
         {
@@ -441,7 +441,7 @@
       "tool_calls": [
         "route_query"
       ],
-      "duration_ms": 0.3933906555175781,
+      "duration_ms": 0.77056884765625,
       "error": null,
       "dimensions": [
         {
@@ -487,14 +487,14 @@
       "expected_intent": "place_lookup",
       "detected_intent": "place_lookup",
       "confidence": 0.8,
-      "score": 80,
-      "percentage": 80.0,
-      "level": "good",
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
       "tool_calls": [
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.3949146270751953,
+      "duration_ms": 267.27747917175293,
       "error": null,
       "dimensions": [
         {
@@ -520,10 +520,10 @@
         },
         {
           "dimension": "response_quality",
-          "points": 0,
+          "points": 20,
           "max_points": 20,
-          "level": "fail",
-          "details": "Forbidden keywords found: ['error']"
+          "level": "excellent",
+          "details": "Found 0/0 keywords"
         },
         {
           "dimension": "error_handling",
@@ -544,7 +544,7 @@
       "percentage": 75.0,
       "level": "good",
       "tool_calls": [],
-      "duration_ms": 0.22482872009277344,
+      "duration_ms": 0.8783340454101562,
       "error": null,
       "dimensions": [
         {
@@ -597,7 +597,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.421140670776367,
+      "duration_ms": 254.8534870147705,
       "error": null,
       "dimensions": [
         {
@@ -650,7 +650,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.376079559326172,
+      "duration_ms": 259.42301750183105,
       "error": null,
       "dimensions": [
         {
@@ -703,7 +703,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.34222412109375,
+      "duration_ms": 257.13062286376953,
       "error": null,
       "dimensions": [
         {
@@ -756,7 +756,7 @@
         "route_query",
         "search_geographic_areas"
       ],
-      "duration_ms": 2.5069713592529297,
+      "duration_ms": 130.88130950927734,
       "error": null,
       "dimensions": [
         {
@@ -808,7 +808,7 @@
       "tool_calls": [
         "route_query"
       ],
-      "duration_ms": 0.27942657470703125,
+      "duration_ms": 1.2688636779785156,
       "error": null,
       "dimensions": [
         {

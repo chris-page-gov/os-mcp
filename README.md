@@ -39,7 +39,7 @@ Interactive UI widgets make this an exemplary MCP-Apps implementation. See the d
 | 5 | Enhanced Features | ✅ Complete | Feature inspector, route planner, cross-widget communication |
 | 6 | Polish & Release | ✅ Complete | 320+ tests, >80% coverage, Docker, CI/CD |
 | 7 | Tool Search | ✅ Complete | defer_loading, MCP toolset integration |
-| 8 | Architecture Review | ✅ Complete | Query router, 38 tools (6 always-loaded, 32 deferred), evaluation framework |
+| 8 | Architecture Review | ✅ Complete | Query router, 39 tools (6 always-loaded, 33 deferred), evaluation framework |
 
 ### New Geography Tools (Sprint 1-2)
 
@@ -403,6 +403,11 @@ Fix Steps:
 3. Reload VS Code and run `@os-mcp-dev list tools`.
 4. (Optional) Verify Docker / deployment scripts also use `-m server`.
 Result: Single, reliable entrypoint across editable (`pip install -e .`) and wheel installs.
+
+### Troubleshooting: Claude Desktop Permission Prompts
+Claude Desktop can prompt for permission even when tools are marked `readOnlyHint=true`.
+The server annotations are correct; this is client-side behavior, especially for `openWorldHint=true` tools.
+Run `diagnose_tool_permissions` to confirm annotations and click **Always allow** to persist approvals.
 
 ### Troubleshooting: TLS / Corporate Proxy Certificates
 If you see HTTPS errors such as:

@@ -85,3 +85,19 @@ async def test_linked_identifiers_filtering():
     data = json.loads(out)
     assert len(data["results"]) == 2
     assert all(r["featureType"] == "RoadLink" for r in data["results"])
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_diagnose_tool_permissions_reports_readonly():
+    api_client = AsyncMock()
+    mcp = FastMCP("os-ngd-api")
+    service = OSDataHubService(api_client, mcp)
+
+    out = await service.diagnose_tool_permissions(tool_names=["get_linked_identifiers"])
+    data = json.loads(out)
+    assert data["status"] == "ok"
+    assert data["summary"]["reported_tools"] == 1
+    tool = data["tools"][0]
+    assert tool["name"] == "get_linked_identifiers"
+    assert tool["annotations"]["readOnlyHint"] is True

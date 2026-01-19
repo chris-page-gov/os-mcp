@@ -27,6 +27,7 @@ Then point your MCP client to this proxy command instead of calling `python -m s
 - `method: "tools/call"` entries: shows actual tool usage and parameters.
 - `method: "initialize"`: identifies client capabilities and version metadata.
 - Absence of `get_tool_search_config` calls usually means the client is not injecting the tool-search system prompt (confirm via client logs).
+- If permission prompts persist, run `diagnose_tool_permissions` to confirm read-only annotations are present.
 
 This does **not** show the user prompt or the model's reasoning; it only shows MCP traffic.
 

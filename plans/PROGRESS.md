@@ -10,18 +10,19 @@ This document tracks progress through the [Implementation Roadmap](on-ons%20mcp%
 |--------|-------|
 | Current Sprint | 8 Complete - Architecture Review & Evaluation |
 | Tools Added | 16 (15 MCP-Apps + 1 route_query) |
-| Total Tools | 38 (6 always-loaded, 32 deferred) |
+| Total Tools | 39 (6 always-loaded, 33 deferred) |
 | UI Resources Added | 4 (geography-selector, statistics-dashboard, feature-inspector, route-planner) |
 | Test Count | 370+ passing |
 | Coverage | >80% |
 | Prompt Templates | 13 new MCP-Apps prompts added |
-| Tool Search | 6 always-loaded (route_query, search_geographic_areas, select_geographic_area, get_statistics, hello_world, version_info), 32 deferred |
+| Tool Search | 6 always-loaded (route_query, search_geographic_areas, select_geographic_area, get_statistics, hello_world, version_info), 33 deferred |
 | Documentation | User tutorial (docs/tutorial.md), Sprint 8 plan |
 
 ## Recent Updates
 
 - ONS API client now raises `ONSAPIError` for connection failures and requires async context manager usage.
 - Test assertions updated for HTTP middleware detection and MCP tool search prompt checks.
+- Added `diagnose_tool_permissions` for read-only hint verification and client prompt troubleshooting.
 
 ---
 
@@ -405,6 +406,7 @@ ONS ArcGIS REST services verified (January 2025):
 
 | Date | Tests | Tools | Resources | Notes |
 |------|-------|-------|-----------|-------|
+| 2026-01-19 | 370+ | 39 | 10 | Added tool permission diagnostics |
 | 2026-01-18 | 370+ | 38 | 10 | Sprint 8 complete - query router, evaluation framework 100% |
 | 2026-01-17 | 370+ | 38 | 10 | Sprint 8 in progress - route_query, architecture review |
 | 2026-01-17 | 370+ | 37 | 10 | Sprint 7 complete - tool search, defer_loading |

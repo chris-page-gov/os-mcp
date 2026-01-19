@@ -108,7 +108,18 @@ Claude (reply): Summarises number of links, sample IDs, maybe suggests follow‑
 | Overly complex / malformed filter | `INVALID_INPUT` | Simplify filter or fetch queryables again. |
 | Missing enumeration knowledge | Poor filter guess | "Fetch detailed queryables for that collection before filtering." |
 
-## 7. Guided Workflow Prompts (Warwickshire Examples)
+## 7. Permission Prompts (Read-only Tools)
+
+**Issue:** Claude Desktop may prompt for permission even when tools are marked `readOnlyHint=true`.
+
+**Current status:** The server sends read-only annotations correctly. The prompts are client-side behavior, especially for tools with `openWorldHint=true` (external APIs).
+
+**Diagnostics:**
+- Run `diagnose_tool_permissions` to confirm annotations and identify any missing hints.
+- Use the MCP trace proxy (`scripts/mcp_stdio_trace_proxy.py`) to confirm the client calls `tools/list` and `tools/call` as expected.
+- If the tool is correct, click **Always allow** to persist approvals for that tool/server.
+
+## 8. Guided Workflow Prompts (Warwickshire Examples)
 Try:
 > Use the search_cinemas_leamington prompt.
 > Apply routing_network_build_small_bbox for a tiny area near Warwick.
@@ -116,7 +127,7 @@ Try:
 
 These instruct the model to follow an embedded plan: you don’t need to craft the tool sequence every time.
 
-## 8. Routing Use Case (Plain Language)
+## 9. Routing Use Case (Plain Language)
 User: "Build a small road network for central Warwick (tight bbox) and list total nodes/edges."
 Likely flow:
 1. Claude may still obtain workflow context (good practice).
