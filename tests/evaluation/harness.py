@@ -4,7 +4,7 @@ This module provides the infrastructure to run evaluation questions through
 the MCP server and score the results.
 
 Usage:
-    python -m tests.evaluation.harness [--questions=basic,intermediate] [--output=results.json]
+    python -m tests.evaluation.harness [--questions=basic,intermediate] [--output=tests/evaluation/evaluation_results.json]
 """
 
 import asyncio
@@ -84,7 +84,7 @@ class EvaluationHarness:
         log_dir: Optional[Path] = None,
         verbose: bool = False,
     ):
-        self.log_dir = log_dir or Path("logs/evaluation")
+        self.log_dir = log_dir or Path("tests/evaluation/logs")
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.verbose = verbose
         self.rubric = Rubric()
@@ -412,6 +412,7 @@ class EvaluationHarness:
 
     def save_results(self, output_path: Path) -> None:
         """Save evaluation results to JSON file"""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         results_data = {
             "timestamp": datetime.now().isoformat(),
             "summary": {
@@ -454,6 +455,7 @@ class EvaluationHarness:
 
     def save_audit_logs(self, output_path: Path) -> None:
         """Save all audit logs to a single file"""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         audit_logs = []
         for result in self.results:
             if result.audit_record:
@@ -488,7 +490,7 @@ async def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("evaluation_results.json"),
+        default=Path("tests/evaluation/evaluation_results.json"),
         help="Output file for results",
     )
     parser.add_argument(

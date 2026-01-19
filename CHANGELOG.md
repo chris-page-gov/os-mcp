@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 
 ### Changed
 - **Docs**: updated evaluation summary to reflect the latest basic-only run results.
+- **Evaluation harness** now writes results and audit logs under `tests/evaluation/` by default.
 
 ### Fixed
 - _None._

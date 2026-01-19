@@ -169,7 +169,7 @@ python -m tests.evaluation.harness --difficulty=basic --verbose
 ### Full Evaluation
 
 ```bash
-python -m tests.evaluation.harness --output=results.json
+python -m tests.evaluation.harness --output=tests/evaluation/evaluation_results.json
 ```
 
 ### Specific Intent
@@ -183,6 +183,11 @@ python -m tests.evaluation.harness --intent=place_lookup
 ```bash
 python -m tests.evaluation.harness --questions=B001,B002,I001
 ```
+
+**Default outputs:**
+- Results JSON: `tests/evaluation/evaluation_results.json`
+- Audit summary: `tests/evaluation/evaluation_results.audit.txt`
+- Audit logs directory: `tests/evaluation/logs/audit/`
 
 ---
 
