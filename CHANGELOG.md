@@ -10,7 +10,7 @@ The format is based on Keep a Changelog and adheres to Semantic Versioning.
 - _None._
 
 ### Changed
-- _None._
+- **Docs**: updated evaluation summary to reflect the latest basic-only run results.
 
 ### Fixed
 - _None._

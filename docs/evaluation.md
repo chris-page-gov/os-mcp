@@ -14,31 +14,31 @@ The evaluation framework consists of:
 
 | Metric | Value |
 |--------|-------|
-| **Overall Score** | 100% (21/21) |
-| **Level** | Excellent |
+| **Overall Score** | 83.75% (16/16) |
+| **Level** | Good |
 | **Date** | 2026-01-19 |
-| **Questions Tested** | 21 (Basic + Intermediate) |
+| **Questions Tested** | 16 (Basic only, including edge/ambiguous) |
 
 ### Score by Difficulty
 
 | Difficulty | Score | Status |
 |------------|-------|--------|
-| Basic | 100% (9/9) | ✅ Excellent |
-| Intermediate | 100% (12/12) | ✅ Excellent |
+| Basic | 83.75% (16/16) | ✅ Good |
+| Intermediate | _Not tested_ | - |
 | Advanced | _Not tested_ | - |
 
 ### Score by Intent
 
 | Intent | Score | Status |
 |--------|-------|--------|
-| place_lookup | 100% (5/5) | ✅ |
-| statistics | 100% (3/3) | ✅ |
-| area_comparison | 100% (2/2) | ✅ |
-| feature_search | 100% (3/3) | ✅ |
-| boundary_fetch | 100% (2/2) | ✅ |
-| interactive_selection | 100% (2/2) | ✅ |
-| route_planning | 100% (2/2) | ✅ |
-| dataset_discovery | 100% (2/2) | ✅ |
+| place_lookup | 83.18% (11/11) | ✅ |
+| dataset_discovery | 91.67% (3/3) | ✅ |
+| interactive_selection | 75.00% (2/2) | ✅ |
+| statistics | _Not tested_ | - |
+| area_comparison | _Not tested_ | - |
+| feature_search | _Not tested_ | - |
+| boundary_fetch | _Not tested_ | - |
+| route_planning | _Not tested_ | - |
 
 ---
 
@@ -282,7 +282,8 @@ END OF AUDIT LOG
 
 | Date | Version | Score | Notes |
 |------|---------|-------|-------|
-| 2026-01-19 | v0.1.18 | 100% | Sprint 8 - Query Router implementation |
+| 2026-01-19 | v0.1.18 | 83.75% | Basic-only run (includes edge/ambiguous) |
+| 2026-01-18 | v0.1.18 | 100% | Sprint 8 - Query Router implementation |
 
 ---
 
