@@ -1,0 +1,852 @@
+{
+  "timestamp": "2026-01-19T11:45:16.279172",
+  "summary": {
+    "total_questions": 16,
+    "total_score": 1340,
+    "percentage": 83.75
+  },
+  "results": [
+    {
+      "question_id": "B001",
+      "question": "Find Birmingham",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.95,
+      "score": 85,
+      "percentage": 85.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 7.631778717041016,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 5,
+          "max_points": 20,
+          "level": "poor",
+          "details": "Found 1/2 keywords, 0/1 expected values"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B002",
+      "question": "Where is Manchester?",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.95,
+      "score": 90,
+      "percentage": 90.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 3.437042236328125,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 10,
+          "max_points": 20,
+          "level": "acceptable",
+          "details": "Found 1/1 keywords, 0/1 expected values"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B003",
+      "question": "What is the area code for Coventry?",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.95,
+      "score": 85,
+      "percentage": 85.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.456188201904297,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 5,
+          "max_points": 20,
+          "level": "poor",
+          "details": "Found 1/2 keywords, 0/1 expected values"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B004",
+      "question": "Find Leeds local authority",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.95,
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 3.177642822265625,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 1/1 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B005",
+      "question": "Search for Edinburgh",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.95,
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 3.036975860595703,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 1/1 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B006",
+      "question": "What datasets are available?",
+      "expected_intent": "dataset_discovery",
+      "detected_intent": "dataset_discovery",
+      "confidence": 0.9,
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "list_ons_datasets"
+      ],
+      "duration_ms": 3.9119720458984375,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (dataset_discovery) with high confidence (0.90)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 1/1 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B007",
+      "question": "Show me wellbeing datasets",
+      "expected_intent": "dataset_discovery",
+      "detected_intent": "dataset_discovery",
+      "confidence": 0.9,
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "list_ons_datasets"
+      ],
+      "duration_ms": 2.542734146118164,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (dataset_discovery) with high confidence (0.90)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 1/1 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B008",
+      "question": "Open a map so I can select some areas",
+      "expected_intent": "interactive_selection",
+      "detected_intent": "interactive_selection",
+      "confidence": 0.95,
+      "score": 75,
+      "percentage": 75.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query"
+      ],
+      "duration_ms": 0.690460205078125,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (interactive_selection) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "Used 0/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "1 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 2/2 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "B009",
+      "question": "Let me pick local authorities on a map",
+      "expected_intent": "interactive_selection",
+      "detected_intent": "interactive_selection",
+      "confidence": 0.95,
+      "score": 75,
+      "percentage": 75.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query"
+      ],
+      "duration_ms": 0.3933906555175781,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (interactive_selection) with high confidence (0.95)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "Used 0/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "1 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 0/0 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "E001",
+      "question": "Find Atlantis",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.8,
+      "score": 80,
+      "percentage": 80.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.3949146270751953,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.80)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 0,
+          "max_points": 20,
+          "level": "fail",
+          "details": "Forbidden keywords found: ['error']"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "E002",
+      "question": "",
+      "expected_intent": "place_lookup",
+      "detected_intent": null,
+      "confidence": 0.0,
+      "score": 75,
+      "percentage": 75.0,
+      "level": "good",
+      "tool_calls": [],
+      "duration_ms": 0.22482872009277344,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "No intent detected"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 0/0 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "0 tool calls (no limit set)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 0/0 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "E003",
+      "question": "SELECT * FROM users; DROP TABLE users;--",
+      "expected_intent": "place_lookup",
+      "detected_intent": "unknown",
+      "confidence": 0.0,
+      "score": 55,
+      "percentage": 55.00000000000001,
+      "level": "poor",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.421140670776367,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "Wrong intent: expected place_lookup, got unknown"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 0/0 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 tool calls (no limit set)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 0,
+          "max_points": 20,
+          "level": "fail",
+          "details": "Forbidden keywords found: ['SELECT', 'DROP']"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "E004",
+      "question": "Find the <script>alert('xss')</script> area",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.48,
+      "score": 70,
+      "percentage": 70.0,
+      "level": "acceptable",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.376079559326172,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 15,
+          "max_points": 25,
+          "level": "acceptable",
+          "details": "Correct intent (place_lookup) with low confidence (0.48)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 0/0 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 tool calls (no limit set)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 0,
+          "max_points": 20,
+          "level": "fail",
+          "details": "Forbidden keywords found: ['<script>', 'alert']"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "E005",
+      "question": "asdfghjkl qwertyuiop zxcvbnm",
+      "expected_intent": "place_lookup",
+      "detected_intent": "unknown",
+      "confidence": 0.0,
+      "score": 75,
+      "percentage": 75.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.34222412109375,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "Wrong intent: expected place_lookup, got unknown"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 0/0 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 tool calls (no limit set)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 0/0 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "X001",
+      "question": "Birmingham",
+      "expected_intent": "place_lookup",
+      "detected_intent": "place_lookup",
+      "confidence": 0.8,
+      "score": 100,
+      "percentage": 100.0,
+      "level": "excellent",
+      "tool_calls": [
+        "route_query",
+        "search_geographic_areas"
+      ],
+      "duration_ms": 2.5069713592529297,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Correct intent (place_lookup) with high confidence (0.80)"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 1/1 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "2 calls (within limit of 2)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 1/1 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    },
+    {
+      "question_id": "X002",
+      "question": "population",
+      "expected_intent": "dataset_discovery",
+      "detected_intent": "statistics",
+      "confidence": 0.9,
+      "score": 75,
+      "percentage": 75.0,
+      "level": "good",
+      "tool_calls": [
+        "route_query"
+      ],
+      "duration_ms": 0.27942657470703125,
+      "error": null,
+      "dimensions": [
+        {
+          "dimension": "intent_recognition",
+          "points": 0,
+          "max_points": 25,
+          "level": "fail",
+          "details": "Wrong intent: expected dataset_discovery, got statistics"
+        },
+        {
+          "dimension": "tool_selection",
+          "points": 25,
+          "max_points": 25,
+          "level": "excellent",
+          "details": "Used 0/0 required tools"
+        },
+        {
+          "dimension": "efficiency",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "1 calls (within limit of 3)"
+        },
+        {
+          "dimension": "response_quality",
+          "points": 20,
+          "max_points": 20,
+          "level": "excellent",
+          "details": "Found 0/0 keywords"
+        },
+        {
+          "dimension": "error_handling",
+          "points": 10,
+          "max_points": 10,
+          "level": "excellent",
+          "details": "No errors occurred"
+        }
+      ]
+    }
+  ]
+}
