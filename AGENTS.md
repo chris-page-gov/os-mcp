@@ -79,6 +79,7 @@ After any code changes, update:
 2. **plans/PROGRESS.md** - Update task statuses and metrics
 3. **README.md** - Update if features/tools changed
 4. **CLAUDE.md** - Update if architecture changed
+5. **docs/spec_tracking.md** - Add/update entries for any preview specs/features
 
 ## Git Workflow
 

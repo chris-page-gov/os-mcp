@@ -248,6 +248,8 @@ Use `get_tool_annotations(tool_name)` to get annotation hints for any tool.
    - New environment variables added
    - New commands needed
 
+5. **`docs/spec_tracking.md`** - Add/update entries for any preview specs/features
+
 ### Documentation checklist (copy into your work):
 ```
 - [ ] CHANGELOG.md updated with changes
@@ -255,6 +257,7 @@ Use `get_tool_annotations(tool_name)` to get annotation hints for any tool.
 - [ ] plans/PROGRESS.md metrics updated (tests, tools, resources)
 - [ ] README.md progress table updated (if sprint completed)
 - [ ] CLAUDE.md updated (if architecture changed)
+- [ ] docs/spec_tracking.md updated for preview specs/features
 ```
 
 ### MCP-Apps Implementation Tracking
